@@ -376,6 +376,88 @@ export function TestGauges() {
       </div>
 
       {/* --- Resizable --- */}
+      {/* --- Last Updated --- */}
+      <h2 data-testid="lastupdated-section">Last Updated Timestamp</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 32 }}>
+
+        <Card title="Needle With Timestamp">
+          <NeedleGauge
+            value={72}
+            alertZones={threeZones}
+            label="temperature"
+            unit="°C"
+            lastUpdated={Date.now()}
+            showLastUpdated
+          />
+        </Card>
+
+        <Card title="Arc With Timestamp">
+          <ArcGauge
+            value={72}
+            alertZones={threeZones}
+            label="temperature"
+            unit="°C"
+            lastUpdated={Date.now()}
+            showLastUpdated
+          />
+        </Card>
+
+        <Card title="Needle Custom Timestamp Format">
+          <NeedleGauge
+            value={55}
+            alertZones={threeZones}
+            label="temperature"
+            lastUpdated={Date.now() - 60000}
+            showLastUpdated
+            formatTimestamp={(ts) => {
+              const d = ts instanceof Date ? ts : new Date(ts);
+              return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} UTC`;
+            }}
+            styles={{
+              lastUpdated: { fontSize: 11, color: '#3b82f6', fontWeight: 600 },
+            }}
+          />
+        </Card>
+
+        <Card title="Arc Timestamp 270 Dark">
+          <ArcGauge
+            value={60}
+            alertZones={threeZones}
+            label="temperature"
+            unit="°C"
+            lastUpdated={Date.now()}
+            showLastUpdated
+            styles={{
+              arcAngle: 270,
+              background: { color: '#0f172a' },
+              value: { color: '#ffffff' },
+              label: { color: '#94a3b8' },
+              lastUpdated: { color: '#64748b', fontSize: 10 },
+              minMax: { color: '#64748b' },
+              unit: { color: '#94a3b8' },
+            }}
+          />
+        </Card>
+
+        <Card title="Needle No Timestamp (default)">
+          <NeedleGauge
+            value={45}
+            alertZones={threeZones}
+            label="temperature"
+            lastUpdated={Date.now()}
+          />
+        </Card>
+
+        <Card title="Arc No Timestamp (default)">
+          <ArcGauge
+            value={45}
+            alertZones={threeZones}
+            label="temperature"
+            lastUpdated={Date.now()}
+          />
+        </Card>
+      </div>
+
       <h2 data-testid="resizable-section">Resizable Gauges</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 32 }}>
 

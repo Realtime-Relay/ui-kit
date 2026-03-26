@@ -42,11 +42,12 @@ function LiveProgressPage({ deviceIdent, metrics }: { deviceIdent: string; metri
   const firstMetric = metrics[0] ?? 'value';
   const secondMetric = metrics[1];
 
-  const { value: val1 } = useRelayLatest(deviceIdent, firstMetric);
-  const { value: val2 } = useRelayLatest(deviceIdent, secondMetric ?? firstMetric);
+  const { value: val1, timestamp: ts1 } = useRelayLatest(deviceIdent, firstMetric);
+  const { value: val2, timestamp: ts2 } = useRelayLatest(deviceIdent, secondMetric ?? firstMetric);
 
   const v = val1 ?? 0;
   const v2 = val2 ?? 0;
+  const lastTs = ts1 ?? ts2 ?? null;
 
   return (
     <div style={{ padding: 32, maxWidth: 900, margin: '0 auto' }}>
@@ -69,10 +70,10 @@ function LiveProgressPage({ deviceIdent, metrics }: { deviceIdent: string; metri
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
 
-        {/* Default */}
-        <Card title="Default" span={2}>
+        {/* Default with timestamp */}
+        <Card title="Default (with timestamp)" span={2}>
           <div style={{ height: 28 }}>
-            <ProgressBar value={v} />
+            <ProgressBar value={v} lastUpdated={lastTs} showLastUpdated />
           </div>
         </Card>
 

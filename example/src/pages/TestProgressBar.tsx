@@ -208,6 +208,37 @@ export function TestProgressBar() {
       </div>
 
       {/* --- Resizable --- */}
+      {/* --- Last Updated --- */}
+      <h2 data-testid="lastupdated-section">Last Updated Timestamp</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 32 }}>
+
+        <Card title="With Timestamp">
+          <ProgressBar value={65} showLabel lastUpdated={Date.now()} showLastUpdated />
+        </Card>
+
+        <Card title="Timestamp With Zones">
+          <ProgressBar value={55} alertZones={trafficZones} showLabel lastUpdated={Date.now()} showLastUpdated />
+        </Card>
+
+        <Card title="Custom Timestamp Format">
+          <ProgressBar
+            value={75}
+            showLabel
+            lastUpdated={Date.now() - 120000}
+            showLastUpdated
+            formatTimestamp={(ts) => {
+              const d = ts instanceof Date ? ts : new Date(ts);
+              return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} UTC`;
+            }}
+            styles={{ lastUpdated: { fontSize: 13, color: '#3b82f6', fontWeight: 600 } }}
+          />
+        </Card>
+
+        <Card title="No Timestamp (default)">
+          <ProgressBar value={50} showLabel lastUpdated={Date.now()} />
+        </Card>
+      </div>
+
       <h2 data-testid="resizable-section">Resizable</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 32 }}>
 

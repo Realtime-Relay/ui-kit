@@ -77,11 +77,12 @@ function LiveGaugePage({ deviceIdent, metrics }: { deviceIdent: string; metrics:
   const firstMetric = metrics[0] ?? 'value';
   const secondMetric = metrics[1];
 
-  const { value: val1 } = useRelayLatest(deviceIdent, firstMetric);
-  const { value: val2 } = useRelayLatest(deviceIdent, secondMetric ?? firstMetric);
+  const { value: val1, timestamp: ts1 } = useRelayLatest(deviceIdent, firstMetric);
+  const { value: val2, timestamp: ts2 } = useRelayLatest(deviceIdent, secondMetric ?? firstMetric);
 
   const v = val1 ?? 0;
   const v2 = val2 ?? 0;
+  const lastTs = ts1 ?? ts2 ?? null;
 
   return (
     <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
@@ -108,11 +109,13 @@ function LiveGaugePage({ deviceIdent, metrics }: { deviceIdent: string; metrics:
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 40 }}>
 
-        {/* 1. Default — no styling */}
-        <Card title="Default (no customization)">
+        {/* 1. Default — with last updated */}
+        <Card title="Default (with timestamp)">
           <NeedleGauge
             value={v}
             label={firstMetric}
+            lastUpdated={lastTs}
+            showLastUpdated
           />
         </Card>
 
@@ -134,13 +137,15 @@ function LiveGaugePage({ deviceIdent, metrics }: { deviceIdent: string; metrics:
           />
         </Card>
 
-        {/* 4. Custom unit */}
-        <Card title="With Unit Suffix">
+        {/* 4. Custom unit + timestamp */}
+        <Card title="With Unit Suffix + Timestamp">
           <NeedleGauge
             value={v}
             label={firstMetric}
             unit="°C"
             alertZones={alertZones3}
+            lastUpdated={lastTs}
+            showLastUpdated
           />
         </Card>
 
@@ -369,11 +374,13 @@ function LiveGaugePage({ deviceIdent, metrics }: { deviceIdent: string; metrics:
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 40 }}>
 
-        {/* 1. Default */}
-        <Card title="Default (no customization)">
+        {/* 1. Default + timestamp */}
+        <Card title="Default (with timestamp)">
           <ArcGauge
             value={v}
             label={firstMetric}
+            lastUpdated={lastTs}
+            showLastUpdated
           />
         </Card>
 
