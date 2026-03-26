@@ -1,10 +1,13 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
-import { scaleTime, scaleLinear, line, area, extent, bisector, pointer } from 'd3';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { scaleTime, scaleLinear, line, area, extent, bisector, pointer, timeFormat } from 'd3';
 import type { DataPoint, MetricConfig, AlertZone, FontStyle, BackgroundStyle, DownsampleConfig } from '../utils/types';
 import { resolveMetrics } from '../utils/metrics';
+import { useResolvedStyles } from '../utils/useResolvedStyles';
 import { getMetricColor } from '../theme/palette';
 import { applyDownsample } from '../utils/downsample';
 import { defaultFormatValue } from '../utils/formatters';
+import { createScaler, CHART_REFERENCE } from '../utils/scaler';
+import { isValidTimestamp, validateAlertZones, type ComponentError } from '../utils/validation';
 import {
   ResponsiveContainer,
   Tooltip,
@@ -51,9 +54,12 @@ export interface TimeSeriesProps {
   legendPosition?: 'top' | 'bottom';
   showLoading?: boolean;
   downsample?: DownsampleConfig;
+  /** Time window in milliseconds. Only data within [now - timeWindow, now] is shown. Enables autoscroll. */
+  timeWindow?: number;
+  /** Enable autoscroll when timeWindow is set. Defaults to true if timeWindow is provided. */
+  autoScroll?: boolean;
+  onError?: (error: ComponentError) => void;
 }
-
-const MARGIN = { top: 20, right: 20, bottom: 30, left: 50 };
 
 export function TimeSeries({
   data,
@@ -74,13 +80,44 @@ export function TimeSeries({
   legendPosition = 'bottom',
   showLoading = true,
   downsample,
+  timeWindow,
+  autoScroll,
+  onError,
 }: TimeSeriesProps) {
+  validateAlertZones(alertZones, 'TimeSeries');
+
+  const resolvedStyles = useResolvedStyles(styles);
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [visibleMetrics, setVisibleMetrics] = useState<Set<string> | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  // Autoscroll: update `now` on animation frame when timeWindow is set
+  const isAutoScroll = timeWindow != null && (autoScroll !== false);
+  useEffect(() => {
+    if (!isAutoScroll) return;
+    let rafId: number;
+    const tick = () => {
+      setNow(Date.now());
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [isAutoScroll]);
+
+  // Filter out data points with invalid timestamps
+  const validData = useMemo(() => {
+    return data.filter((point) => {
+      if (!isValidTimestamp(point.timestamp)) {
+        onError?.({ type: 'invalid_timestamp', message: `TimeSeries: invalid timestamp, received ${point.timestamp}`, rawValue: point.timestamp, component: 'TimeSeries' });
+        return false;
+      }
+      return true;
+    });
+  }, [data, onError]);
 
   // Resolve metrics from data if not provided
-  const resolvedMetrics = useMemo(() => resolveMetrics(data, metricsProp), [data, metricsProp]);
+  const resolvedMetrics = useMemo(() => resolveMetrics(validData, metricsProp), [validData, metricsProp]);
 
   // Track visibility — initialize from MetricConfig.visible, then user toggles override
   const metricVisibility = useMemo(() => {
@@ -99,25 +136,25 @@ export function TimeSeries({
 
   // Downsample per metric
   const downsampledData = useMemo(() => {
-    if (activeMetrics.length === 0) return data;
+    if (activeMetrics.length === 0) return validData;
     // Downsample using first active metric as reference
-    return applyDownsample(data, downsample, activeMetrics[0].key);
-  }, [data, downsample, activeMetrics]);
+    return applyDownsample(validData, downsample, activeMetrics[0].key);
+  }, [validData, downsample, activeMetrics]);
 
-  const handleToggleMetric = useCallback((key: string) => {
+  const handleSelectMetric = useCallback((key: string) => {
     setVisibleMetrics((prev) => {
-      const next = new Set(prev ?? Array.from(metricVisibility));
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
+      const current = prev ?? new Set(resolvedMetrics.map((m) => m.key));
+      // If this is the only visible metric, re-show all
+      if (current.size === 1 && current.has(key)) {
+        return new Set(resolvedMetrics.map((m) => m.key));
       }
-      return next;
+      // Otherwise, select only this one
+      return new Set([key]);
     });
-  }, [metricVisibility]);
+  }, [resolvedMetrics]);
 
   // Loading state
-  if (showLoading && (!data || data.length === 0)) {
+  if (showLoading && (!validData || validData.length === 0)) {
     return (
       <ResponsiveContainer>
         {({ width, height }) => <ChartSkeleton width={width} height={height} />}
@@ -138,18 +175,33 @@ export function TimeSeries({
       style={{ backgroundColor: styles?.background?.color ?? 'var(--relay-bg-color, transparent)' }}
     >
       {({ width, height }) => {
+        const s = createScaler(width, height, CHART_REFERENCE, 'width');
+        const MARGIN = { top: s(20), right: s(20), bottom: s(30), left: s(50) };
         const chartWidth = width - MARGIN.left - MARGIN.right;
-        const chartHeight = height - MARGIN.top - MARGIN.bottom - (showLegend ? 30 : 0) - (title ? 24 : 0);
+        const chartHeight = height - MARGIN.top - MARGIN.bottom - (showLegend ? s(30) : 0) - (title ? s(24) : 0);
 
         if (chartWidth <= 0 || chartHeight <= 0) return null;
 
-        // Scales — convert unix ms timestamps to Date objects for proper axis formatting
-        const [tMin, tMax] = extent(downsampledData, (d) => d.timestamp) as [number, number];
-        const xScale = scaleTime().domain([new Date(tMin), new Date(tMax)]).range([0, chartWidth]);
+        // Filter data by time window if set
+        const visibleData = timeWindow
+          ? downsampledData.filter((d) => d.timestamp >= now - timeWindow && d.timestamp <= now)
+          : downsampledData;
+
+        if (visibleData.length === 0 && downsampledData.length > 0 && timeWindow) {
+          // No data in window yet — show empty chart with correct time range
+        }
+
+        // X-axis domain: fixed window if timeWindow set, otherwise fit to data
+        const xDomainMin = timeWindow ? new Date(now - timeWindow) : new Date((extent(visibleData, (d) => d.timestamp) as [number, number])[0] ?? now);
+        const xDomainMax = timeWindow ? new Date(now) : new Date((extent(visibleData, (d) => d.timestamp) as [number, number])[1] ?? now);
+        const xScale = scaleTime().domain([xDomainMin, xDomainMax]).range([0, chartWidth]);
+
+        // Custom tick format — always show HH:MM:SS
+        const tickFormat = timeFormat('%H:%M:%S');
 
         let yMin = Infinity;
         let yMax = -Infinity;
-        for (const d of downsampledData) {
+        for (const d of visibleData) {
           for (const m of activeMetrics) {
             const v = Number(d[m.key]);
             if (!isNaN(v)) {
@@ -179,9 +231,9 @@ export function TimeSeries({
         const handleMouseMove = (event: React.MouseEvent<SVGRectElement>) => {
           const [mx] = pointer(event.nativeEvent, event.currentTarget);
           const x0 = xScale.invert(mx).getTime();
-          const idx = bisect(downsampledData, x0, 1);
-          const d0 = downsampledData[idx - 1];
-          const d1 = downsampledData[idx];
+          const idx = bisect(visibleData, x0, 1);
+          const d0 = visibleData[idx - 1];
+          const d1 = visibleData[idx];
 
           if (!d0 && !d1) return;
 
@@ -241,18 +293,18 @@ export function TimeSeries({
               <div
                 style={{
                   textAlign: 'center',
-                  fontFamily: styles?.title?.fontFamily ?? 'var(--relay-font-family)',
-                  fontSize: styles?.title?.fontSize ?? 14,
-                  fontWeight: styles?.title?.fontWeight ?? 600,
-                  color: styles?.title?.color,
-                  padding: '4px 0',
+                  fontFamily: resolvedStyles?.title?.fontFamily ?? 'var(--relay-font-family)',
+                  fontSize: resolvedStyles?.title?.fontSize ?? s(14),
+                  fontWeight: resolvedStyles?.title?.fontWeight ?? 600,
+                  color: resolvedStyles?.title?.color,
+                  padding: `${s(4)}px 0`,
                 }}
               >
                 {title}
               </div>
             )}
             {showLegend && legendPosition === 'top' && (
-              <Legend items={legendItems} onToggle={handleToggleMetric} position="top" style={styles?.legend} />
+              <Legend items={legendItems} onSelect={handleSelectMetric} position="top" style={resolvedStyles?.legend} s={s} />
             )}
             <div style={{ flex: 1, position: 'relative' }}>
               <svg ref={svgRef} width={width} height={chartHeight + MARGIN.top + MARGIN.bottom}>
@@ -276,6 +328,7 @@ export function TimeSeries({
                     yScale={yScale}
                     width={chartWidth}
                     height={chartHeight}
+                    s={s}
                   />
 
                   {/* Render lines and optional areas — clipped to chart bounds */}
@@ -297,16 +350,16 @@ export function TimeSeries({
                       <g key={m.key}>
                         {showArea && (
                           <path
-                            d={metricAreaGen(downsampledData) ?? ''}
+                            d={metricAreaGen(visibleData) ?? ''}
                             fill={areaColor ?? color}
                             opacity={0.15}
                           />
                         )}
                         <path
-                          d={metricLineGen(downsampledData) ?? ''}
+                          d={metricLineGen(visibleData) ?? ''}
                           fill="none"
                           stroke={color}
-                          strokeWidth={2}
+                          strokeWidth={s(2)}
                           strokeLinejoin="round"
                           strokeLinecap="round"
                         />
@@ -323,13 +376,13 @@ export function TimeSeries({
                       y1={0}
                       y2={chartHeight}
                       stroke="var(--relay-grid-color, #e0e0e0)"
-                      strokeWidth={1}
+                      strokeWidth={s(1)}
                       strokeDasharray="4,4"
                     />
                   )}
 
-                  <XAxis xScale={xScale} height={chartHeight} style={styles?.axis} />
-                  <YAxis yScale={yScale} style={styles?.axis} />
+                  <XAxis xScale={xScale} height={chartHeight} style={resolvedStyles?.axis} tickFormat={tickFormat} s={s} />
+                  <YAxis yScale={yScale} style={resolvedStyles?.axis} s={s} />
 
                   {/* Invisible overlay for mouse events */}
                   <rect
@@ -347,11 +400,12 @@ export function TimeSeries({
                 containerHeight={height}
                 formatValue={formatValue}
                 renderTooltip={renderTooltip}
-                style={styles?.tooltip}
+                style={resolvedStyles?.tooltip}
+                s={s}
               />
             </div>
             {showLegend && legendPosition === 'bottom' && (
-              <Legend items={legendItems} onToggle={handleToggleMetric} position="bottom" style={styles?.legend} />
+              <Legend items={legendItems} onSelect={handleSelectMetric} position="bottom" style={resolvedStyles?.legend} s={s} />
             )}
           </div>
         );

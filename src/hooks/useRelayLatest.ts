@@ -68,7 +68,10 @@ export function useRelayLatest(
       },
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      app.telemetry.off({ device_ident: deviceIdent, metric: [metric] }).catch(() => {});
+    };
   }, [app, deviceIdent, metric]);
 
   return { value, timestamp, isLoading, error };

@@ -26,6 +26,8 @@ export interface FontStyle {
   fontSize?: number;
   fontWeight?: number | string;
   color?: string;
+  /** URL or path to a .otf/.ttf/.woff/.woff2 file. Auto-generates @font-face. */
+  fontFile?: string;
 }
 
 /** Background styling shared by all components. */
@@ -55,9 +57,18 @@ export interface RelayAppInstance {
       device_ident: string;
       fields: string[];
     }) => Promise<{ status: string; data: any[] }>;
+    off: (opts: {
+      device_ident: string;
+      metric?: string[];
+    }) => Promise<void>;
   };
   connection: {
     listeners: (callback: (event: string) => void) => void;
+    presence: (callback: (data: {
+      event: 'connected' | 'disconnected';
+      device_ident: string;
+      data: { start: number; stop?: number };
+    }) => void) => void;
   };
   alert: {
     list: () => Promise<{ status: string; data: any[] }>;

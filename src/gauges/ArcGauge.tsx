@@ -1,20 +1,34 @@
+import { useRef } from 'react';
 import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
 import { defaultFormatValue } from '../utils/formatters';
+import { resolveFont } from '../utils/useResolvedStyles';
+import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
+import { createScaler, GAUGE_REFERENCE } from '../utils/scaler';
+import { validateRange, validateAlertZones, validateValue, type ComponentError } from '../utils/validation';
 import { ResponsiveContainer } from '../charts/shared/ResponsiveContainer';
 import { CardSkeleton } from '../charts/shared/Skeleton';
 import {
-  buildSemiCirclePath,
-  semiCircleLength,
+  buildArcPath,
+  arcLength,
   buildZoneDashes,
   buildValueDash,
   getZoneColor,
+  getArcEndpoints,
+  getValuePosition,
+  getZoneBoundaries,
+  clampArcAngle,
 } from './shared';
 
 export interface ArcGaugeStyles {
   value?: FontStyle;
   label?: FontStyle;
   unit?: FontStyle;
+  minMax?: FontStyle;
   background?: BackgroundStyle;
+  arcThickness?: number;
+  arcAngle?: number;
+  width?: number;
+  height?: number;
 }
 
 export interface ArcGaugeProps {
@@ -26,10 +40,11 @@ export interface ArcGaugeProps {
   label?: string;
   unit?: string;
   styles?: ArcGaugeStyles;
+  showZoneValues?: boolean;
   showLoading?: boolean;
+  onZoneChange?: (transition: ZoneTransition) => void;
+  onError?: (error: ComponentError) => void;
 }
-
-const ARC_THICKNESS = 20;
 
 export function ArcGauge({
   value,
@@ -40,110 +55,167 @@ export function ArcGauge({
   label,
   unit,
   styles,
+  showZoneValues = false,
   showLoading = true,
+  onZoneChange,
+  onError,
 }: ArcGaugeProps) {
-  if (showLoading && value == null) {
+  validateRange(min, max, 'ArcGauge');
+  validateAlertZones(alertZones, 'ArcGauge');
+
+  const lastValidRef = useRef<number | null>(null);
+  const validatedValue = validateValue(value, 'ArcGauge', onError);
+  if (validatedValue !== null) {
+    lastValidRef.current = validatedValue;
+  }
+  const renderValue = lastValidRef.current;
+
+  useZoneTransition(renderValue ?? min, alertZones, onZoneChange);
+
+  if (showLoading && renderValue == null) {
     return (
-      <ResponsiveContainer>
+      <ResponsiveContainer
+        explicitWidth={styles?.width}
+        explicitHeight={styles?.height}
+      >
         {({ width, height }) => <CardSkeleton width={width} height={height} />}
       </ResponsiveContainer>
     );
   }
 
+  const sweepDegrees = clampArcAngle(styles?.arcAngle);
+
+  const valueStyle = resolveFont(styles?.value);
+  const labelStyleR = resolveFont(styles?.label);
+  const unitStyle = resolveFont(styles?.unit);
+  const minMaxStyle = resolveFont(styles?.minMax);
+
   return (
     <ResponsiveContainer
+      explicitWidth={styles?.width}
+      explicitHeight={styles?.height}
       style={{ backgroundColor: styles?.background?.color ?? 'transparent' }}
     >
       {({ width, height }) => {
-        const padding = 20;
-        const maxRadius = Math.min((width - padding * 2) / 2, height - padding - 50);
-        const radius = Math.max(40, maxRadius);
+        const s = createScaler(width, height, GAUGE_REFERENCE);
+
+        const minMaxFontSize = s(minMaxStyle?.fontSize ?? 10);
+        const zoneValueExtra = showZoneValues && alertZones.length > 0 ? minMaxFontSize + s(4) : 0;
+        const padding = s(20) + zoneValueExtra;
+        const arcThickness = s(styles?.arcThickness ?? 20);
+        const valueFontSize = s(valueStyle?.fontSize ?? 26);
+        const labelFontSize = s(labelStyleR?.fontSize ?? 12);
+        const unitFontSize = s(unitStyle?.fontSize ?? 13);
+
+
+        const sweepRad = (sweepDegrees * Math.PI) / 180;
+        const halfSweep = sweepRad / 2;
+        const arcBottomFraction = sweepDegrees <= 180
+          ? 0
+          : Math.sin(halfSweep - Math.PI / 2);
+
+        const textSpace = sweepDegrees <= 180 ? s(50) : s(20);
+        const totalVertical = padding * 2 + textSpace;
+        const maxRadius = Math.min(
+          (width - padding * 2) / 2,
+          (height - totalVertical) / (1 + arcBottomFraction)
+        );
+        const radius = Math.max(s(40), maxRadius);
         const cx = width / 2;
         const cy = padding + radius;
 
-        const arcPath = buildSemiCirclePath(cx, cy, radius);
-        const totalLen = semiCircleLength(radius);
+        const { path: arcPathD } = buildArcPath(cx, cy, radius, sweepDegrees);
+        const totalLen = arcLength(radius, sweepDegrees);
         const zoneDashes = buildZoneDashes(alertZones, min, max, totalLen);
-        const valueDash = buildValueDash(value, min, max, totalLen);
+        const clampedValue = Math.min(max, Math.max(min, renderValue!));
+        const valueDash = buildValueDash(clampedValue, min, max, totalLen);
         const valueColor = alertZones.length > 0
-          ? getZoneColor(value, alertZones, '#3b82f6')
+          ? getZoneColor(clampedValue, alertZones, '#3b82f6')
           : '#3b82f6';
 
+        const endpoints = getArcEndpoints(cx, cy, radius + arcThickness / 2 + s(12), sweepDegrees);
+
+        // Value + label stack centered inside the arc
+        const totalTextHeight = label
+          ? valueFontSize + labelFontSize + s(4)
+          : valueFontSize;
+        const valueY = cy - totalTextHeight / 2 + valueFontSize / 2;
+        const labelYPos = valueY + valueFontSize * 0.5 + labelFontSize * 0.5 + s(4);
+
         return (
-          <svg width={width} height={height}>
-            {/* Background arc */}
+          <svg
+            width={width}
+            height={height}
+            role="meter"
+            aria-valuenow={renderValue!}
+            aria-valuemin={min}
+            aria-valuemax={max}
+            aria-label={label ?? 'Gauge'}
+          >
             <path
-              d={arcPath}
+              d={arcPathD}
               fill="none"
               stroke="#e5e7eb"
-              strokeWidth={ARC_THICKNESS}
+              strokeWidth={arcThickness}
               strokeLinecap="butt"
             />
 
-            {/* Alert zone arcs (subtle) */}
             {zoneDashes.map((z, i) => (
               <path
                 key={i}
-                d={arcPath}
+                d={arcPathD}
                 fill="none"
                 stroke={z.color}
-                strokeWidth={ARC_THICKNESS}
+                strokeWidth={arcThickness}
                 strokeDasharray={z.dasharray}
                 strokeDashoffset={z.dashoffset}
                 opacity={0.25}
               />
             ))}
 
-            {/* Value fill arc */}
             <path
-              d={arcPath}
+              d={arcPathD}
               fill="none"
               stroke={valueColor}
-              strokeWidth={ARC_THICKNESS}
+              strokeWidth={arcThickness}
               strokeLinecap="butt"
               strokeDasharray={valueDash.dasharray}
               strokeDashoffset={valueDash.dashoffset}
             />
 
-            {/* Value in center */}
             <text
               x={cx}
-              y={cy - 4}
+              y={valueY}
               textAnchor="middle"
-              dominantBaseline="auto"
-              fontSize={styles?.value?.fontSize ?? 26}
-              fontFamily={styles?.value?.fontFamily ?? 'var(--relay-font-family)'}
-              fontWeight={styles?.value?.fontWeight ?? 700}
-              fill={styles?.value?.color ?? valueColor}
+              dominantBaseline="central"
+              fontSize={valueFontSize}
+              fontFamily={valueStyle?.fontFamily ?? 'var(--relay-font-family)'}
+              fontWeight={valueStyle?.fontWeight ?? 700}
+              fill={valueStyle?.color ?? valueColor}
             >
-              {formatValue(value)}
+              {formatValue(renderValue!)}
+              {unit && (
+                <tspan
+                  fontSize={unitFontSize}
+                  fontFamily={unitStyle?.fontFamily ?? 'var(--relay-font-family)'}
+                  fontWeight={unitStyle?.fontWeight ?? 400}
+                  fill={unitStyle?.color ?? '#6b7280'}
+                >
+                  {' '}{unit}
+                </tspan>
+              )}
             </text>
 
-            {/* Unit */}
-            {unit && (
-              <text
-                x={cx}
-                y={cy + 16}
-                textAnchor="middle"
-                fontSize={styles?.unit?.fontSize ?? 13}
-                fontFamily={styles?.unit?.fontFamily ?? 'var(--relay-font-family)'}
-                fontWeight={styles?.unit?.fontWeight ?? 400}
-                fill={styles?.unit?.color ?? '#6b7280'}
-              >
-                {unit}
-              </text>
-            )}
-
-            {/* Label */}
             {label && (
               <text
                 x={cx}
-                y={cy + 34}
+                y={labelYPos}
                 textAnchor="middle"
-                fontSize={styles?.label?.fontSize ?? 12}
-                fontFamily={styles?.label?.fontFamily ?? 'var(--relay-font-family)'}
-                fontWeight={styles?.label?.fontWeight ?? 400}
-                fill={styles?.label?.color ?? '#6b7280'}
+                dominantBaseline="central"
+                fontSize={labelFontSize}
+                fontFamily={labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+                fontWeight={labelStyleR?.fontWeight ?? 400}
+                fill={labelStyleR?.color ?? '#6b7280'}
               >
                 {label}
               </text>
@@ -151,26 +223,47 @@ export function ArcGauge({
 
             {/* Min label */}
             <text
-              x={cx - radius}
-              y={cy + 20}
+              x={endpoints.startX}
+              y={endpoints.startY}
               textAnchor="middle"
-              fontSize={10}
-              fontFamily={styles?.label?.fontFamily ?? 'var(--relay-font-family)'}
-              fill="#9ca3af"
+              fontSize={s(minMaxStyle?.fontSize ?? 10)}
+              fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+              fontWeight={minMaxStyle?.fontWeight ?? 400}
+              fill={minMaxStyle?.color ?? '#9ca3af'}
             >
               {formatValue(min)}
             </text>
             {/* Max label */}
             <text
-              x={cx + radius}
-              y={cy + 20}
+              x={endpoints.endX}
+              y={endpoints.endY}
               textAnchor="middle"
-              fontSize={10}
-              fontFamily={styles?.label?.fontFamily ?? 'var(--relay-font-family)'}
-              fill="#9ca3af"
+              fontSize={s(minMaxStyle?.fontSize ?? 10)}
+              fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+              fontWeight={minMaxStyle?.fontWeight ?? 400}
+              fill={minMaxStyle?.color ?? '#9ca3af'}
             >
               {formatValue(max)}
             </text>
+
+            {/* Zone boundary values */}
+            {showZoneValues && alertZones.length > 0 && getZoneBoundaries(alertZones, min, max).map((bv) => {
+              const pos = getValuePosition(cx, cy, radius + arcThickness / 2 + s(12), bv, min, max, sweepDegrees);
+              return (
+                <text
+                  key={`zv-${bv}`}
+                  x={pos.x}
+                  y={pos.y}
+                  textAnchor="middle"
+                  fontSize={s(minMaxStyle?.fontSize ?? 10)}
+                  fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+                  fontWeight={minMaxStyle?.fontWeight ?? 400}
+                  fill={minMaxStyle?.color ?? '#9ca3af'}
+                >
+                  {formatValue(bv)}
+                </text>
+              );
+            })}
           </svg>
         );
       }}

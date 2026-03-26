@@ -3,6 +3,11 @@ declare module 'relayx-app-js' {
     constructor(opts: { api_key: string; secret: string; mode: string; debug?: boolean });
     connection: {
       listeners: (callback: (event: string) => void) => void;
+      presence: (callback: (data: {
+        event: 'connected' | 'disconnected';
+        device_ident: string;
+        data: { start: number; stop?: number };
+      }) => void) => void;
     };
     telemetry: {
       stream: (opts: any) => Promise<void>;

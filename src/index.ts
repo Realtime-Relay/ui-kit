@@ -40,7 +40,7 @@ export type { UseRelayTimeSeriesOptions, UseRelayTimeSeriesResult } from './hook
 export { useRelayLatest } from './hooks/useRelayLatest';
 export type { UseRelayLatestResult } from './hooks/useRelayLatest';
 export { useRelayPresence } from './hooks/useRelayPresence';
-export type { UseRelayPresenceResult } from './hooks/useRelayPresence';
+export type { UseRelayPresenceResult, PresenceEvent } from './hooks/useRelayPresence';
 export { useRelayAlertZones } from './hooks/useRelayAlertZones';
 export type { UseRelayAlertZonesResult } from './hooks/useRelayAlertZones';
 export { useRelayDeviceStates } from './hooks/useRelayDeviceStates';
@@ -48,11 +48,19 @@ export type { UseRelayDeviceStatesResult } from './hooks/useRelayDeviceStates';
 export { useRelayAlertTimeline } from './hooks/useRelayAlertTimeline';
 export type { UseRelayAlertTimelineResult } from './hooks/useRelayAlertTimeline';
 
+// Zone transition
+export { useZoneTransition } from './utils/useZoneTransition';
+export type { ZoneTransition } from './utils/useZoneTransition';
+
+// Validation
+export type { ComponentError } from './utils/validation';
+
 // Utilities
 export { defaultFormatValue } from './utils/formatters';
 export { lttbDownsample, applyDownsample } from './utils/downsample';
 export { normalizeRealtimePoint, normalizeHistoricalPoint, mergeData, applyWindow } from './utils/data';
 export { resolveMetrics } from './utils/metrics';
+export { resolveFontFamily } from './utils/fonts';
 
 // Types
 export type {

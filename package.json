@@ -28,7 +28,9 @@
     "build-storybook": "storybook build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
@@ -44,13 +46,17 @@
     "d3": "^7.9.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@storybook/addon-essentials": "^8.5.0",
     "@storybook/react": "^8.5.0",
     "@storybook/react-vite": "^8.5.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/d3": "^7.4.3",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "jsdom": "^29.0.1",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "storybook": "^8.5.0",

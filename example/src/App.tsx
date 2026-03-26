@@ -1,15 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
+import { PresenceDemo } from './pages/PresenceDemo';
+import { ProgressBarDemo } from './pages/ProgressBarDemo';
+import { GaugeDemo } from './pages/GaugeDemo';
+import { TestGauges } from './pages/TestGauges';
+import { TestProgressBar } from './pages/TestProgressBar';
 import { useConfig } from './hooks/useConfig';
 import './App.css';
 
-type Page = 'dashboard' | 'settings';
+export type Page = 'dashboard' | 'settings' | 'presence' | 'progressbar' | 'gauges';
+
+/** Hash-based test routes for Playwright (no SDK needed) */
+function useTestRoute(): string | null {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  if (hash === '#/test-gauges') return 'test-gauges';
+  if (hash === '#/test-progress') return 'test-progress';
+  return null;
+}
 
 export function App() {
-  const [page, setPage] = useState<Page>('dashboard');
+  const testRoute = useTestRoute();
+  const [page, setPage] = useState<Page>('presence');
   const { config, saveConfig, isConfigured } = useConfig();
+
+  // Render test pages directly — no sidebar, no SDK
+  if (testRoute === 'test-gauges') return <TestGauges />;
+  if (testRoute === 'test-progress') return <TestProgressBar />;
 
   return (
     <>
@@ -19,11 +42,15 @@ export function App() {
         isConfigured={isConfigured}
       />
       <main className="app-content">
-        {page === 'dashboard' ? (
+        {page === 'dashboard' && (
           <Dashboard config={config} onGoToSettings={() => setPage('settings')} />
-        ) : (
+        )}
+        {page === 'settings' && (
           <Settings config={config} onSave={saveConfig} />
         )}
+        {page === 'presence' && <PresenceDemo />}
+        {page === 'progressbar' && <ProgressBarDemo />}
+        {page === 'gauges' && <GaugeDemo />}
       </main>
     </>
   );

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { RelayApp } from 'relayx-app-js';
 import {
   RelayProvider,
@@ -16,10 +16,21 @@ import {
   StateTimeline,
 } from '@relayx/ui';
 import type { AppConfig } from '../hooks/useConfig';
+import { TimeRangeToolbar } from '../components/TimeRangeToolbar';
 
 interface DashboardProps {
   config: AppConfig;
   onGoToSettings: () => void;
+}
+
+/** Convert a Date to `datetime-local` input value (YYYY-MM-DDTHH:mm) */
+function toLocalInput(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${d}T${h}:${min}`;
 }
 
 export function Dashboard({ config, onGoToSettings }: DashboardProps) {
@@ -67,7 +78,6 @@ export function Dashboard({ config, onGoToSettings }: DashboardProps) {
     );
   }
 
-  // Create SDK instance — memoized so it doesn't recreate on every render
   const app = useMemo(
     () =>
       new RelayApp({
@@ -88,15 +98,37 @@ export function Dashboard({ config, onGoToSettings }: DashboardProps) {
 function DashboardContent({ config }: { config: AppConfig }) {
   const { isConnected, error } = useRelayConnection();
   const firstMetric = config.metrics[0];
-  const timeRange = {
-    start: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // last hour
+
+  // Time range state
+  const [isLive, setIsLive] = useState(true);
+  const [liveWindow, setLiveWindow] = useState(60_000); // 60s default
+  const [histStart, setHistStart] = useState(() => toLocalInput(new Date(Date.now() - 3_600_000)));
+  const [histEnd, setHistEnd] = useState(() => toLocalInput(new Date()));
+  const [appliedRange, setAppliedRange] = useState(() => ({
+    start: new Date(Date.now() - 3_600_000).toISOString(),
     end: new Date().toISOString(),
+  }));
+
+  // Compute timeRange based on mode
+  const timeRange = isLive
+    ? {
+        start: new Date(Date.now() - liveWindow * 10).toISOString(), // fetch more history for context
+        end: new Date().toISOString(),
+      }
+    : appliedRange;
+
+  const handleApplyRange = () => {
+    setAppliedRange({
+      start: new Date(histStart).toISOString(),
+      end: new Date(histEnd).toISOString(),
+    });
   };
 
   const { data: tsData, isLoading: tsLoading } = useRelayTimeSeries({
     deviceIdent: config.deviceIdent,
     metrics: config.metrics,
     timeRange,
+    live: isLive,
   });
 
   const { value: latestValue, timestamp: latestTs } = useRelayLatest(
@@ -112,7 +144,7 @@ function DashboardContent({ config }: { config: AppConfig }) {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          marginBottom: 24,
+          marginBottom: 16,
           padding: '8px 16px',
           borderRadius: 8,
           backgroundColor: error ? '#fef2f2' : isConnected ? '#f0fdf4' : '#fffbeb',
@@ -138,14 +170,27 @@ function DashboardContent({ config }: { config: AppConfig }) {
         )}
       </div>
 
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24, color: '#111827' }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, color: '#111827' }}>
         Dashboard
       </h1>
+
+      {/* Time range toolbar */}
+      <TimeRangeToolbar
+        isLive={isLive}
+        onToggleLive={setIsLive}
+        liveWindow={liveWindow}
+        onLiveWindowChange={setLiveWindow}
+        startTime={histStart}
+        endTime={histEnd}
+        onStartChange={setHistStart}
+        onEndChange={setHistEnd}
+        onApply={handleApplyRange}
+      />
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
           gap: 20,
         }}
       >
@@ -156,6 +201,8 @@ function DashboardContent({ config }: { config: AppConfig }) {
               data={tsData}
               title={`${config.metrics.join(', ')} — Line`}
               showLoading={tsLoading}
+              timeWindow={isLive ? liveWindow : undefined}
+              autoScroll={isLive}
             />
           </div>
         </Card>
@@ -168,6 +215,8 @@ function DashboardContent({ config }: { config: AppConfig }) {
               title={`${config.metrics.join(', ')} — Area`}
               area
               showLoading={tsLoading}
+              timeWindow={isLive ? liveWindow : undefined}
+              autoScroll={isLive}
             />
           </div>
         </Card>
@@ -193,9 +242,8 @@ function DashboardContent({ config }: { config: AppConfig }) {
               min={0}
               max={100}
               alertZones={[
-                { min: 0, max: 40, color: '#22c55e' },
-                { min: 40, max: 70, color: '#f59e0b' },
-                { min: 70, max: 100, color: '#ef4444' },
+                { min: 0, max: 50, color: '#22c55e' },
+                { min: 50, max: 100, color: '#ef4444' },
               ]}
             />
           </div>

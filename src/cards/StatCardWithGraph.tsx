@@ -1,7 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { scaleTime, scaleLinear, line, area, extent } from 'd3';
 import type { DataPoint, FontStyle, BackgroundStyle } from '../utils/types';
 import { defaultFormatValue } from '../utils/formatters';
+import { resolveFont } from '../utils/useResolvedStyles';
+import { createScaler, CHART_REFERENCE } from '../utils/scaler';
+import { validateValue, type ComponentError } from '../utils/validation';
 
 export interface StatCardWithGraphStyles {
   value?: FontStyle;
@@ -25,6 +28,7 @@ export interface StatCardWithGraphProps {
   sparklineData?: DataPoint[];
   sparklineMetric?: string;
   graphLineColor?: string;
+  onError?: (error: ComponentError) => void;
 }
 
 function resolveBorderRadius(value?: number | 'rounded' | 'sharp'): string {
@@ -54,8 +58,35 @@ export function StatCardWithGraph({
   sparklineData = [],
   sparklineMetric,
   graphLineColor = '#3b82f6',
+  onError,
 }: StatCardWithGraphProps) {
-  const displayValue = typeof value === 'number' ? formatValue(value) : value;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastValidRef = useRef<number | null>(null);
+  const [dims, setDims] = useState({ width: CHART_REFERENCE, height: CHART_REFERENCE });
+
+  // Validate numeric values; strings pass through as-is
+  const numValue = typeof value === 'number' ? validateValue(value, 'StatCardWithGraph', onError) : null;
+  if (numValue !== null) lastValidRef.current = numValue;
+  const safeValue = typeof value === 'string' ? value : (lastValidRef.current ?? value);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setDims({ width: entry.contentRect.width, height: entry.contentRect.height });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const s = createScaler(dims.width, dims.height, CHART_REFERENCE, 'width');
+  const valueStyleR = resolveFont(styles?.value);
+  const labelStyleR = resolveFont(styles?.label);
+  const lastUpdatedStyleR = resolveFont(styles?.lastUpdated);
+  const displayValue = typeof safeValue === 'number' ? formatValue(safeValue) : safeValue;
 
   // Resolve which metric key to use for the sparkline
   const metricKey = useMemo(() => {
@@ -84,8 +115,8 @@ export function StatCardWithGraph({
     }
     if (yMin === yMax) { yMin -= 1; yMax += 1; }
 
-    const w = 300;
-    const h = 80;
+    const w = Math.max(100, dims.width);
+    const h = Math.max(40, Math.round(dims.height * 0.6));
     const xScale = scaleTime().domain([new Date(tMin), new Date(tMax)]).range([0, w]);
     const yScale = scaleLinear().domain([yMin, yMax]).range([h, 0]);
 
@@ -103,11 +134,12 @@ export function StatCardWithGraph({
       area: areaGen(sparklineData) ?? '',
       viewBox: `0 0 ${w} ${h}`,
     };
-  }, [sparklineData, metricKey]);
+  }, [sparklineData, metricKey, dims.width, dims.height]);
 
   if (showLoading && value == null) {
     return (
       <div
+        ref={containerRef}
         style={{
           width: '100%',
           height: '100%',
@@ -127,6 +159,7 @@ export function StatCardWithGraph({
 
   return (
     <div
+      ref={containerRef}
       style={{
         width: '100%',
         height: '100%',
@@ -155,7 +188,7 @@ export function StatCardWithGraph({
           }}
         >
           <path d={sparklinePath.area} fill={graphLineColor} opacity={0.15} />
-          <path d={sparklinePath.line} fill="none" stroke={graphLineColor} strokeWidth={2} opacity={0.5} />
+          <path d={sparklinePath.line} fill="none" stroke={graphLineColor} strokeWidth={s(2)} opacity={0.5} />
         </svg>
       )}
 
@@ -170,18 +203,18 @@ export function StatCardWithGraph({
           justifyContent: 'center',
           width: '100%',
           height: '100%',
-          padding: 16,
+          padding: s(16),
           boxSizing: 'border-box',
         }}
       >
         {label && (
           <div
             style={{
-              fontFamily: styles?.label?.fontFamily ?? 'var(--relay-font-family)',
-              fontSize: styles?.label?.fontSize ?? 13,
-              fontWeight: styles?.label?.fontWeight ?? 400,
-              color: styles?.label?.color ?? '#6b7280',
-              marginBottom: 4,
+              fontFamily: labelStyleR?.fontFamily ?? 'var(--relay-font-family)',
+              fontSize: labelStyleR?.fontSize ?? s(13),
+              fontWeight: labelStyleR?.fontWeight ?? 400,
+              color: labelStyleR?.color ?? '#6b7280',
+              marginBottom: s(4),
             }}
           >
             {label}
@@ -189,10 +222,10 @@ export function StatCardWithGraph({
         )}
         <div
           style={{
-            fontFamily: styles?.value?.fontFamily ?? 'var(--relay-font-family)',
-            fontSize: styles?.value?.fontSize ?? 32,
-            fontWeight: styles?.value?.fontWeight ?? 700,
-            color: styles?.value?.color ?? 'currentColor',
+            fontFamily: valueStyleR?.fontFamily ?? 'var(--relay-font-family)',
+            fontSize: valueStyleR?.fontSize ?? s(32),
+            fontWeight: valueStyleR?.fontWeight ?? 700,
+            color: valueStyleR?.color ?? 'currentColor',
             lineHeight: 1.2,
           }}
         >
@@ -201,11 +234,11 @@ export function StatCardWithGraph({
         {showLastUpdated && lastUpdated != null && (
           <div
             style={{
-              fontFamily: styles?.lastUpdated?.fontFamily ?? 'var(--relay-font-family)',
-              fontSize: styles?.lastUpdated?.fontSize ?? 11,
-              fontWeight: styles?.lastUpdated?.fontWeight ?? 400,
-              color: styles?.lastUpdated?.color ?? '#9ca3af',
-              marginTop: lastUpdatedMargin,
+              fontFamily: lastUpdatedStyleR?.fontFamily ?? 'var(--relay-font-family)',
+              fontSize: lastUpdatedStyleR?.fontSize ?? s(11),
+              fontWeight: lastUpdatedStyleR?.fontWeight ?? 400,
+              color: lastUpdatedStyleR?.color ?? '#9ca3af',
+              marginTop: s(lastUpdatedMargin),
             }}
           >
             {formatTimestamp(lastUpdated)}

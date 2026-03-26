@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { DataPoint, TimeRange } from '../utils/types';
 import { useRelayApp } from '../context/RelayProvider';
 import { normalizeRealtimePoint, mergeData } from '../utils/data';
@@ -7,6 +7,8 @@ export interface UseRelayTimeSeriesOptions {
   deviceIdent: string;
   metrics: string[];
   timeRange: TimeRange;
+  /** When true, subscribes to real-time stream. When false, only fetches history. Default: true. */
+  live?: boolean;
   maxPoints?: number;
 }
 
@@ -16,10 +18,22 @@ export interface UseRelayTimeSeriesResult {
   error: Error | null;
 }
 
+/** Convert a TimeRange start/end value to a UTC ISO string. */
+function toUTCISO(value: Date | string): string {
+  if (value instanceof Date) return value.toISOString();
+  // If it's already an ISO string with timezone info, return as-is
+  if (value.includes('T') && (value.endsWith('Z') || value.includes('+'))) return value;
+  // datetime-local format: "2026-03-26T14:30" — parse as local, convert to UTC ISO
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return value;
+  return date.toISOString();
+}
+
 export function useRelayTimeSeries({
   deviceIdent,
   metrics,
   timeRange,
+  live = true,
   maxPoints = 10000,
 }: UseRelayTimeSeriesOptions): UseRelayTimeSeriesResult {
   const app = useRelayApp();
@@ -27,6 +41,9 @@ export function useRelayTimeSeries({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const realtimeBuffer = useRef<DataPoint[]>([]);
+
+  const startUTC = toUTCISO(timeRange.start);
+  const endUTC = toUTCISO(timeRange.end);
 
   // Fetch historical data
   useEffect(() => {
@@ -37,18 +54,13 @@ export function useRelayTimeSeries({
 
     async function fetchHistory() {
       try {
-        const start = timeRange.start instanceof Date
-          ? timeRange.start.toISOString()
-          : timeRange.start;
-        const end = timeRange.end instanceof Date
-          ? timeRange.end.toISOString()
-          : timeRange.end;
+        console.log('[RelayX history] fetching', { device_ident: deviceIdent, fields: metrics, start: startUTC, end: endUTC });
 
         const result = await app!.telemetry.history({
           device_ident: deviceIdent,
           fields: metrics,
-          start,
-          end,
+          start: startUTC,
+          end: endUTC,
         });
 
         if (!cancelled && result.data) {
@@ -64,11 +76,13 @@ export function useRelayTimeSeries({
           }).filter((p: DataPoint) => p.timestamp > 0);
 
           points.sort((a, b) => a.timestamp - b.timestamp);
+          console.log('[RelayX history] received', points.length, 'points');
           setData(points);
           setIsLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
+          console.error('[RelayX history] error', err);
           setError(err instanceof Error ? err : new Error(String(err)));
           setIsLoading(false);
         }
@@ -77,11 +91,11 @@ export function useRelayTimeSeries({
 
     fetchHistory();
     return () => { cancelled = true; };
-  }, [app, deviceIdent, metrics.join(','), timeRange.start, timeRange.end]);
+  }, [app, deviceIdent, metrics.join(','), startUTC, endUTC]);
 
-  // Subscribe to real-time streams
+  // Subscribe to real-time streams (only in live mode)
   useEffect(() => {
-    if (!app) return;
+    if (!app || !live) return;
     let cancelled = false;
 
     for (const metric of metrics) {
@@ -105,7 +119,6 @@ export function useRelayTimeSeries({
 
       setData((prev) => {
         const merged = mergeData(prev, newPoints);
-        // Trim to maxPoints
         if (merged.length > maxPoints) {
           return merged.slice(merged.length - maxPoints);
         }
@@ -116,8 +129,10 @@ export function useRelayTimeSeries({
     return () => {
       cancelled = true;
       clearInterval(interval);
+      // Unsubscribe from NATS streams
+      app.telemetry.off({ device_ident: deviceIdent, metric: metrics }).catch(() => {});
     };
-  }, [app, deviceIdent, metrics.join(','), maxPoints]);
+  }, [app, deviceIdent, metrics.join(','), maxPoints, live]);
 
   return { data, isLoading, error };
 }

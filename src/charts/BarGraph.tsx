@@ -2,9 +2,12 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import { scaleBand, scaleLinear, pointer } from 'd3';
 import type { DataPoint, MetricConfig, AlertZone, FontStyle, BackgroundStyle, DownsampleConfig } from '../utils/types';
 import { resolveMetrics } from '../utils/metrics';
+import { useResolvedStyles } from '../utils/useResolvedStyles';
 import { getMetricColor } from '../theme/palette';
 import { applyDownsample } from '../utils/downsample';
 import { defaultFormatValue } from '../utils/formatters';
+import { createScaler, CHART_REFERENCE } from '../utils/scaler';
+import { isValidTimestamp, validateAlertZones, type ComponentError } from '../utils/validation';
 import {
   ResponsiveContainer,
   Tooltip,
@@ -49,9 +52,8 @@ export interface BarGraphProps {
   legendPosition?: 'top' | 'bottom';
   showLoading?: boolean;
   downsample?: DownsampleConfig;
+  onError?: (error: ComponentError) => void;
 }
-
-const MARGIN = { top: 20, right: 20, bottom: 30, left: 50 };
 
 export function BarGraph({
   data,
@@ -71,13 +73,28 @@ export function BarGraph({
   legendPosition = 'bottom',
   showLoading = true,
   downsample,
+  onError,
 }: BarGraphProps) {
+  validateAlertZones(alertZones, 'BarGraph');
+
+  const resolvedStyles = useResolvedStyles(styles);
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [visibleMetrics, setVisibleMetrics] = useState<Set<string> | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const resolvedMetrics = useMemo(() => resolveMetrics(data, metricsProp), [data, metricsProp]);
+  // Filter out data points with invalid timestamps
+  const validData = useMemo(() => {
+    return data.filter((point) => {
+      if (!isValidTimestamp(point.timestamp)) {
+        onError?.({ type: 'invalid_timestamp', message: `BarGraph: invalid timestamp, received ${point.timestamp}`, rawValue: point.timestamp, component: 'BarGraph' });
+        return false;
+      }
+      return true;
+    });
+  }, [data, onError]);
+
+  const resolvedMetrics = useMemo(() => resolveMetrics(validData, metricsProp), [validData, metricsProp]);
 
   const metricVisibility = useMemo(() => {
     if (visibleMetrics) return visibleMetrics;
@@ -94,20 +111,21 @@ export function BarGraph({
   );
 
   const downsampledData = useMemo(() => {
-    if (activeMetrics.length === 0) return data;
-    return applyDownsample(data, downsample, activeMetrics[0].key);
-  }, [data, downsample, activeMetrics]);
+    if (activeMetrics.length === 0) return validData;
+    return applyDownsample(validData, downsample, activeMetrics[0].key);
+  }, [validData, downsample, activeMetrics]);
 
-  const handleToggleMetric = useCallback((key: string) => {
+  const handleSelectMetric = useCallback((key: string) => {
     setVisibleMetrics((prev) => {
-      const next = new Set(prev ?? Array.from(metricVisibility));
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+      const current = prev ?? new Set(resolvedMetrics.map((m) => m.key));
+      if (current.size === 1 && current.has(key)) {
+        return new Set(resolvedMetrics.map((m) => m.key));
+      }
+      return new Set([key]);
     });
-  }, [metricVisibility]);
+  }, [resolvedMetrics]);
 
-  if (showLoading && (!data || data.length === 0)) {
+  if (showLoading && (!validData || validData.length === 0)) {
     return (
       <ResponsiveContainer>
         {({ width, height }) => <ChartSkeleton width={width} height={height} />}
@@ -127,8 +145,10 @@ export function BarGraph({
       style={{ backgroundColor: styles?.background?.color ?? 'var(--relay-bg-color, transparent)' }}
     >
       {({ width, height }) => {
+        const s = createScaler(width, height, CHART_REFERENCE, 'width');
+        const MARGIN = { top: s(20), right: s(20), bottom: s(30), left: s(50) };
         const chartWidth = width - MARGIN.left - MARGIN.right;
-        const chartHeight = height - MARGIN.top - MARGIN.bottom - (showLegend ? 30 : 0) - (title ? 24 : 0);
+        const chartHeight = height - MARGIN.top - MARGIN.bottom - (showLegend ? s(30) : 0) - (title ? s(24) : 0);
 
         if (chartWidth <= 0 || chartHeight <= 0) return null;
 
@@ -230,18 +250,18 @@ export function BarGraph({
               <div
                 style={{
                   textAlign: 'center',
-                  fontFamily: styles?.title?.fontFamily ?? 'var(--relay-font-family)',
-                  fontSize: styles?.title?.fontSize ?? 14,
-                  fontWeight: styles?.title?.fontWeight ?? 600,
-                  color: styles?.title?.color,
-                  padding: '4px 0',
+                  fontFamily: resolvedStyles?.title?.fontFamily ?? 'var(--relay-font-family)',
+                  fontSize: resolvedStyles?.title?.fontSize ?? s(14),
+                  fontWeight: resolvedStyles?.title?.fontWeight ?? 600,
+                  color: resolvedStyles?.title?.color,
+                  padding: `${s(4)}px 0`,
                 }}
               >
                 {title}
               </div>
             )}
             {showLegend && legendPosition === 'top' && (
-              <Legend items={legendItems} onToggle={handleToggleMetric} position="top" style={styles?.legend} />
+              <Legend items={legendItems} onSelect={handleSelectMetric} position="top" style={resolvedStyles?.legend} s={s} />
             )}
             <div style={{ flex: 1, position: 'relative' }}>
               <svg ref={svgRef} width={width} height={chartHeight + MARGIN.top + MARGIN.bottom}>
@@ -263,6 +283,7 @@ export function BarGraph({
                     yScale={yScale}
                     width={chartWidth}
                     height={chartHeight}
+                    s={s}
                   />
 
                   {/* Bars */}
@@ -284,7 +305,7 @@ export function BarGraph({
                           height={barHeight}
                           fill={color}
                           opacity={hoveredIndex === dataIdx ? 1 : 0.85}
-                          rx={2}
+                          rx={s(2)}
                           onMouseMove={(e) => handleBarHover(dataIdx, m.key, e)}
                           onMouseLeave={handleMouseLeave}
                           style={{ cursor: 'pointer', transition: 'opacity 100ms ease' }}
@@ -305,12 +326,12 @@ export function BarGraph({
                         <text
                           key={i}
                           x={x}
-                          y={20}
+                          y={s(20)}
                           textAnchor="middle"
                           style={{
-                            fontFamily: styles?.axis?.fontFamily ?? 'var(--relay-font-family)',
-                            fontSize: styles?.axis?.fontSize ?? 11,
-                            fill: styles?.axis?.color ?? 'currentColor',
+                            fontFamily: resolvedStyles?.axis?.fontFamily ?? 'var(--relay-font-family)',
+                            fontSize: resolvedStyles?.axis?.fontSize ?? s(11),
+                            fill: resolvedStyles?.axis?.color ?? 'currentColor',
                           }}
                         >
                           {formatXTick(i)}
@@ -318,7 +339,7 @@ export function BarGraph({
                       );
                     })}
                   </g>
-                  <YAxis yScale={yScale} style={styles?.axis} />
+                  <YAxis yScale={yScale} style={resolvedStyles?.axis} s={s} />
                 </g>
               </svg>
               <Tooltip
@@ -327,11 +348,12 @@ export function BarGraph({
                 containerHeight={height}
                 formatValue={formatValue}
                 renderTooltip={renderTooltip}
-                style={styles?.tooltip}
+                style={resolvedStyles?.tooltip}
+                s={s}
               />
             </div>
             {showLegend && legendPosition === 'bottom' && (
-              <Legend items={legendItems} onToggle={handleToggleMetric} position="bottom" style={styles?.legend} />
+              <Legend items={legendItems} onSelect={handleSelectMetric} position="bottom" style={resolvedStyles?.legend} s={s} />
             )}
           </div>
         );
