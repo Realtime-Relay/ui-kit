@@ -205,6 +205,10 @@ export function StatCard({
           fontWeight: valueStyleR?.fontWeight ?? 700,
           color: valueStyleR?.color ?? zoneColor ?? 'currentColor',
           lineHeight: 1.2,
+          textAlign: 'center',
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
+          maxWidth: '100%',
         }}
       >
         {displayValue}
