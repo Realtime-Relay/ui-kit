@@ -16,8 +16,10 @@ These are developer configuration mistakes that indicate broken props. The compo
 |---|---|---|
 | Invalid range | `min > max` | NeedleGauge, ArcGauge, ProgressBar |
 | Zero range | `min === max` | NeedleGauge, ArcGauge, ProgressBar |
-| Overlapping alert zones | Two zones share any value in their `[min, max]` range | All components with `alertZones` prop |
+| Missing zone bounds | A zone is missing `min` or `max` (null, undefined) | All components with `alertZones` prop |
+| Invalid zone bounds | `zone.min` or `zone.max` is not a finite number (NaN, Infinity, string) | All components with `alertZones` prop |
 | Inverted alert zone | A single zone has `zone.min > zone.max` | All components with `alertZones` prop |
+| Overlapping alert zones | Two zones share any value in their `[min, max]` range | All components with `alertZones` prop |
 
 **Rationale:** These are always developer mistakes, never runtime data issues. Failing loudly prevents silent misconfiguration.
 
@@ -167,12 +169,27 @@ The library does **not** wrap developer-provided callbacks in try-catch. If thes
 
 Alert zones are validated on every render. Validation checks (all throw on failure):
 
-### 1. Inverted Zone
+### 1. Missing Bounds
+```
+For each zone at index i:
+  if zone.min == null or zone.max == null → throw Error
+  Message: "{Component}: alert zone at index {i} is missing {min|max|min and max}. Both min and max are required."
+```
+
+### 2. Invalid Bounds (non-finite)
+```
+For each zone at index i:
+  if typeof zone.min !== 'number' or !Number.isFinite(zone.min) → throw Error
+  if typeof zone.max !== 'number' or !Number.isFinite(zone.max) → throw Error
+  Message: "{Component}: alert zone at index {i} has invalid {min|max} value ({value}). Must be a finite number."
+```
+
+### 3. Inverted Zone
 ```
 For each zone: if zone.min > zone.max → throw Error
 ```
 
-### 2. Overlapping Zones
+### 4. Overlapping Zones
 ```
 Sort zones by min value.
 For each consecutive pair (a, b): if a.max > b.min → throw Error
@@ -180,7 +197,7 @@ For each consecutive pair (a, b): if a.max > b.min → throw Error
 
 **Note:** Adjacent zones (e.g., `[0, 50]` and `[50, 100]`) are allowed — the boundary value belongs to both zones. Only true overlaps (shared interior range) are errors.
 
-### 3. Gaps
+### 5. Gaps
 Gaps between zones are allowed and render the base component color (gray arc for gauges, background color for progress bar).
 
 ---

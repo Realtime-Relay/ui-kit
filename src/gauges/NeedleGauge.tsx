@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import { defaultFormatValue } from '../utils/formatters';
+import { defaultFormatValue, defaultFormatTimestamp } from '../utils/formatters';
 import { resolveFont } from '../utils/useResolvedStyles';
 import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
 import { createScaler, GAUGE_REFERENCE } from '../utils/scaler';
@@ -24,6 +24,7 @@ export interface NeedleGaugeStyles {
   label?: FontStyle;
   unit?: FontStyle;
   minMax?: FontStyle;
+  lastUpdated?: FontStyle;
   background?: BackgroundStyle;
   arcThickness?: number;
   needleThickness?: number;
@@ -43,6 +44,12 @@ export interface NeedleGaugeProps {
   styles?: NeedleGaugeStyles;
   /** Show values at alert zone boundary points on the arc. */
   showZoneValues?: boolean;
+  /** Timestamp of the last data update. Displayed below the label when showLastUpdated is true. */
+  lastUpdated?: Date | number;
+  /** Show/hide the last updated timestamp. Default: false. */
+  showLastUpdated?: boolean;
+  /** Custom formatter for the timestamp. Receives Date | number, must return string. Default: dd MMM yyyy HH:MM:SS.sss +TZ */
+  formatTimestamp?: (ts: Date | number) => string;
   showLoading?: boolean;
   onZoneChange?: (transition: ZoneTransition) => void;
   onError?: (error: ComponentError) => void;
@@ -58,6 +65,9 @@ export function NeedleGauge({
   unit,
   styles,
   showZoneValues = false,
+  lastUpdated,
+  showLastUpdated = false,
+  formatTimestamp = defaultFormatTimestamp,
   showLoading = true,
   onZoneChange,
   onError,
@@ -93,6 +103,7 @@ export function NeedleGauge({
   const labelStyleR = resolveFont(styles?.label);
   const unitStyle = resolveFont(styles?.unit);
   const minMaxStyle = resolveFont(styles?.minMax);
+  const lastUpdatedStyle = resolveFont(styles?.lastUpdated);
 
   return (
     <ResponsiveContainer
@@ -281,6 +292,25 @@ export function NeedleGauge({
                 {label}
               </text>
             )}
+
+            {showLastUpdated && lastUpdated != null && (() => {
+              const tsText = formatTimestamp(lastUpdated);
+              const tsFontSize = s(lastUpdatedStyle?.fontSize ?? 9);
+              const tsY = (label ? labelY + labelFontSize * 0.5 : valueY + valueFontSize * 0.5) + tsFontSize + s(4);
+              return (
+                <text
+                  x={cx}
+                  y={tsY}
+                  textAnchor="middle"
+                  fontSize={tsFontSize}
+                  fontFamily={lastUpdatedStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+                  fontWeight={lastUpdatedStyle?.fontWeight ?? 400}
+                  fill={lastUpdatedStyle?.color ?? '#9ca3af'}
+                >
+                  {tsText}
+                </text>
+              );
+            })()}
           </svg>
         );
       }}

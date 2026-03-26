@@ -50,6 +50,15 @@
 - Any `FontStyle` with `fontFile` auto-injects `@font-face` via `resolveFont()`
 - Deterministic font family name generated from URL
 
+### Last Updated Timestamp
+- `lastUpdated?: Date | number` — timestamp of last data update
+- `showLastUpdated?: boolean` — toggle display, default `false`
+- `formatTimestamp?: (ts: Date | number) => string` — custom formatter
+- Default format: `dd MMM yyyy HH:MM:SS.sss +TZ` (e.g., "26 Mar 2026 22:39:40.123 +05:30")
+- Rendered as scaled SVG text below label (or below value if no label)
+- `styles.lastUpdated?: FontStyle` — font customization for timestamp text
+- When `showLastUpdated=false` (default), timestamp is not rendered even if `lastUpdated` is provided
+
 ### Loading State
 - When `showLoading=true` and `value == null`, renders `CardSkeleton`
 

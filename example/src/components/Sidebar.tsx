@@ -35,6 +35,7 @@ export function Sidebar({ activePage, onNavigate, isConfigured }: SidebarProps) 
         <NavItem label="Presence Indicator" active={activePage === 'presence'} onClick={() => onNavigate('presence')} icon="●" />
         <NavItem label="Progress Bar" active={activePage === 'progressbar'} onClick={() => onNavigate('progressbar')} icon="▬" />
         <NavItem label="Gauges" active={activePage === 'gauges'} onClick={() => onNavigate('gauges')} icon="◔" />
+        <NavItem label="Stat Cards" active={activePage === 'statcards'} onClick={() => onNavigate('statcards')} icon="▣" />
 
         <div style={{ fontSize: 10, fontWeight: 600, color: '#475569', padding: '16px 12px 4px', textTransform: 'uppercase', letterSpacing: 1 }}>
           Full Dashboard

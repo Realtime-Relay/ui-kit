@@ -315,6 +315,44 @@ test.describe('ArcGauge - Variations', () => {
   });
 });
 
+// ─── Last Updated Timestamp ──────────────────────────────────
+
+test.describe('Gauges - Last Updated', () => {
+  test('needle shows timestamp in default format (dd MMM yyyy)', async ({ page }) => {
+    await page.getByTestId('lastupdated-section').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const svg = page.getByTestId('card-needle-with-timestamp').locator('svg');
+    const text = await svg.textContent();
+    // Default format: "26 Mar 2026 ..."
+    expect(text).toMatch(/\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}/);
+  });
+
+  test('arc shows timestamp in default format', async ({ page }) => {
+    await page.getByTestId('lastupdated-section').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const svg = page.getByTestId('card-arc-with-timestamp').locator('svg');
+    const text = await svg.textContent();
+    expect(text).toMatch(/\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}/);
+  });
+
+  test('needle custom formatTimestamp renders custom format', async ({ page }) => {
+    await page.getByTestId('card-needle-custom-timestamp-format').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const svg = page.getByTestId('card-needle-custom-timestamp-format').locator('svg');
+    const text = await svg.textContent();
+    // Custom format: "HH:MM UTC"
+    expect(text).toMatch(/\d{1,2}:\d{2} UTC/);
+  });
+
+  test('needle without showLastUpdated does not show timestamp', async ({ page }) => {
+    await page.getByTestId('card-needle-no-timestamp-default-').scrollIntoViewIfNeeded();
+    const svg = page.getByTestId('card-needle-no-timestamp-default-').locator('svg');
+    const text = await svg.textContent();
+    // Should NOT contain a date pattern
+    expect(text).not.toMatch(/\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}/);
+  });
+});
+
 // ─── Resizable Gauges ────────────────────────────────────────
 
 test.describe('Gauges - Resizable', () => {

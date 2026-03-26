@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import { defaultFormatValue } from '../utils/formatters';
+import { defaultFormatValue, defaultFormatTimestamp } from '../utils/formatters';
 import { resolveFontFamily } from '../utils/fonts';
 import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
 import { validateRange, validateAlertZones, validateValue, type ComponentError } from '../utils/validation';
@@ -8,6 +8,8 @@ import { validateRange, validateAlertZones, validateValue, type ComponentError }
 export interface ProgressBarStyles {
   /** Font file path/URL or CSS font-family for the label. Supports .otf/.ttf/.woff/.woff2 imports. */
   label_font_file?: FontStyle;
+  /** Styling for the last updated timestamp text. */
+  lastUpdated?: FontStyle;
   background?: BackgroundStyle;
   /** Width override. Accepts px number or CSS string. Responsive (maxWidth: 100%). */
   width?: string | number;
@@ -26,6 +28,12 @@ export interface ProgressBarProps {
   /** Show/hide the transparent alert zone bands in the background. Default: true when alertZones are provided. */
   showAlertZones?: boolean;
   styles?: ProgressBarStyles;
+  /** Timestamp of the last data update. Displayed below the bar when showLastUpdated is true. */
+  lastUpdated?: Date | number;
+  /** Show/hide the last updated timestamp. Default: false. */
+  showLastUpdated?: boolean;
+  /** Custom formatter for the timestamp. Receives Date | number, must return string. Default: dd MMM yyyy HH:MM:SS.sss +TZ */
+  formatTimestamp?: (ts: Date | number) => string;
   showLoading?: boolean;
   onZoneChange?: (transition: ZoneTransition) => void;
   onError?: (error: ComponentError) => void;
@@ -53,6 +61,9 @@ export function ProgressBar({
   alertZones = [],
   showAlertZones,
   styles,
+  lastUpdated,
+  showLastUpdated = false,
+  formatTimestamp = defaultFormatTimestamp,
   showLoading = true,
   onZoneChange,
   onError,
@@ -113,6 +124,7 @@ export function ProgressBar({
   const displayZones = hasZones && (showAlertZones !== false);
 
   return (
+    <>
     <div
       ref={containerRef}
       style={{
@@ -205,5 +217,23 @@ export function ProgressBar({
         );
       })}
     </div>
+    {showLastUpdated && lastUpdated != null && (() => {
+      const tsStyle = styles?.lastUpdated;
+      return (
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: tsStyle?.fontSize ?? 11,
+            fontFamily: tsStyle?.fontFamily ?? 'var(--relay-font-family)',
+            fontWeight: tsStyle?.fontWeight ?? 400,
+            color: tsStyle?.color ?? '#9ca3af',
+            textAlign: 'center',
+          }}
+        >
+          {formatTimestamp(lastUpdated)}
+        </div>
+      );
+    })()}
+    </>
   );
 }

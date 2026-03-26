@@ -36,8 +36,24 @@ export function validateRange(min: number, max: number, component: string): void
 export function validateAlertZones(zones: AlertZone[], component: string): void {
   if (!zones || zones.length === 0) return;
 
-  // Check each zone for inversion
-  for (const zone of zones) {
+  // Check each zone has required min and max
+  for (let i = 0; i < zones.length; i++) {
+    const zone = zones[i];
+    if (zone.min == null || zone.max == null) {
+      throw new Error(
+        `${component}: alert zone at index ${i} is missing ${zone.min == null ? 'min' : ''}${zone.min == null && zone.max == null ? ' and ' : ''}${zone.max == null ? 'max' : ''}. Both min and max are required.${zone.label ? ` Zone label: "${zone.label}"` : ''}`
+      );
+    }
+    if (typeof zone.min !== 'number' || !Number.isFinite(zone.min)) {
+      throw new Error(
+        `${component}: alert zone at index ${i} has invalid min value (${zone.min}). Must be a finite number.${zone.label ? ` Zone label: "${zone.label}"` : ''}`
+      );
+    }
+    if (typeof zone.max !== 'number' || !Number.isFinite(zone.max)) {
+      throw new Error(
+        `${component}: alert zone at index ${i} has invalid max value (${zone.max}). Must be a finite number.${zone.label ? ` Zone label: "${zone.label}"` : ''}`
+      );
+    }
     if (zone.min > zone.max) {
       throw new Error(
         `${component}: alert zone has min (${zone.min}) greater than max (${zone.max}).${zone.label ? ` Zone label: "${zone.label}"` : ''}`

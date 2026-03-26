@@ -5,12 +5,14 @@ import { Settings } from './pages/Settings';
 import { PresenceDemo } from './pages/PresenceDemo';
 import { ProgressBarDemo } from './pages/ProgressBarDemo';
 import { GaugeDemo } from './pages/GaugeDemo';
+import { StatCardDemo } from './pages/StatCardDemo';
 import { TestGauges } from './pages/TestGauges';
 import { TestProgressBar } from './pages/TestProgressBar';
+import { TestStatCards } from './pages/TestStatCards';
 import { useConfig } from './hooks/useConfig';
 import './App.css';
 
-export type Page = 'dashboard' | 'settings' | 'presence' | 'progressbar' | 'gauges';
+export type Page = 'dashboard' | 'settings' | 'presence' | 'progressbar' | 'gauges' | 'statcards';
 
 /** Hash-based test routes for Playwright (no SDK needed) */
 function useTestRoute(): string | null {
@@ -22,6 +24,7 @@ function useTestRoute(): string | null {
   }, []);
   if (hash === '#/test-gauges') return 'test-gauges';
   if (hash === '#/test-progress') return 'test-progress';
+  if (hash === '#/test-statcards') return 'test-statcards';
   return null;
 }
 
@@ -33,6 +36,7 @@ export function App() {
   // Render test pages directly — no sidebar, no SDK
   if (testRoute === 'test-gauges') return <TestGauges />;
   if (testRoute === 'test-progress') return <TestProgressBar />;
+  if (testRoute === 'test-statcards') return <TestStatCards />;
 
   return (
     <>
@@ -51,6 +55,7 @@ export function App() {
         {page === 'presence' && <PresenceDemo />}
         {page === 'progressbar' && <ProgressBarDemo />}
         {page === 'gauges' && <GaugeDemo />}
+        {page === 'statcards' && <StatCardDemo />}
       </main>
     </>
   );

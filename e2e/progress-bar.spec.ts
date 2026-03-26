@@ -224,6 +224,42 @@ test.describe('ProgressBar - Loading', () => {
   });
 });
 
+// ─── Last Updated Timestamp ──────────────────────────────────
+
+test.describe('ProgressBar - Last Updated', () => {
+  test('shows timestamp in default format (dd MMM yyyy)', async ({ page }) => {
+    await page.getByTestId('lastupdated-section').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const card = page.getByTestId('card-with-timestamp');
+    const text = await card.textContent();
+    // Default format: "26 Mar 2026 HH:MM:SS.sss +TZ"
+    expect(text).toMatch(/\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}/);
+  });
+
+  test('shows timestamp with zones', async ({ page }) => {
+    await page.getByTestId('card-timestamp-with-zones').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const card = page.getByTestId('card-timestamp-with-zones');
+    const text = await card.textContent();
+    expect(text).toMatch(/\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}/);
+  });
+
+  test('custom formatTimestamp renders custom format', async ({ page }) => {
+    await page.getByTestId('card-custom-timestamp-format').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    const card = page.getByTestId('card-custom-timestamp-format');
+    const text = await card.textContent();
+    expect(text).toMatch(/\d{1,2}:\d{2} UTC/);
+  });
+
+  test('no timestamp without showLastUpdated', async ({ page }) => {
+    await page.getByTestId('card-no-timestamp-default-').scrollIntoViewIfNeeded();
+    const card = page.getByTestId('card-no-timestamp-default-');
+    const text = await card.textContent();
+    expect(text).not.toMatch(/\d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4}/);
+  });
+});
+
 // ─── Resizable ───────────────────────────────────────────────
 
 test.describe('ProgressBar - Resizable', () => {

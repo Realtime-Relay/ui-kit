@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import { defaultFormatValue } from '../utils/formatters';
+import { defaultFormatValue, defaultFormatTimestamp } from '../utils/formatters';
 import { resolveFont } from '../utils/useResolvedStyles';
 import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
 import { createScaler, GAUGE_REFERENCE } from '../utils/scaler';
@@ -24,6 +24,7 @@ export interface ArcGaugeStyles {
   label?: FontStyle;
   unit?: FontStyle;
   minMax?: FontStyle;
+  lastUpdated?: FontStyle;
   background?: BackgroundStyle;
   arcThickness?: number;
   arcAngle?: number;
@@ -41,6 +42,10 @@ export interface ArcGaugeProps {
   unit?: string;
   styles?: ArcGaugeStyles;
   showZoneValues?: boolean;
+  lastUpdated?: Date | number;
+  showLastUpdated?: boolean;
+  /** Custom formatter for the timestamp. Receives Date | number, must return string. Default: dd MMM yyyy HH:MM:SS.sss +TZ */
+  formatTimestamp?: (ts: Date | number) => string;
   showLoading?: boolean;
   onZoneChange?: (transition: ZoneTransition) => void;
   onError?: (error: ComponentError) => void;
@@ -56,6 +61,9 @@ export function ArcGauge({
   unit,
   styles,
   showZoneValues = false,
+  lastUpdated,
+  showLastUpdated = false,
+  formatTimestamp = defaultFormatTimestamp,
   showLoading = true,
   onZoneChange,
   onError,
@@ -89,6 +97,7 @@ export function ArcGauge({
   const labelStyleR = resolveFont(styles?.label);
   const unitStyle = resolveFont(styles?.unit);
   const minMaxStyle = resolveFont(styles?.minMax);
+  const lastUpdatedStyle = resolveFont(styles?.lastUpdated);
 
   return (
     <ResponsiveContainer
@@ -264,6 +273,25 @@ export function ArcGauge({
                 </text>
               );
             })}
+
+            {showLastUpdated && lastUpdated != null && (() => {
+              const tsText = formatTimestamp(lastUpdated);
+              const tsFontSize = s(lastUpdatedStyle?.fontSize ?? 9);
+              const tsY = (label ? labelYPos + labelFontSize * 0.5 : valueY + valueFontSize * 0.5) + tsFontSize + s(4);
+              return (
+                <text
+                  x={cx}
+                  y={tsY}
+                  textAnchor="middle"
+                  fontSize={tsFontSize}
+                  fontFamily={lastUpdatedStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+                  fontWeight={lastUpdatedStyle?.fontWeight ?? 400}
+                  fill={lastUpdatedStyle?.color ?? '#9ca3af'}
+                >
+                  {tsText}
+                </text>
+              );
+            })()}
           </svg>
         );
       }}

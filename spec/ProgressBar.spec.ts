@@ -117,6 +117,17 @@
  * | --relay-skeleton-base           | #e5e7eb  | Skeleton base color   |
  * | --relay-skeleton-shine          | #f3f4f6  | Skeleton shine color  |
  *
+ * ## Last Updated Timestamp
+ *
+ * - `lastUpdated?: Date | number` — timestamp of last data update
+ * - `showLastUpdated?: boolean` — toggle display, default `false`
+ * - `formatTimestamp?: (ts: Date | number) => string` — custom formatter
+ * - Default format: `dd MMM yyyy HH:MM:SS.sss +TZ` (e.g., "26 Mar 2026 22:39:40.123 +05:30")
+ * - Rendered as HTML div below the progress bar
+ * - `styles.lastUpdated?: FontStyle` — font customization for timestamp text (fontSize, color, fontWeight, fontFamily)
+ * - When `showLastUpdated=false` (default), timestamp is not rendered even if `lastUpdated` is provided
+ * - When `showLastUpdated=true` and `lastUpdated` is null/undefined, timestamp is not rendered
+ *
  * ## Loading State
  *
  * When showLoading=true and value==null:

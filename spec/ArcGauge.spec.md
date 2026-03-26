@@ -50,6 +50,11 @@
 ### Font File Injection
 - Same behavior as NeedleGauge
 
+### Last Updated Timestamp
+- Same behavior as NeedleGauge: `lastUpdated`, `showLastUpdated`, `formatTimestamp`, `styles.lastUpdated`
+- Default format: `dd MMM yyyy HH:MM:SS.sss +TZ`
+- Rendered as scaled SVG text below label/value inside the arc
+
 ### Loading State
 - When `showLoading=true` and `value == null`, renders `CardSkeleton`
 
