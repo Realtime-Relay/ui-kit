@@ -1,64 +1,95 @@
 # ArcGauge — Spec
 
-## Component Behavior
+Source: `src/gauges/ArcGauge.tsx`
+Requirements: `requirements/ArcGauge.md` (not yet created)
 
-### Rendering
-- Renders an SVG semi-circular arc gauge with a filled progress arc
-- Fills parent container by default (responsive via ResizeObserver)
-- When `styles.width` / `styles.height` are set, uses explicit dimensions (still responsive, capped at those sizes)
-- Minimum practical size: 100x80px
+## Component Signature
+
+```typescript
+interface ArcGaugeStyles {
+  value?: FontStyle;
+  label?: FontStyle;
+  unit?: FontStyle;
+  minMax?: FontStyle;
+  lastUpdated?: FontStyle;
+  background?: BackgroundStyle;
+  arcThickness?: number;    // default: 20
+  arcAngle?: number;        // 30–300, default: 180
+  width?: number;
+  height?: number;
+}
+
+interface ArcGaugeProps {
+  value: number;
+  min?: number;              // default: 0
+  max?: number;              // default: 100
+  formatValue?: (value: number) => string;
+  alertZones?: AlertZone[];
+  label?: string;
+  unit?: string;
+  styles?: ArcGaugeStyles;
+  showZoneValues?: boolean;  // default: false
+  lastUpdated?: Date | number;
+  showLastUpdated?: boolean; // default: false
+  formatTimestamp?: (ts: Date | number) => string;
+  showLoading?: boolean;     // default: true
+  onZoneChange?: (transition: ZoneTransition) => void;
+  onError?: (error: ComponentError) => void;
+}
+```
+
+## Differences from NeedleGauge
+
+| Feature | NeedleGauge | ArcGauge |
+|---|---|---|
+| Visual indicator | Rotating needle line | Filled arc sweep from min to value |
+| No `needleThickness` | Has it | N/A |
+| Default `arcThickness` | 14 | 20 |
+| Alert zone opacity | **1.0 (full)** | **0.25 (subtle)** |
+| Value fill arc | None | Colored arc from start to current value |
+| Value/label position | Below arc (≤180°) or below bottom (>180°) | Always centered inside the arc |
+
+## Rendering
+
+### Arc
+- Same configurable sweep angle as NeedleGauge (30°–300°, default 180°)
+- Background arc in `#e5e7eb`
+- `styles.arcThickness` controls stroke width (default: 20px)
+- `strokeLinecap="butt"` for clean zone boundaries
 
 ### Value Fill Arc
-- Colored arc that fills from left (min) to the position representing current value
-- Fill color determined by alert zone the value falls in; defaults to `#3b82f6`
-- Same stroke width as the background arc (`styles.arcThickness`, default: 20px)
-- `strokeLinecap="butt"` for clean boundaries
-
-### Background Arc
-- Semi-circle (180°) drawn left-to-right
-- Color: `#e5e7eb`
-- `styles.arcThickness` controls stroke width (default: 20px)
+- A colored arc from start angle to the angle representing current value
+- Uses `strokeDasharray` / `strokeDashoffset` to render partial fill
+- Default color: `#3b82f6` (blue)
+- When alert zones are present: fill color adopts the zone the current value falls in
+- Falls back to `#3b82f6` when value doesn't fall in any zone
 
 ### Alert Zones
 - Each zone renders as a colored arc segment overlaid on background
-- 25% opacity (more subtle than NeedleGauge)
-- Zone boundaries calculated as proportional ratios of the min/max range
-- Fill arc color adopts the zone the current value falls in
+- **0.25 opacity (25%)** — more subtle than NeedleGauge since the fill arc overlays on top
+- Same zone boundary calculation as NeedleGauge
+
+### showZoneValues
+- Same behavior as NeedleGauge — renders boundary values at zone transition points
 
 ### Value Display
-- Centered at the arc center point (inside the arc)
-- Large font, bold (default: 26px, weight 700)
-- Color matches the fill arc color
-- `formatValue` callback applied
-
-### Unit
-- Displayed below the value inside the arc
-- Smaller font (default: 13px), color `#6b7280`
-
-### Metric Label
-- Optional text below the unit
-- Font customizable via `styles.label`
+- Always centered inside the arc (regardless of sweep angle)
+- Shows formatted value + optional unit suffix
+- Font styled via `styles.value`, unit via `styles.unit`
 
 ### Min/Max Labels
-- Positioned at the left and right endpoints of the arc baseline
-- Color: `#9ca3af`
+- Same as NeedleGauge — positioned at arc endpoints
+- Font styled via `styles.minMax`
 
-### Value Clamping
-- Fill arc clamps to `[min, max]`
-- Displayed text shows actual unclamped value
-
-### Font File Injection
-- Same behavior as NeedleGauge
-
-### Last Updated Timestamp
-- Same behavior as NeedleGauge: `lastUpdated`, `showLastUpdated`, `formatTimestamp`, `styles.lastUpdated`
-- Default format: `dd MMM yyyy HH:MM:SS.sss +TZ`
-- Rendered as scaled SVG text below label/value inside the arc
-
-### Loading State
-- When `showLoading=true` and `value == null`, renders `CardSkeleton`
-
-### Accessibility
-- SVG has `role="meter"`
-- `aria-valuenow`, `aria-valuemin`, `aria-valuemax` set
-- `aria-label` set to `label` prop or `"Gauge"`
+### All Other Behaviors
+Same as NeedleGauge:
+- Metric label (`label` prop, `styles.label`)
+- Unit suffix (`unit` prop, `styles.unit`)
+- Value clamping (visual clamp, text shows actual)
+- Last updated timestamp (`lastUpdated`, `showLastUpdated`, `formatTimestamp`, `styles.lastUpdated`)
+- Zone transition callback (`onZoneChange`)
+- Font file injection (`fontFile` on any FontStyle)
+- Proportional scaling (reference: 200px, `createScaler()`)
+- Loading state (skeleton when value null)
+- Validation (same hard/soft error handling)
+- Accessibility (`role="meter"`, ARIA attributes)

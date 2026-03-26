@@ -4,7 +4,7 @@
  *
  * Source: src/indicators/ProgressBar.tsx
  * Requirements: requirements/ProgressBar.md
- * Tests: src/indicators/ProgressBar.test.tsx
+ * Tests: tests/ProgressBar.test.tsx (unit), e2e/progress-bar.spec.ts (Playwright)
  *
  * ## Component Signature
  *
@@ -19,7 +19,12 @@
  *   alertZones?: AlertZone[]
  *   showAlertZones?: boolean        // default: true when zones provided
  *   styles?: ProgressBarStyles
+ *   lastUpdated?: Date | number
+ *   showLastUpdated?: boolean       // default: false
+ *   formatTimestamp?: (ts: Date | number) => string
  *   showLoading?: boolean           // default: true
+ *   onZoneChange?: (transition: ZoneTransition) => void
+ *   onError?: (error: ComponentError) => void
  * />
  * ```
  *
@@ -89,17 +94,11 @@
  *
  * ```typescript
  * interface ProgressBarStyles {
- *   label_font_file?: {
- *     fontFamily?: string;   // CSS font-family OR font file path
- *     fontSize?: number;     // px
- *     fontWeight?: number | string;
- *     color?: string;        // CSS color
- *   };
- *   background?: {
- *     color?: string;        // track background color
- *   };
- *   width?: string | number;  // container width (px or CSS)
- *   height?: string | number; // container height (px or CSS)
+ *   label_font_file?: FontStyle; // font styling for label (supports fontFile for .otf/.ttf)
+ *   lastUpdated?: FontStyle;    // font styling for timestamp text
+ *   background?: BackgroundStyle; // track background color
+ *   width?: string | number;    // container width (px or CSS)
+ *   height?: string | number;   // container height (px or CSS)
  * }
  * ```
  *
@@ -150,8 +149,20 @@
  * <ProgressBar value={value ?? 0} alertZones={[...]} />
  * ```
  *
- * ## Test Coverage (28 tests)
+ * ## Validation
  *
+ * - Hard errors (throw): min > max, min === max, invalid alert zones (missing min/max, non-finite, inverted, overlapping)
+ * - Soft errors (onError): null/undefined value — falls back to last valid value via useRef
+ * - null/undefined with showLoading=false → renders at min value
+ *
+ * ## Zone Transition Callback
+ *
+ * - `onZoneChange` fires when value crosses a zone boundary
+ * - Returns { previousZone, currentZone, value }
+ *
+ * ## Test Coverage
+ *
+ * Unit tests (29): tests/ProgressBar.test.tsx
  * - rendering: default, label display, label hidden, loading skeleton
  * - formatValue: custom format, value exceeds max, value below min
  * - fill percentage: clamp to 0%, clamp to 100%, custom range
@@ -160,4 +171,7 @@
  * - orientation: horizontal default, vertical
  * - styles: background color, custom width (px), custom height (px), CSS string units, maxWidth responsiveness, label font
  * - edge cases: min===max, value===0, very large values
+ *
+ * Playwright e2e tests (33): e2e/progress-bar.spec.ts
+ * - page load, basic rendering, fill behavior, alert zones, styling, orientation, loading, last updated timestamp, resizable
  */
