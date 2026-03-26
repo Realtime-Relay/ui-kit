@@ -1,0 +1,47 @@
+:root {
+  /* Fonts */
+  --relay-font-family: system-ui, -apple-system, sans-serif;
+  --relay-font-size-xs: 10px;
+  --relay-font-size-sm: 12px;
+  --relay-font-size-md: 14px;
+  --relay-font-size-lg: 18px;
+  --relay-font-size-xl: 24px;
+  --relay-font-size-2xl: 32px;
+  --relay-font-weight-normal: 400;
+  --relay-font-weight-medium: 500;
+  --relay-font-weight-bold: 600;
+
+  /* Chart */
+  --relay-grid-color: #e0e0e0;
+  --relay-grid-thickness: 1px;
+  --relay-bg-color: transparent;
+  --relay-tooltip-bg: #1a1a1a;
+  --relay-tooltip-text: #ffffff;
+  --relay-tooltip-border-radius: 4px;
+  --relay-tooltip-padding: 8px 12px;
+
+  /* Components */
+  --relay-border-color: #e0e0e0;
+  --relay-border-radius: 8px;
+  --relay-border-thickness: 1px;
+
+  /* Presence */
+  --relay-presence-online: #22c55e;
+  --relay-presence-offline: #ef4444;
+  --relay-presence-size: 12px;
+
+  /* Progress bar */
+  --relay-progress-bg: #e5e7eb;
+  --relay-progress-fill: #3b82f6;
+  --relay-progress-height: 24px;
+  --relay-progress-border-radius: 4px;
+
+  /* Loading skeleton */
+  --relay-skeleton-base: #e5e7eb;
+  --relay-skeleton-shine: #f3f4f6;
+}
+
+@keyframes relay-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
