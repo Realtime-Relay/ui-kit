@@ -103,15 +103,51 @@ Behavior:
 - **Click behavior**: clicking a legend item activates solo mode — only that series is shown, all others are dimmed. Clicking the solo'd item again restores all.
 - **Swatch shape**: rounded rectangle (wider than tall), not a circle.
 
+### Zone Transition Callback
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `onZoneChange` | `(transition: TimeSeriesZoneTransition) => void` | — | Called when any device×metric's latest data point crosses an alert zone boundary. |
+
+**Callback signature**:
+```typescript
+interface TimeSeriesZoneTransition {
+  device: string;              // device ID (e.g., "sensor-a")
+  metric: string;              // metric key (e.g., "temperature")
+  previousZone: AlertZone | null;  // zone the value was in before
+  currentZone: AlertZone | null;   // zone the value is in now
+  value: number;               // the value that triggered the transition
+}
+```
+
+Behavior:
+- Tracks **every device×metric combination** independently — each series has its own zone state
+- On first render, the current zone is recorded but the callback is **not** fired (no false positive on mount)
+- On subsequent renders, if the latest data point for any series moves to a different zone (or enters/exits a zone), the callback fires
+- Zone comparison is by `min`/`max`/`color` identity, not by object reference
+- If `alertZones` is empty or `onZoneChange` is not provided, no tracking occurs
+- Works with both single-device and multi-device data — each device×metric gets its own tracking entry
+
+### Custom Timestamp Formatting
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `formatTimestamp` | `(timestamp: number) => string` | — | Custom formatter for timestamps displayed in the default tooltip. |
+
+Behavior:
+- Receives epoch milliseconds, returns a display string
+- Applied only to the **default tooltip** — not used when `renderTooltip` is provided (since `renderTooltip` replaces the entire tooltip)
+- When not provided, falls back to `toLocaleDateString() + ' ' + toLocaleTimeString()` (browser locale)
+- Does **not** affect X-axis tick labels (those use D3 `timeFormat('%H:%M:%S')`)
+
 ### Tooltip & Callbacks
 | Prop | Type | Default | Description |
 |---|---|---|---|
 | `formatValue` | `(value: number) => string` | default | Format numeric values in the default tooltip. |
+| `formatTimestamp` | `(timestamp: number) => string` | browser locale | Custom timestamp display in the default tooltip. |
 | `renderTooltip` | `(point: DataPoint) => ReactNode` | — | Custom tooltip renderer. Replaces default tooltip entirely. |
 | `onHover` | `(point \| null, event) => void` | — | Fires on mousemove with nearest data point: `{ metric, value, timestamp }`. `null` on leave. |
 | `onRelease` | `(point \| null, event) => void` | — | Fires on click/mouseLeave with the last hovered data point. |
 
-Default tooltip: date/time header, colored dots for each metric with label and formatted value. Clamped to chart viewport.
+Default tooltip: timestamp header (via `formatTimestamp` or browser locale), colored dots for each metric with label and formatted value. Clamped to chart viewport.
 
 ### Styling
 | Prop | Type | Default | Description |

@@ -8,6 +8,7 @@ import { applyDownsample } from '../utils/downsample';
 import { defaultFormatValue } from '../utils/formatters';
 import { createScaler, CHART_REFERENCE } from '../utils/scaler';
 import { isValidTimestamp, validateAlertZones, type ComponentError } from '../utils/validation';
+// useZoneTransition not used — TimeSeries has custom per-series zone tracking
 import {
   ResponsiveContainer,
   Tooltip,
@@ -20,6 +21,14 @@ import {
   YAxis,
   ChartSkeleton,
 } from './shared';
+
+export interface TimeSeriesZoneTransition {
+  device: string;
+  metric: string;
+  previousZone: AlertZone | null;
+  currentZone: AlertZone | null;
+  value: number;
+}
 
 export interface TimeSeriesStyles {
   title?: FontStyle;
@@ -82,6 +91,10 @@ export interface TimeSeriesProps {
   zoomColor?: string;
   /** Called when the mouse enters/leaves an annotation. Return a ReactNode to show a custom tooltip. */
   onAnnotationHover?: (hover: boolean, annotation: Annotation) => React.ReactNode | void;
+  /** Called when any device×metric's latest value crosses an alert zone boundary. Includes device and metric info. */
+  onZoneChange?: (transition: TimeSeriesZoneTransition) => void;
+  /** Custom formatter for timestamps in the default tooltip. Receives epoch ms, returns display string. */
+  formatTimestamp?: (timestamp: number) => string;
   onError?: (error: ComponentError) => void;
 }
 
@@ -140,6 +153,8 @@ export function TimeSeries({
   annotationColor = '#f59e0b',
   zoomColor = '#3b82f6',
   onAnnotationHover,
+  onZoneChange,
+  formatTimestamp: formatTimestampProp,
   onError,
 }: TimeSeriesProps) {
   validateAlertZones(alertZones, 'TimeSeries');
@@ -262,6 +277,43 @@ export function TimeSeries({
     }
     return result;
   }, [validDataMap, deviceNames, downsample, resolvedMetrics]);
+
+  // Zone transition tracking — per device×metric, fires onZoneChange with device + metric info
+  const prevZonesRef = useRef<Map<string, AlertZone | null>>(new Map());
+
+  useEffect(() => {
+    if (!onZoneChange || alertZones.length === 0 || allSeries.length === 0) return;
+
+    for (const ser of allSeries) {
+      const points = validDataMap[ser.device] ?? [];
+      if (points.length === 0) continue;
+      const last = points[points.length - 1];
+      const v = Number(last[ser.metricKey]);
+      if (!Number.isFinite(v)) continue;
+
+      const currentZone = alertZones.find((z) => v >= z.min && v <= z.max) ?? null;
+      const key = ser.id; // "device:metric"
+      const prev = prevZonesRef.current.get(key);
+
+      // First time seeing this series — initialize without firing
+      if (prev === undefined) {
+        prevZonesRef.current.set(key, currentZone);
+        continue;
+      }
+
+      // Check if zone changed (compare by min/max/color, not reference)
+      const changed =
+        (prev === null) !== (currentZone === null) ||
+        (prev !== null && currentZone !== null && (
+          prev.min !== currentZone.min || prev.max !== currentZone.max || prev.color !== currentZone.color
+        ));
+
+      if (changed) {
+        onZoneChange({ device: ser.device, metric: ser.metricKey, previousZone: prev, currentZone, value: v });
+        prevZonesRef.current.set(key, currentZone);
+      }
+    }
+  }, [validDataMap, allSeries, alertZones, onZoneChange]);
 
   const handleSelectSeries = useCallback((key: string) => {
     setVisibleSeries((prev) => {
@@ -866,6 +918,7 @@ export function TimeSeries({
                 containerWidth={width}
                 containerHeight={height}
                 formatValue={formatValue}
+                formatTimestamp={formatTimestampProp}
                 renderTooltip={renderTooltip}
                 style={resolvedStyles?.tooltip}
                 s={s}

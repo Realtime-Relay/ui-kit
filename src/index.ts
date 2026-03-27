@@ -8,7 +8,7 @@ export type { RelayProviderProps } from './context/RelayProvider';
 
 // Charts
 export { TimeSeries } from './charts/TimeSeries';
-export type { TimeSeriesProps, TimeSeriesStyles } from './charts/TimeSeries';
+export type { TimeSeriesProps, TimeSeriesStyles, TimeSeriesZoneTransition } from './charts/TimeSeries';
 export { BarGraph } from './charts/BarGraph';
 export type { BarGraphProps, BarGraphStyles } from './charts/BarGraph';
 

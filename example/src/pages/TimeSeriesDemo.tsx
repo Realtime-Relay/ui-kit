@@ -298,6 +298,9 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
   // Hover/release state display
   const [hoverInfo, setHoverInfo] = useState<string>('Hover over a chart to see events here.');
 
+  // Zone transition log
+  const [zoneLog, setZoneLog] = useState<string[]>([]);
+
   // Build multi-device data by offsetting
   const singleDeviceData: Record<string, DataPoint[]> = useMemo(
     () => ({ [deviceIdent]: data }),
@@ -546,6 +549,158 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
               { min: 70, max: 100, color: '#ef4444' },
             ]}
             annotations={annotations}
+          />
+        </Card>
+      </div>
+
+      {/* ── Zone Transition Callback ── */}
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Zone Transition (onZoneChange)</h2>
+      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 13 }}>
+        When the latest data point crosses a zone boundary, onZoneChange fires. Watch the log as live data moves between zones.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 40 }}>
+        <Card title="Alert Zones + onZoneChange (multi-device)" description="Green (0-30), Warning (30-70), Critical (70-100) — log shows device + metric">
+          <TimeSeries
+            data={multiDeviceData}
+            metricKey={firstMetric}
+            alertZones={[
+              { min: 0, max: 30, color: '#22c55e', label: 'Normal' },
+              { min: 30, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            onZoneChange={(transition) => {
+              const prev = transition.previousZone?.label ?? 'none';
+              const curr = transition.currentZone?.label ?? 'none';
+              setZoneLog((log) => [
+                `[${transition.device}] ${transition.metric}: ${prev} → ${curr} (${transition.value.toFixed(2)})`,
+                ...log,
+              ].slice(0, 30));
+            }}
+          />
+        </Card>
+
+        <div style={{
+          border: '1px solid #e5e7eb',
+          borderRadius: 8,
+          padding: 12,
+          height: 340,
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, color: '#374151' }}>
+            onZoneChange() Log
+          </div>
+          <div style={{
+            flex: 1,
+            overflow: 'auto',
+            fontFamily: 'monospace',
+            fontSize: 11,
+            lineHeight: '1.6',
+          }}>
+            {zoneLog.length === 0 && (
+              <div style={{ color: '#9ca3af', padding: 8 }}>Waiting for zone transitions...</div>
+            )}
+            {zoneLog.map((line, i) => (
+              <div key={i} style={{ padding: '2px 4px', borderBottom: '1px solid #f3f4f6', color: '#374151' }}>
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Custom Timestamp Formatting ── */}
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Custom Timestamp (formatTimestamp)</h2>
+      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 13 }}>
+        Override the default tooltip timestamp display. Hover over the charts to see different formats.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 40 }}>
+        <Card title="ISO 8601" description="formatTimestamp returns ISO string" height={250}>
+          <TimeSeries
+            data={singleDeviceData}
+            metricKey={firstMetric}
+            formatTimestamp={(ts) => new Date(ts).toISOString()}
+          />
+        </Card>
+        <Card title="Relative Time" description="formatTimestamp shows 'Xs ago'" height={250}>
+          <TimeSeries
+            data={singleDeviceData}
+            metricKey={firstMetric}
+            formatTimestamp={(ts) => {
+              const diff = Math.round((Date.now() - ts) / 1000);
+              if (diff < 60) return `${diff}s ago`;
+              if (diff < 3600) return `${Math.floor(diff / 60)}m ${diff % 60}s ago`;
+              return `${Math.floor(diff / 3600)}h ago`;
+            }}
+          />
+        </Card>
+        <Card title="Custom Format" description="DD/MM HH:mm:ss.SSS" height={250}>
+          <TimeSeries
+            data={singleDeviceData}
+            metricKey={firstMetric}
+            formatTimestamp={(ts) => {
+              const d = new Date(ts);
+              return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}.${d.getMilliseconds().toString().padStart(3, '0')}`;
+            }}
+          />
+        </Card>
+        <Card title="Default (no formatTimestamp)" description="Uses toLocaleDateString + toLocaleTimeString" height={250}>
+          <TimeSeries data={singleDeviceData} metricKey={firstMetric} />
+        </Card>
+      </div>
+
+      {/* ── Custom Fonts ── */}
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Custom Fonts</h2>
+      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 13 }}>
+        Customize fonts for title, legend, tooltip, and axis via the styles prop.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 40 }}>
+        <Card title="Monospace Everything" description="All text elements use monospace" height={300}>
+          <TimeSeries
+            data={singleDeviceData}
+            metricKey={firstMetric}
+            title="Monospace Chart"
+            styles={{
+              title: { fontFamily: 'Courier New, monospace', fontSize: 16, fontWeight: 700, color: '#1e293b' },
+              legend: { fontFamily: 'Courier New, monospace', fontSize: 11, fontWeight: 500 },
+              tooltip: { fontFamily: 'Courier New, monospace', fontSize: 11 },
+              axis: { fontFamily: 'Courier New, monospace', fontSize: 10, color: '#64748b' },
+            }}
+          />
+        </Card>
+        <Card title="Serif + Large Legend" description="Georgia for legend, system for rest" height={300}>
+          <TimeSeries
+            data={multiDeviceData}
+            metricKey={firstMetric}
+            styles={{
+              legend: { fontFamily: 'Georgia, serif', fontSize: 14, fontWeight: 600, color: '#7c3aed' },
+              title: { fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700 },
+            }}
+            title="Serif Legend"
+          />
+        </Card>
+        <Card title="Small Axis, Bold Tooltip" description="Custom per-element font styling" height={300}>
+          <TimeSeries
+            data={singleDeviceData}
+            metricKey={firstMetric}
+            styles={{
+              axis: { fontSize: 8, fontWeight: 300, color: '#94a3b8' },
+              tooltip: { fontFamily: 'system-ui', fontSize: 14, fontWeight: 700 },
+              legend: { fontSize: 10 },
+            }}
+          />
+        </Card>
+        <Card title="Colorful Text" description="Different colors per text element" height={300}>
+          <TimeSeries
+            data={singleDeviceData}
+            metricKey={firstMetric}
+            title="Colorful"
+            styles={{
+              title: { color: '#dc2626', fontWeight: 800 },
+              legend: { color: '#7c3aed' },
+              axis: { color: '#059669' },
+              background: { color: '#fefce8' },
+            }}
           />
         </Card>
       </div>

@@ -16,6 +16,8 @@ interface TooltipProps {
   containerWidth: number;
   containerHeight: number;
   formatValue?: (value: number) => string;
+  /** Custom formatter for the tooltip timestamp. Receives epoch ms. */
+  formatTimestamp?: (timestamp: number) => string;
   renderTooltip?: (point: DataPoint) => ReactNode;
   style?: FontStyle;
   /** Proportional scaler created by the parent chart. Defaults to identity. */
@@ -30,6 +32,7 @@ export function Tooltip({
   containerWidth,
   containerHeight,
   formatValue = defaultFormatValue,
+  formatTimestamp,
   renderTooltip,
   style,
   s = identity,
@@ -63,8 +66,9 @@ export function Tooltip({
 
   // Default tooltip
   const timestamp = new Date(data.point.timestamp);
-  const timeStr = timestamp.toLocaleTimeString();
-  const dateStr = timestamp.toLocaleDateString();
+  const tsDisplay = formatTimestamp
+    ? formatTimestamp(data.point.timestamp)
+    : `${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}`;
 
   const left = data.x + tooltipOffset + tooltipMinWidth > containerWidth
     ? data.x - tooltipOffset - tooltipMinWidth
@@ -91,7 +95,7 @@ export function Tooltip({
       }}
     >
       <div style={{ marginBottom: s(4), opacity: 0.7 }}>
-        {dateStr} {timeStr}
+        {tsDisplay}
       </div>
       {data.metrics.map((m) => (
         <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: s(6), marginTop: s(2) }}>

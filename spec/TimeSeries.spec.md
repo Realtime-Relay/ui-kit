@@ -14,6 +14,14 @@ interface TimeSeriesStyles {
   background?: BackgroundStyle;
 }
 
+interface TimeSeriesZoneTransition {
+  device: string;
+  metric: string;
+  previousZone: AlertZone | null;
+  currentZone: AlertZone | null;
+  value: number;
+}
+
 interface TimeSeriesProps {
   data: Record<string, DataPoint[]>;
   metrics?: MetricConfig[];
@@ -47,6 +55,8 @@ interface TimeSeriesProps {
   annotationColor?: string;
   zoomColor?: string;
   onAnnotationHover?: (hover: boolean, annotation: Annotation) => React.ReactNode | void;
+  onZoneChange?: (transition: TimeSeriesZoneTransition) => void;
+  formatTimestamp?: (timestamp: number) => string;
   onError?: (error: ComponentError) => void;
 }
 ```
@@ -265,6 +275,97 @@ return [...filtered].sort((a, b) => a.timestamp - b.timestamp);
 ```
 Prevents visual jumps from out-of-order SDK data.
 
+## Per-Series Zone Transition Tracking
+
+Unlike gauges and stat cards which use the shared `useZoneTransition` hook (single value), TimeSeries implements **custom per-series zone tracking** because it has multiple device×metric combinations that can each independently cross zone boundaries.
+
+### State
+```typescript
+const prevZonesRef = useRef<Map<string, AlertZone | null>>(new Map());
+```
+- Key: series ID (`"device:metric"`)
+- Value: the `AlertZone` the series was last in, or `null` if outside all zones
+
+### Logic (runs in `useEffect` on every render when `onZoneChange` and `alertZones` are provided)
+```
+for each series in allSeries:
+  get latest data point from validDataMap[series.device]
+  extract numeric value for series.metricKey
+  skip if value is non-finite
+
+  find currentZone: first alertZone where value >= min && value <= max (or null)
+  look up previousZone from prevZonesRef using series.id
+
+  if previousZone === undefined (first time seeing this series):
+    store currentZone in ref, do NOT fire callback
+
+  if zone changed (compare by min/max/color, not reference):
+    fire onZoneChange({ device, metric, previousZone, currentZone, value })
+    update ref
+```
+
+### Effect Dependencies
+```typescript
+[validDataMap, allSeries, alertZones, onZoneChange]
+```
+
+### Zone Comparison
+Zones are compared by identity (min, max, color), not by object reference:
+```typescript
+const changed =
+  (prev === null) !== (currentZone === null) ||
+  (prev !== null && currentZone !== null && (
+    prev.min !== currentZone.min ||
+    prev.max !== currentZone.max ||
+    prev.color !== currentZone.color
+  ));
+```
+
+### Edge Cases
+| Scenario | Behavior |
+|---|---|
+| No `alertZones` | No tracking, effect returns early |
+| No `onZoneChange` | No tracking, effect returns early |
+| Value outside all zones | `currentZone = null`, transition fires if previously in a zone |
+| Value is NaN/Infinity | Skipped (no transition fired) |
+| Empty device data | Skipped (no latest point) |
+| New series appears | Initialized without firing callback |
+| Series removed | Stale entry stays in ref (harmless, no callback) |
+
+## Tooltip Timestamp Formatting
+
+### Prop
+```typescript
+formatTimestamp?: (timestamp: number) => string;
+```
+
+### Flow
+1. `formatTimestamp` is passed from `TimeSeriesProps` to the shared `<Tooltip>` component as `formatTimestamp`
+2. Inside `Tooltip`, if `formatTimestamp` is provided:
+   ```typescript
+   const tsDisplay = formatTimestamp(data.point.timestamp);
+   ```
+3. If not provided, falls back to:
+   ```typescript
+   const tsDisplay = `${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}`;
+   ```
+4. `tsDisplay` is rendered in the timestamp header `<div>` of the default tooltip
+5. When `renderTooltip` is provided, `formatTimestamp` is **not used** — `renderTooltip` replaces the entire tooltip
+
+### Tooltip Component Props (updated)
+```typescript
+interface TooltipProps {
+  data: TooltipData | null;
+  containerWidth: number;
+  containerHeight: number;
+  formatValue?: (value: number) => string;
+  formatTimestamp?: (timestamp: number) => string;  // NEW
+  renderTooltip?: (point: DataPoint) => ReactNode;
+  style?: FontStyle;
+  s?: (px: number) => number;
+}
+```
+
 ## Empty Data Handling
 
 | Scenario | Behavior |
@@ -294,7 +395,7 @@ Prevents visual jumps from out-of-order SDK data.
 
 ## Test Coverage
 
-### Unit Tests (70 tests)
+### Unit Tests (76 tests)
 - Empty/loading states (3)
 - SVG structure (3)
 - Multi-device rendering and legend format (4)
@@ -318,6 +419,8 @@ Prevents visual jumps from out-of-order SDK data.
 - Zoom color (1)
 - Annotation data field (1)
 - onAnnotationHover: rendering, enter, leave, tooltip, void, data field (6)
+- onZoneChange: renders with zones, first render suppressed, no crash without zones, callback shape with device+metric (4)
+- formatTimestamp: renders with prop, no crash on hover with custom formatter (2)
 
 ### E2E Tests (73 tests)
 - Page load and section visibility (7)

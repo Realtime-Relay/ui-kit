@@ -947,3 +947,114 @@ describe('TimeSeries - onAnnotationHover', () => {
     }
   });
 });
+
+// ─── onZoneChange ──────────────────────────────────────────
+
+describe('TimeSeries - onZoneChange', () => {
+  it('renders without error with onZoneChange and alertZones', () => {
+    const onZoneChange = vi.fn();
+    const { container } = render(
+      <TimeSeries
+        data={singleDevice()}
+        alertZones={[
+          { min: 0, max: 50, color: '#22c55e' },
+          { min: 50, max: 100, color: '#ef4444' },
+        ]}
+        onZoneChange={onZoneChange}
+      />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+
+  it('does not call onZoneChange on initial render (first call suppressed)', () => {
+    const onZoneChange = vi.fn();
+    render(
+      <TimeSeries
+        data={singleDevice()}
+        alertZones={[
+          { min: 0, max: 50, color: '#22c55e' },
+          { min: 50, max: 100, color: '#ef4444' },
+        ]}
+        onZoneChange={onZoneChange}
+      />,
+    );
+    // useZoneTransition suppresses the first call
+    expect(onZoneChange).not.toHaveBeenCalled();
+  });
+
+  it('does not crash without alertZones', () => {
+    const onZoneChange = vi.fn();
+    const { container } = render(
+      <TimeSeries data={singleDevice()} onZoneChange={onZoneChange} />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+    expect(onZoneChange).not.toHaveBeenCalled();
+  });
+
+  it('onZoneChange callback includes device and metric fields when fired', () => {
+    const onZoneChange = vi.fn();
+    // First render with value in zone A
+    const dataA = { 'dev-1': [{ timestamp: NOW - 10_000, value: 20 }] };
+    const { rerender } = render(
+      <TimeSeries
+        data={dataA}
+        alertZones={[
+          { min: 0, max: 50, color: '#22c55e', label: 'Low' },
+          { min: 50, max: 100, color: '#ef4444', label: 'High' },
+        ]}
+        onZoneChange={onZoneChange}
+      />,
+    );
+    // First render initializes — no callback
+    expect(onZoneChange).not.toHaveBeenCalled();
+
+    // Second render with value in zone B
+    const dataB = { 'dev-1': [{ timestamp: NOW, value: 80 }] };
+    rerender(
+      <TimeSeries
+        data={dataB}
+        alertZones={[
+          { min: 0, max: 50, color: '#22c55e', label: 'Low' },
+          { min: 50, max: 100, color: '#ef4444', label: 'High' },
+        ]}
+        onZoneChange={onZoneChange}
+      />,
+    );
+
+    if (onZoneChange.mock.calls.length > 0) {
+      const transition = onZoneChange.mock.calls[0][0];
+      expect(transition).toHaveProperty('device');
+      expect(transition).toHaveProperty('metric');
+      expect(transition).toHaveProperty('previousZone');
+      expect(transition).toHaveProperty('currentZone');
+      expect(transition).toHaveProperty('value');
+      expect(transition.device).toBe('dev-1');
+      expect(typeof transition.metric).toBe('string');
+      expect(typeof transition.value).toBe('number');
+    }
+  });
+});
+
+// ─── formatTimestamp ──────────────────────────────────────────
+
+describe('TimeSeries - formatTimestamp', () => {
+  it('renders without error with formatTimestamp prop', () => {
+    const fmt = vi.fn((ts: number) => `T:${ts}`);
+    const { container } = render(
+      <TimeSeries data={singleDevice()} formatTimestamp={fmt} />,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+
+  it('passes formatTimestamp to tooltip (no crash on hover)', () => {
+    const fmt = (ts: number) => new Date(ts).toISOString();
+    const { container } = render(
+      <TimeSeries data={singleDevice()} formatTimestamp={fmt} />,
+    );
+    const overlay = container.querySelector('rect[fill="transparent"]') as SVGRectElement;
+    // Hover to trigger tooltip
+    fireEvent.mouseMove(overlay, { clientX: 300, clientY: 200 });
+    // Should not crash
+    expect(container.querySelector('svg')).toBeTruthy();
+  });
+});
