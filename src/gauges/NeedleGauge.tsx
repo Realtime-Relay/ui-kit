@@ -174,6 +174,7 @@ export function NeedleGauge({
           <svg
             width={width}
             height={height}
+            shapeRendering="geometricPrecision"
             role="meter"
             aria-valuenow={renderValue!}
             aria-valuemin={min}

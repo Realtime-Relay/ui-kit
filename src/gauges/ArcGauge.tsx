@@ -155,6 +155,7 @@ export function ArcGauge({
           <svg
             width={width}
             height={height}
+            shapeRendering="geometricPrecision"
             role="meter"
             aria-valuenow={renderValue!}
             aria-valuemin={min}

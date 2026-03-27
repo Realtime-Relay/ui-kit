@@ -32,7 +32,8 @@ export type { ProgressBarProps, ProgressBarStyles } from './indicators/ProgressB
 
 // Timelines
 export { StateTimeline } from './timelines/StateTimeline';
-export type { StateTimelineProps, StateTimelineStyles, StateEntry } from './timelines/StateTimeline';
+export type { StateTimelineProps, StateTimelineStyles } from './timelines/StateTimeline';
+export type { StateEntry } from './timelines/stateUtils';
 
 // Hooks
 export { useRelayTimeSeries } from './hooks/useRelayTimeSeries';

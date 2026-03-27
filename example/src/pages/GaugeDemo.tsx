@@ -337,7 +337,7 @@ function LiveGaugePage({ deviceIdent, metrics }: { deviceIdent: string; metrics:
             alertZones={alertZones3}
             styles={{
               arcAngle: 270,
-              arcThickness: 20,
+              arcThickness: 10,
               needleThickness: 3,
               background: { color: '#0f172a' },
               value: { color: '#f1f5f9', fontSize: 24 },

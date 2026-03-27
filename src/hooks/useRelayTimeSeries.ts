@@ -89,7 +89,7 @@ export function useRelayTimeSeries({
       }
     }
 
-    fetchHistory();
+    // fetchHistory();
     return () => { cancelled = true; };
   }, [app, deviceIdent, metrics.join(','), startUTC, endUTC]);
 
