@@ -18,7 +18,31 @@ export interface MetricConfig {
   label?: string;
   color?: string;
   visible?: boolean;
+  lineThickness?: number;
+  pointSize?: number;
 }
+
+/** A point annotation rendered as a vertical line at a specific timestamp. */
+export interface PointAnnotation {
+  timestamp: number;
+  label?: string;
+  color?: string;
+  /** Arbitrary JSON data attached to this annotation. Passed to onAnnotationHover. */
+  data?: Record<string, unknown>;
+}
+
+/** A range annotation rendered as a shaded band between two timestamps. */
+export interface RangeAnnotation {
+  start: number;
+  end: number;
+  label?: string;
+  color?: string;
+  /** Arbitrary JSON data attached to this annotation. Passed to onAnnotationHover. */
+  data?: Record<string, unknown>;
+}
+
+/** An annotation on a time series chart — either a point or a range. */
+export type Annotation = PointAnnotation | RangeAnnotation;
 
 /** Font and color styling for a single text element within a component. */
 export interface FontStyle {

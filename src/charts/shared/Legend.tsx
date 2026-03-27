@@ -13,26 +13,31 @@ interface LegendProps {
   items: LegendItem[];
   /** Called on click — select this metric exclusively (hide others). */
   onSelect: (key: string) => void;
-  position: 'top' | 'bottom';
+  position: 'top' | 'bottom' | 'left' | 'right';
   style?: FontStyle;
   /** Proportional scaler created by the parent chart. Defaults to identity. */
   s?: (px: number) => number;
 }
 
 export function Legend({ items, onSelect, position, style, s = identity }: LegendProps) {
+  const isVertical = position === 'left' || position === 'right';
+
   return (
     <div
       style={{
         display: 'flex',
+        flexDirection: isVertical ? 'column' : 'row',
         flexWrap: 'wrap',
-        gap: `${s(8)}px ${s(16)}px`,
-        justifyContent: 'center',
-        padding: `${s(4)}px 0`,
+        gap: `${s(8)}px ${isVertical ? s(8) : s(16)}px`,
+        justifyContent: isVertical ? 'flex-start' : 'center',
+        alignItems: isVertical ? 'flex-start' : undefined,
+        padding: isVertical ? `${s(4)}px ${s(8)}px` : `${s(4)}px 0`,
         fontFamily: style?.fontFamily ?? 'var(--relay-font-family)',
         fontSize: style?.fontSize ?? 'var(--relay-font-size-sm)',
         fontWeight: style?.fontWeight ?? 'var(--relay-font-weight-normal)',
         color: style?.color,
-        order: position === 'top' ? -1 : 1,
+        order: position === 'top' || position === 'left' ? -1 : 1,
+        ...(isVertical ? { maxWidth: 140, flexShrink: 0, overflow: 'hidden' } : {}),
       }}
     >
       {items.map((item) => (
@@ -60,9 +65,9 @@ export function Legend({ items, onSelect, position, style, s = identity }: Legen
         >
           <span
             style={{
-              width: s(10),
+              width: s(14),
               height: s(10),
-              borderRadius: '50%',
+              borderRadius: s(3),
               backgroundColor: item.color,
               display: 'inline-block',
               flexShrink: 0,

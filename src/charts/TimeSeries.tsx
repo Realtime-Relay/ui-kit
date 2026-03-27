@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, useId } from 'react';
 import { scaleTime, scaleLinear, line, area, extent, bisector, pointer, timeFormat } from 'd3';
-import type { DataPoint, MetricConfig, AlertZone, FontStyle, BackgroundStyle, DownsampleConfig } from '../utils/types';
+import type { DataPoint, MetricConfig, AlertZone, Annotation, FontStyle, BackgroundStyle, DownsampleConfig } from '../utils/types';
 import { resolveMetrics } from '../utils/metrics';
 import { useResolvedStyles } from '../utils/useResolvedStyles';
 import { getMetricColor } from '../theme/palette';
@@ -30,7 +30,7 @@ export interface TimeSeriesStyles {
 }
 
 export interface TimeSeriesProps {
-  data: DataPoint[];
+  data: Record<string, DataPoint[]>;
   metrics?: MetricConfig[];
   title?: string;
   formatValue?: (value: number) => string;
@@ -51,15 +51,61 @@ export interface TimeSeriesProps {
   areaColor?: string;
   alertZones?: AlertZone[];
   showLegend?: boolean;
-  legendPosition?: 'top' | 'bottom';
+  legendPosition?: 'top' | 'bottom' | 'left' | 'right';
   showLoading?: boolean;
   downsample?: DownsampleConfig;
   /** Time window in milliseconds. Only data within [now - timeWindow, now] is shown. Enables autoscroll. */
   timeWindow?: number;
   /** Enable autoscroll when timeWindow is set. Defaults to true if timeWindow is provided. */
   autoScroll?: boolean;
+  /** Fixed start of x-axis domain. Overrides timeWindow and data extent. */
+  start?: Date | number;
+  /** Fixed end of x-axis domain. Overrides timeWindow and data extent. */
+  end?: Date | number;
+  /** Global line thickness in pixels. Per-metric override via MetricConfig.lineThickness. */
+  lineThickness?: number;
+  /** Global point size (radius) in pixels. 0 or undefined = no points. Per-metric override via MetricConfig.pointSize. */
+  pointSize?: number;
+  /** Enable click-drag zoom along x-axis. Default true. */
+  zoomEnabled?: boolean;
+  /** Annotations rendered on the chart — vertical lines or shaded bands. */
+  annotations?: Annotation[];
+  /** Custom legend label formatter. Called for each device×metric combo. */
+  formatLegend?: (device: string, metric: string) => string;
+  /** Enable annotation mode. Click = point annotation, drag = range annotation. Disables zoom while active. */
+  annotationMode?: boolean;
+  /** Called during annotation interactions. `id` auto-increments and is shared between start_drag and end_drag of the same annotation. */
+  onAnnotate?: (id: number, timestamp: number, type: 'click' | 'start_drag' | 'end_drag') => void;
+  /** Preview color for annotation-in-progress. Default: '#f59e0b' (amber). */
+  annotationColor?: string;
+  /** Color for the zoom brush selection rectangle (stroke). Default: '#3b82f6'. */
+  zoomColor?: string;
+  /** Called when the mouse enters/leaves an annotation. Return a ReactNode to show a custom tooltip. */
+  onAnnotationHover?: (hover: boolean, annotation: Annotation) => React.ReactNode | void;
   onError?: (error: ComponentError) => void;
 }
+
+/* ── Internal series type — one per device×metric combo ────── */
+
+interface Series {
+  id: string;
+  device: string;
+  metricKey: string;
+  label: string;
+  color: string;
+  lineThickness?: number;
+  pointSize?: number;
+  visible: boolean;
+  data: DataPoint[];
+}
+
+/* ── Annotation type guard ─────────────────────────────────── */
+
+function isRangeAnnotation(a: Annotation): a is import('../utils/types').RangeAnnotation {
+  return 'end' in a;
+}
+
+/* ── Component ─────────────────────────────────────────────── */
 
 export function TimeSeries({
   data,
@@ -82,18 +128,47 @@ export function TimeSeries({
   downsample,
   timeWindow,
   autoScroll,
+  start: startProp,
+  end: endProp,
+  lineThickness: lineThicknessProp,
+  pointSize: pointSizeProp,
+  zoomEnabled = true,
+  annotations = [],
+  formatLegend,
+  annotationMode = false,
+  onAnnotate,
+  annotationColor = '#f59e0b',
+  zoomColor = '#3b82f6',
+  onAnnotationHover,
   onError,
 }: TimeSeriesProps) {
   validateAlertZones(alertZones, 'TimeSeries');
 
   const resolvedStyles = useResolvedStyles(styles);
+  const clipId = useId().replace(/:/g, '_');
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
-  const [visibleMetrics, setVisibleMetrics] = useState<Set<string> | null>(null);
+  const [visibleSeries, setVisibleSeries] = useState<Set<string> | null>(null);
   const [now, setNow] = useState(Date.now());
 
+  // Zoom state
+  const [zoomDomain, setZoomDomain] = useState<[Date, Date] | null>(null);
+  const [brushStart, setBrushStart] = useState<number | null>(null);
+  const [brushEnd, setBrushEnd] = useState<number | null>(null);
+  const isDragging = useRef(false);
+
+  // Annotation ID counter — auto-increments, shared between start_drag/end_drag of same annotation
+  const annotationIdRef = useRef(0);
+  const currentAnnotationIdRef = useRef(0);
+  const annotationDragFired = useRef(false);
+
+  // Annotation hover tooltip
+  const [annotationTooltip, setAnnotationTooltip] = useState<{ content: React.ReactNode; x: number; y: number } | null>(null);
+  const hoveredAnnotationIdx = useRef<number | null>(null);
+
   // Autoscroll: update `now` on animation frame when timeWindow is set
-  const isAutoScroll = timeWindow != null && (autoScroll !== false);
+  const hasFixedRange = startProp != null && endProp != null;
+  const isAutoScroll = !hasFixedRange && timeWindow != null && (autoScroll !== false) && !zoomDomain;
   useEffect(() => {
     if (!isAutoScroll) return;
     let rafId: number;
@@ -105,56 +180,105 @@ export function TimeSeries({
     return () => cancelAnimationFrame(rafId);
   }, [isAutoScroll]);
 
-  // Filter out data points with invalid timestamps
-  const validData = useMemo(() => {
-    return data.filter((point) => {
-      if (!isValidTimestamp(point.timestamp)) {
-        onError?.({ type: 'invalid_timestamp', message: `TimeSeries: invalid timestamp, received ${point.timestamp}`, rawValue: point.timestamp, component: 'TimeSeries' });
-        return false;
-      }
-      return true;
-    });
-  }, [data, onError]);
+  const deviceNames = useMemo(() => Object.keys(data), [data]);
+  const deviceCount = deviceNames.length;
 
-  // Resolve metrics from data if not provided
-  const resolvedMetrics = useMemo(() => resolveMetrics(validData, metricsProp), [validData, metricsProp]);
-
-  // Track visibility — initialize from MetricConfig.visible, then user toggles override
-  const metricVisibility = useMemo(() => {
-    if (visibleMetrics) return visibleMetrics;
-    const set = new Set<string>();
-    for (const m of resolvedMetrics) {
-      if (m.visible !== false) set.add(m.key);
+  // Validate and filter data per device
+  const validDataMap = useMemo(() => {
+    const result: Record<string, DataPoint[]> = {};
+    for (const name of deviceNames) {
+      result[name] = (data[name] ?? []).filter((point) => {
+        if (!isValidTimestamp(point.timestamp)) {
+          onError?.({ type: 'invalid_timestamp', message: `TimeSeries [${name}]: invalid timestamp, received ${point.timestamp}`, rawValue: point.timestamp, component: 'TimeSeries' });
+          return false;
+        }
+        return true;
+      });
     }
-    return set;
-  }, [resolvedMetrics, visibleMetrics]);
+    return result;
+  }, [data, deviceNames, onError]);
 
-  const activeMetrics = useMemo(
-    () => resolvedMetrics.filter((m) => metricVisibility.has(m.key)),
-    [resolvedMetrics, metricVisibility]
+  // Resolve metrics from first non-empty device (or use prop)
+  const resolvedMetrics = useMemo(() => {
+    if (metricsProp) return metricsProp.map((m, i) => ({ ...m, color: m.color ?? getMetricColor(i) }));
+    for (const name of deviceNames) {
+      const points = validDataMap[name];
+      if (points && points.length > 0) {
+        return resolveMetrics(points, undefined);
+      }
+    }
+    return [];
+  }, [validDataMap, deviceNames, metricsProp]);
+
+  // Build series list: one per device × metric
+  const allSeries = useMemo<Series[]>(() => {
+    const result: Series[] = [];
+    let colorIdx = 0;
+    for (const device of deviceNames) {
+      const deviceData = validDataMap[device] ?? [];
+      for (const m of resolvedMetrics) {
+        const id = deviceCount === 1 ? m.key : `${device}:${m.key}`;
+        const label = formatLegend
+          ? formatLegend(device, m.label ?? m.key)
+          : deviceCount === 1
+            ? (m.label ?? m.key)
+            : `[${device}]: ${m.label ?? m.key}`;
+        result.push({
+          id,
+          device,
+          metricKey: m.key,
+          label,
+          color: deviceCount === 1 ? (m.color ?? getMetricColor(colorIdx)) : getMetricColor(colorIdx),
+          lineThickness: m.lineThickness,
+          pointSize: m.pointSize,
+          visible: true,
+          data: deviceData,
+        });
+        colorIdx++;
+      }
+    }
+    return result;
+  }, [deviceNames, validDataMap, resolvedMetrics, deviceCount, formatLegend]);
+
+  // Visibility tracking
+  const seriesVisibility = useMemo(() => {
+    if (visibleSeries) return visibleSeries;
+    return new Set(allSeries.map((s) => s.id));
+  }, [allSeries, visibleSeries]);
+
+  const activeSeries = useMemo(
+    () => allSeries.filter((s) => seriesVisibility.has(s.id)),
+    [allSeries, seriesVisibility],
   );
 
-  // Downsample per metric
-  const downsampledData = useMemo(() => {
-    if (activeMetrics.length === 0) return validData;
-    // Downsample using first active metric as reference
-    return applyDownsample(validData, downsample, activeMetrics[0].key);
-  }, [validData, downsample, activeMetrics]);
+  // Downsample per device
+  const downsampledMap = useMemo(() => {
+    const result: Record<string, DataPoint[]> = {};
+    for (const device of deviceNames) {
+      const deviceData = validDataMap[device] ?? [];
+      if (deviceData.length === 0) { result[device] = []; continue; }
+      const refMetric = resolvedMetrics[0]?.key;
+      result[device] = refMetric ? applyDownsample(deviceData, downsample, refMetric) : deviceData;
+    }
+    return result;
+  }, [validDataMap, deviceNames, downsample, resolvedMetrics]);
 
-  const handleSelectMetric = useCallback((key: string) => {
-    setVisibleMetrics((prev) => {
-      const current = prev ?? new Set(resolvedMetrics.map((m) => m.key));
-      // If this is the only visible metric, re-show all
+  const handleSelectSeries = useCallback((key: string) => {
+    setVisibleSeries((prev) => {
+      const current = prev ?? new Set(allSeries.map((s) => s.id));
+      // Solo mode: if this is the only visible, show all; otherwise show only this one
       if (current.size === 1 && current.has(key)) {
-        return new Set(resolvedMetrics.map((m) => m.key));
+        return new Set(allSeries.map((s) => s.id));
       }
-      // Otherwise, select only this one
       return new Set([key]);
     });
-  }, [resolvedMetrics]);
+  }, [allSeries]);
+
+  // Check if all data is empty
+  const allEmpty = deviceNames.length === 0 || deviceNames.every((n) => (validDataMap[n]?.length ?? 0) === 0);
 
   // Loading state
-  if (showLoading && (!validData || validData.length === 0)) {
+  if (showLoading && allEmpty) {
     return (
       <ResponsiveContainer>
         {({ width, height }) => <ChartSkeleton width={width} height={height} />}
@@ -163,132 +287,351 @@ export function TimeSeries({
   }
 
   // Legend items
-  const legendItems: LegendItem[] = resolvedMetrics.map((m, i) => ({
-    key: m.key,
-    label: m.label ?? m.key,
-    color: m.color ?? getMetricColor(i),
-    visible: metricVisibility.has(m.key),
+  const legendItems: LegendItem[] = allSeries.map((s) => ({
+    key: s.id,
+    label: s.label,
+    color: s.color,
+    visible: seriesVisibility.has(s.id),
   }));
+
+  const isLegendVertical = legendPosition === 'left' || legendPosition === 'right';
 
   return (
     <ResponsiveContainer
       style={{ backgroundColor: styles?.background?.color ?? 'var(--relay-bg-color, transparent)' }}
     >
       {({ width, height }) => {
-        const s = createScaler(width, height, CHART_REFERENCE, 'width');
+        const rawS = createScaler(width, height, CHART_REFERENCE, 'width');
+        const s = (px: number) => Math.min(rawS(px), px); // never upscale beyond 1x
+        const legendSpace = showLegend ? (isLegendVertical ? 140 : s(30)) : 0;
         const MARGIN = { top: s(20), right: s(20), bottom: s(30), left: s(50) };
-        const chartWidth = width - MARGIN.left - MARGIN.right;
-        const chartHeight = height - MARGIN.top - MARGIN.bottom - (showLegend ? s(30) : 0) - (title ? s(24) : 0);
+        const chartWidth = width - MARGIN.left - MARGIN.right - (isLegendVertical ? legendSpace : 0);
+        const chartHeight = height - MARGIN.top - MARGIN.bottom - (showLegend && !isLegendVertical ? s(30) : 0) - (title ? s(24) : 0);
 
         if (chartWidth <= 0 || chartHeight <= 0) return null;
 
-        // Filter data by time window if set
-        const visibleData = timeWindow
-          ? downsampledData.filter((d) => d.timestamp >= now - timeWindow && d.timestamp <= now)
-          : downsampledData;
-
-        if (visibleData.length === 0 && downsampledData.length > 0 && timeWindow) {
-          // No data in window yet — show empty chart with correct time range
+        // Collect all visible data across devices for domain calculation
+        const allVisibleData: { device: string; data: DataPoint[] }[] = [];
+        for (const ser of activeSeries) {
+          const deviceData = downsampledMap[ser.device] ?? [];
+          // Filter by time window or start/end
+          let filtered: DataPoint[];
+          if (hasFixedRange) {
+            const s0 = typeof startProp === 'number' ? startProp : new Date(startProp!).getTime();
+            const e0 = typeof endProp === 'number' ? endProp : new Date(endProp!).getTime();
+            filtered = deviceData.filter((d) => d.timestamp >= s0 && d.timestamp <= e0);
+          } else if (timeWindow && !zoomDomain) {
+            filtered = deviceData.filter((d) => d.timestamp >= now - timeWindow && d.timestamp <= now);
+          } else {
+            filtered = deviceData;
+          }
+          allVisibleData.push({ device: ser.device, data: filtered });
         }
 
-        // X-axis domain: fixed window if timeWindow set, otherwise fit to data
-        const xDomainMin = timeWindow ? new Date(now - timeWindow) : new Date((extent(visibleData, (d) => d.timestamp) as [number, number])[0] ?? now);
-        const xDomainMax = timeWindow ? new Date(now) : new Date((extent(visibleData, (d) => d.timestamp) as [number, number])[1] ?? now);
+        // Flatten for bisector
+        const flatVisibleData = allVisibleData.flatMap((d) => d.data);
+        // Deduplicate by timestamp for bisector (use first device's data as reference)
+        const firstDeviceData = allVisibleData[0]?.data ?? [];
+
+        // X domain
+        let xDomainMin: Date;
+        let xDomainMax: Date;
+        if (zoomDomain) {
+          [xDomainMin, xDomainMax] = zoomDomain;
+        } else if (hasFixedRange) {
+          xDomainMin = new Date(startProp!);
+          xDomainMax = new Date(endProp!);
+        } else if (timeWindow) {
+          xDomainMin = new Date(now - timeWindow);
+          xDomainMax = new Date(now);
+        } else {
+          const allTimestamps = flatVisibleData.map((d) => d.timestamp);
+          const [tMin, tMax] = extent(allTimestamps) as [number, number];
+          xDomainMin = new Date(tMin ?? now);
+          xDomainMax = new Date(tMax ?? now);
+        }
         const xScale = scaleTime().domain([xDomainMin, xDomainMax]).range([0, chartWidth]);
 
-        // Custom tick format — always show HH:MM:SS
         const tickFormat = timeFormat('%H:%M:%S');
 
+        // Y domain from visible data
         let yMin = Infinity;
         let yMax = -Infinity;
-        for (const d of visibleData) {
-          for (const m of activeMetrics) {
-            const v = Number(d[m.key]);
-            if (!isNaN(v)) {
-              if (v < yMin) yMin = v;
-              if (v > yMax) yMax = v;
+        for (const { data: devData } of allVisibleData) {
+          for (const d of devData) {
+            for (const ser of activeSeries) {
+              const v = Number(d[ser.metricKey]);
+              if (!isNaN(v)) {
+                if (v < yMin) yMin = v;
+                if (v > yMax) yMax = v;
+              }
             }
           }
         }
-        // Include alert zone bounds in y range
         for (const zone of alertZones) {
           if (zone.min < yMin) yMin = zone.min;
           if (zone.max > yMax) yMax = zone.max;
         }
+        if (!isFinite(yMin)) { yMin = 0; yMax = 1; }
         const yPadding = (yMax - yMin) * 0.05 || 1;
         const yScale = scaleLinear()
           .domain([yMin - yPadding, yMax + yPadding])
           .range([chartHeight, 0])
           .nice();
 
-        // Line and area generators
-        // Line and area generators are configured per-metric below
-        // (each needs its own .defined() check for the specific metric key)
-
         // Mouse interaction
         const bisect = bisector<DataPoint, number>((d) => d.timestamp).left;
 
+        // Clamp a pixel x to the visible domain and return epoch ms
+        const clampTs = (px: number) => {
+          const clamped = Math.max(0, Math.min(px, chartWidth));
+          const t = xScale.invert(clamped).getTime();
+          return Math.max(xDomainMin.getTime(), Math.min(t, xDomainMax.getTime()));
+        };
+
+        const handleMouseDown = (event: React.MouseEvent<SVGRectElement>) => {
+          const [mx] = pointer(event.nativeEvent, event.currentTarget);
+          if (annotationMode) {
+            setBrushStart(mx);
+            setBrushEnd(mx);
+            isDragging.current = true;
+            annotationDragFired.current = false;
+            currentAnnotationIdRef.current = ++annotationIdRef.current;
+            return;
+          }
+          if (!zoomEnabled) return;
+          setBrushStart(mx);
+          setBrushEnd(mx);
+          isDragging.current = true;
+        };
+
         const handleMouseMove = (event: React.MouseEvent<SVGRectElement>) => {
+          // Update brush if dragging (annotation or zoom)
+          if (isDragging.current && (annotationMode || zoomEnabled)) {
+            const [mx] = pointer(event.nativeEvent, event.currentTarget);
+            const clamped = Math.max(0, Math.min(mx, chartWidth));
+            setBrushEnd(clamped);
+
+            // Fire start_drag once drag exceeds 10px threshold
+            if (annotationMode && !annotationDragFired.current && brushStart != null && Math.abs(clamped - brushStart) > 10) {
+              annotationDragFired.current = true;
+              onAnnotate?.(currentAnnotationIdRef.current, clampTs(brushStart), 'start_drag');
+            }
+
+            return; // Don't update tooltip while dragging
+          }
+
+          // Tooltip logic
           const [mx] = pointer(event.nativeEvent, event.currentTarget);
           const x0 = xScale.invert(mx).getTime();
-          const idx = bisect(visibleData, x0, 1);
-          const d0 = visibleData[idx - 1];
-          const d1 = visibleData[idx];
+          const refData = firstDeviceData.length > 0 ? firstDeviceData : flatVisibleData;
+          const sorted = [...refData].sort((a, b) => a.timestamp - b.timestamp);
+          const idx = bisect(sorted, x0, 1);
+          const d0 = sorted[idx - 1];
+          const d1 = sorted[idx];
 
           if (!d0 && !d1) return;
 
-          const closest = !d1
-            ? d0
-            : !d0
-              ? d1
-              : x0 - d0.timestamp > d1.timestamp - x0
-                ? d1
-                : d0;
+          const closest = !d1 ? d0 : !d0 ? d1 : x0 - d0.timestamp > d1.timestamp - x0 ? d1 : d0;
+          const ts = closest.timestamp;
 
-          const metricValues = activeMetrics.map((m, i) => ({
-            key: m.key,
-            label: m.label ?? m.key,
-            color: m.color ?? getMetricColor(i),
-            value: Number(closest[m.key]) || 0,
-          }));
-
-          const px = xScale(new Date(closest.timestamp));
-          const py = yScale(metricValues[0]?.value ?? 0);
-
-          setTooltipData({
-            point: closest,
-            metrics: metricValues,
-            x: px + MARGIN.left,
-            y: py + MARGIN.top,
+          // Gather values from all active series at this timestamp
+          const metricValues = activeSeries.map((ser) => {
+            const devData = downsampledMap[ser.device] ?? [];
+            // Find closest point in this device's data
+            const devSorted = devData; // already sorted from source
+            const devIdx = bisect(devSorted, ts, 1);
+            const dd0 = devSorted[devIdx - 1];
+            const dd1 = devSorted[devIdx];
+            const devClosest = !dd1 ? dd0 : !dd0 ? dd1 : ts - dd0.timestamp > dd1.timestamp - ts ? dd1 : dd0;
+            return {
+              key: ser.id,
+              label: ser.label,
+              color: ser.color,
+              value: devClosest ? Number(devClosest[ser.metricKey]) || 0 : 0,
+            };
           });
 
-          if (onHover && metricValues.length > 0) {
+          const px = xScale(new Date(ts));
+          const py = yScale(metricValues[0]?.value ?? 0);
+
+          // Check if cursor is near a data line (pixel distance from cursor to nearest line point)
+          const [, my] = pointer(event.nativeEvent, event.currentTarget);
+          const SNAP_PX = 20; // pixel threshold to consider "on a data point"
+          let nearLine = false;
+          for (const mv of metricValues) {
+            const lineY = yScale(mv.value);
+            if (Math.abs(my - lineY) <= SNAP_PX) { nearLine = true; break; }
+          }
+
+          // Check if cursor is inside an annotation region
+          let insideAnnotation = false;
+          if (annotations.length > 0) {
+            for (const ann of annotations) {
+              if (isRangeAnnotation(ann)) {
+                const ax0 = xScale(new Date(ann.start));
+                const ax1 = xScale(new Date(ann.end));
+                if (mx >= ax0 && mx <= ax1) { insideAnnotation = true; break; }
+              } else {
+                const ax = xScale(new Date(ann.timestamp));
+                if (Math.abs(mx - ax) <= 4) { insideAnnotation = true; break; }
+              }
+            }
+          }
+
+          // When inside an annotation: near line → show data tooltip, hide annotation tooltip
+          //                             not near line → hide data tooltip, show annotation tooltip
+          // When outside annotation: always show data tooltip
+          const suppressDataTooltip = insideAnnotation && !nearLine;
+
+          if (suppressDataTooltip) {
+            setTooltipData(null);
+          } else {
+            setTooltipData({
+              point: closest,
+              metrics: metricValues,
+              x: px + MARGIN.left,
+              y: py + MARGIN.top,
+            });
+          }
+
+          if (!suppressDataTooltip && onHover && metricValues.length > 0) {
             onHover(
-              {
-                metric: metricValues[0].key,
-                value: metricValues[0].value,
-                timestamp: closest.timestamp,
-              },
-              event.nativeEvent
+              { metric: metricValues[0].key, value: metricValues[0].value, timestamp: ts },
+              event.nativeEvent,
             );
+          }
+
+          // Annotation hover detection
+          if (onAnnotationHover && annotations.length > 0) {
+            const HIT_PX = 4; // hit tolerance in pixels
+            let foundIdx: number | null = null;
+            for (let ai = 0; ai < annotations.length; ai++) {
+              const ann = annotations[ai];
+              if (isRangeAnnotation(ann)) {
+                const ax0 = xScale(new Date(ann.start));
+                const ax1 = xScale(new Date(ann.end));
+                if (mx >= ax0 - HIT_PX && mx <= ax1 + HIT_PX) { foundIdx = ai; break; }
+              } else {
+                const ax = xScale(new Date(ann.timestamp));
+                if (Math.abs(mx - ax) <= HIT_PX) { foundIdx = ai; break; }
+              }
+            }
+
+            if (foundIdx !== null && foundIdx !== hoveredAnnotationIdx.current) {
+              // Left previous annotation
+              if (hoveredAnnotationIdx.current !== null) {
+                onAnnotationHover(false, annotations[hoveredAnnotationIdx.current]);
+              }
+              // Entered new annotation
+              hoveredAnnotationIdx.current = foundIdx;
+              const ann = annotations[foundIdx];
+              const result = onAnnotationHover(true, ann);
+              if (result) {
+                const [sx, sy] = pointer(event.nativeEvent, svgRef.current!);
+                setAnnotationTooltip({ content: result, x: sx, y: sy });
+              } else {
+                setAnnotationTooltip(null);
+              }
+            } else if (foundIdx !== null && annotationTooltip) {
+              // Still on same annotation — update tooltip position
+              const [sx, sy] = pointer(event.nativeEvent, svgRef.current!);
+              setAnnotationTooltip((prev) => prev ? { ...prev, x: sx, y: sy } : null);
+            } else if (foundIdx === null && hoveredAnnotationIdx.current !== null) {
+              // Left annotation
+              onAnnotationHover(false, annotations[hoveredAnnotationIdx.current]);
+              hoveredAnnotationIdx.current = null;
+              setAnnotationTooltip(null);
+            }
+          }
+        };
+
+        const handleMouseUp = (event: React.MouseEvent<SVGRectElement>) => {
+          if (isDragging.current && brushStart != null && brushEnd != null) {
+            isDragging.current = false;
+
+            if (annotationMode) {
+              const x0 = Math.min(brushStart, brushEnd);
+              const x1 = Math.max(brushStart, brushEnd);
+              if (x1 - x0 > 10) {
+                // Range annotation — fire end_drag with the release timestamp
+                onAnnotate?.(currentAnnotationIdRef.current, clampTs(brushEnd), 'end_drag');
+              } else {
+                // Point annotation — fire click with the clamped timestamp
+                onAnnotate?.(currentAnnotationIdRef.current, clampTs(brushStart), 'click');
+              }
+              setBrushStart(null);
+              setBrushEnd(null);
+              return;
+            }
+
+            if (zoomEnabled) {
+              const x0 = Math.min(brushStart, brushEnd);
+              const x1 = Math.max(brushStart, brushEnd);
+              if (x1 - x0 > 10) {
+                const t0 = xScale.invert(x0);
+                const t1 = xScale.invert(x1);
+                setZoomDomain([t0, t1]);
+              }
+              setBrushStart(null);
+              setBrushEnd(null);
+            }
           }
         };
 
         const handleMouseLeave = (event: React.MouseEvent<SVGRectElement>) => {
+          isDragging.current = false;
+          setBrushStart(null);
+          setBrushEnd(null);
           setTooltipData(null);
+          // Clear annotation hover
+          if (onAnnotationHover && hoveredAnnotationIdx.current !== null) {
+            onAnnotationHover(false, annotations[hoveredAnnotationIdx.current]);
+            hoveredAnnotationIdx.current = null;
+            setAnnotationTooltip(null);
+          }
           if (onRelease) {
             const last = tooltipData?.metrics[0];
             onRelease(
-              last
-                ? { metric: last.key, value: last.value, timestamp: tooltipData!.point.timestamp }
-                : null,
-              event.nativeEvent
+              last ? { metric: last.key, value: last.value, timestamp: tooltipData!.point.timestamp } : null,
+              event.nativeEvent,
             );
           }
         };
 
+        // Build per-series visible data
+        const seriesVisibleData = activeSeries.map((ser) => {
+          const deviceData = downsampledMap[ser.device] ?? [];
+          let filtered: typeof deviceData;
+          if (zoomDomain) {
+            filtered = deviceData.filter((d) => d.timestamp >= zoomDomain[0].getTime() && d.timestamp <= zoomDomain[1].getTime());
+          } else if (hasFixedRange) {
+            const s0 = typeof startProp === 'number' ? startProp : new Date(startProp!).getTime();
+            const e0 = typeof endProp === 'number' ? endProp : new Date(endProp!).getTime();
+            filtered = deviceData.filter((d) => d.timestamp >= s0 && d.timestamp <= e0);
+          } else if (timeWindow) {
+            filtered = deviceData.filter((d) => d.timestamp >= now - timeWindow && d.timestamp <= now);
+          } else {
+            filtered = deviceData;
+          }
+          return [...filtered].sort((a, b) => a.timestamp - b.timestamp);
+        });
+
+        const legendEl = showLegend ? (
+          <Legend items={legendItems} onSelect={handleSelectSeries} position={legendPosition} style={resolvedStyles?.legend} s={s} />
+        ) : null;
+
+        const isHorizontalLegend = !isLegendVertical;
+
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: isLegendVertical ? 'row' : 'column',
+              width: '100%',
+              height: '100%',
+            }}
+          >
             {title && (
               <div
                 style={{
@@ -298,18 +641,18 @@ export function TimeSeries({
                   fontWeight: resolvedStyles?.title?.fontWeight ?? 600,
                   color: resolvedStyles?.title?.color,
                   padding: `${s(4)}px 0`,
+                  order: -2,
                 }}
               >
                 {title}
               </div>
             )}
-            {showLegend && legendPosition === 'top' && (
-              <Legend items={legendItems} onSelect={handleSelectMetric} position="top" style={resolvedStyles?.legend} s={s} />
-            )}
-            <div style={{ flex: 1, position: 'relative' }}>
-              <svg ref={svgRef} width={width} height={chartHeight + MARGIN.top + MARGIN.bottom}>
+            {isHorizontalLegend && (legendPosition === 'top') && legendEl}
+            {isLegendVertical && legendPosition === 'left' && legendEl}
+            <div style={{ flex: 1, position: 'relative', order: 0 }}>
+              <svg ref={svgRef} width={isLegendVertical ? chartWidth + MARGIN.left + MARGIN.right : width} height={chartHeight + MARGIN.top + MARGIN.bottom}>
                 <defs>
-                  <clipPath id="chart-clip">
+                  <clipPath id={clipId}>
                     <rect x={0} y={0} width={chartWidth} height={chartHeight} />
                   </clipPath>
                 </defs>
@@ -331,42 +674,136 @@ export function TimeSeries({
                     s={s}
                   />
 
-                  {/* Render lines and optional areas — clipped to chart bounds */}
-                  <g clipPath="url(#chart-clip)">
-                  {activeMetrics.map((m, i) => {
-                    const color = m.color ?? getMetricColor(i);
-                    const metricLineGen = line<DataPoint>()
-                      .defined((d) => d[m.key] !== undefined && d[m.key] !== null)
-                      .x((d) => xScale(new Date(d.timestamp)))
-                      .y((d) => yScale(Number(d[m.key]) || 0));
-
-                    const metricAreaGen = area<DataPoint>()
-                      .defined((d) => d[m.key] !== undefined && d[m.key] !== null)
-                      .x((d) => xScale(new Date(d.timestamp)))
-                      .y0(chartHeight)
-                      .y1((d) => yScale(Number(d[m.key]) || 0));
-
-                    return (
-                      <g key={m.key}>
-                        {showArea && (
-                          <path
-                            d={metricAreaGen(visibleData) ?? ''}
-                            fill={areaColor ?? color}
-                            opacity={0.15}
-                          />
-                        )}
-                        <path
-                          d={metricLineGen(visibleData) ?? ''}
-                          fill="none"
-                          stroke={color}
-                          strokeWidth={s(2)}
-                          strokeLinejoin="round"
-                          strokeLinecap="round"
-                        />
-                      </g>
-                    );
-                  })}
+                  {/* Annotation visuals (rendered below overlay) */}
+                  <g clipPath={`url(#${clipId})`} style={{ pointerEvents: 'none' }}>
+                    {annotations.map((ann, i) => {
+                      if (isRangeAnnotation(ann)) {
+                        const x0 = xScale(new Date(ann.start));
+                        const x1 = xScale(new Date(ann.end));
+                        const color = ann.color ?? '#6b7280';
+                        return (
+                          <g key={`ann-${i}`}>
+                            <rect x={x0} y={0} width={x1 - x0} height={chartHeight} fill={color} opacity={0.1} />
+                            {ann.label && (
+                              <text x={(x0 + x1) / 2} y={s(12)} textAnchor="middle" fontSize={s(10)} fill={color} fontFamily="var(--relay-font-family)">
+                                {ann.label}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      } else {
+                        const x = xScale(new Date(ann.timestamp));
+                        const color = ann.color ?? '#6b7280';
+                        return (
+                          <g key={`ann-${i}`}>
+                            <line x1={x} x2={x} y1={0} y2={chartHeight} stroke={color} strokeWidth={1} strokeDasharray="4,3" />
+                            {ann.label && (
+                              <text x={x + s(4)} y={s(10)} fontSize={s(10)} fill={color} fontFamily="var(--relay-font-family)">
+                                {ann.label}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      }
+                    })}
                   </g>
+
+                  {/* Render lines, areas, and points — clipped to chart bounds */}
+                  <g clipPath={`url(#${clipId})`}>
+                    {activeSeries.map((ser, serIdx) => {
+                      const color = ser.color;
+                      const thickness = ser.lineThickness ?? lineThicknessProp ?? s(2);
+                      const ptSize = ser.pointSize ?? pointSizeProp;
+                      const visData = seriesVisibleData[serIdx] ?? [];
+
+                      const metricLineGen = line<DataPoint>()
+                        .defined((d) => d[ser.metricKey] !== undefined && d[ser.metricKey] !== null)
+                        .x((d) => xScale(new Date(d.timestamp)))
+                        .y((d) => yScale(Number(d[ser.metricKey]) || 0));
+
+                      const metricAreaGen = area<DataPoint>()
+                        .defined((d) => d[ser.metricKey] !== undefined && d[ser.metricKey] !== null)
+                        .x((d) => xScale(new Date(d.timestamp)))
+                        .y0(chartHeight)
+                        .y1((d) => yScale(Number(d[ser.metricKey]) || 0));
+
+                      return (
+                        <g key={ser.id}>
+                          {showArea && (
+                            <path
+                              d={metricAreaGen(visData) ?? ''}
+                              fill={areaColor ?? color}
+                              opacity={0.15}
+                            />
+                          )}
+                          <path
+                            d={metricLineGen(visData) ?? ''}
+                            fill="none"
+                            stroke={color}
+                            strokeWidth={thickness}
+                            strokeLinejoin="round"
+                            strokeLinecap="round"
+                          />
+                          {/* Points */}
+                          {ptSize != null && ptSize > 0 && visData.map((d, di) => {
+                            const v = d[ser.metricKey];
+                            if (v === undefined || v === null) return null;
+                            return (
+                              <circle
+                                key={di}
+                                cx={xScale(new Date(d.timestamp))}
+                                cy={yScale(Number(v) || 0)}
+                                r={ptSize}
+                                fill={color}
+                              />
+                            );
+                          })}
+                        </g>
+                      );
+                    })}
+                  </g>
+
+                  {/* Brush / annotation preview overlay */}
+                  {brushStart != null && brushEnd != null && (() => {
+                    const bx0 = Math.min(brushStart, brushEnd);
+                    const bx1 = Math.max(brushStart, brushEnd);
+                    const isSmall = bx1 - bx0 <= 10;
+
+                    if (annotationMode) {
+                      // Annotation preview
+                      if (isSmall) {
+                        // Point annotation preview — vertical dashed line
+                        return (
+                          <line
+                            x1={brushStart} x2={brushStart}
+                            y1={0} y2={chartHeight}
+                            stroke={annotationColor}
+                            strokeWidth={2}
+                            strokeDasharray="4,3"
+                          />
+                        );
+                      }
+                      // Range annotation preview — shaded band
+                      return (
+                        <rect
+                          x={bx0} y={0}
+                          width={bx1 - bx0} height={chartHeight}
+                          fill={annotationColor} opacity={0.2}
+                          stroke={annotationColor} strokeWidth={1}
+                        />
+                      );
+                    }
+
+                    // Zoom brush
+                    return (
+                      <rect
+                        x={bx0} y={0}
+                        width={bx1 - bx0} height={chartHeight}
+                        fill={zoomColor} opacity={0.15}
+                        stroke={zoomColor} strokeWidth={1}
+                      />
+                    );
+                  })()}
 
                   {/* Hover crosshair */}
                   {tooltipData && (
@@ -389,11 +826,41 @@ export function TimeSeries({
                     width={chartWidth}
                     height={chartHeight}
                     fill="transparent"
+                    style={{ cursor: annotationMode ? 'copy' : zoomEnabled ? 'crosshair' : undefined }}
+                    onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseLeave}
                   />
+
+                  {/* No separate annotation hit areas — hover detection is in handleMouseMove */}
                 </g>
               </svg>
+
+              {/* Zoom reset button */}
+              {zoomDomain && (
+                <button
+                  onClick={() => setZoomDomain(null)}
+                  style={{
+                    position: 'absolute',
+                    top: s(4),
+                    right: s(4),
+                    background: 'var(--relay-tooltip-bg, #1a1a1a)',
+                    color: 'var(--relay-tooltip-text, #ffffff)',
+                    border: 'none',
+                    borderRadius: s(4),
+                    padding: `${s(4)}px ${s(8)}px`,
+                    fontSize: s(11),
+                    cursor: 'pointer',
+                    zIndex: 10,
+                    fontFamily: 'var(--relay-font-family)',
+                  }}
+                  type="button"
+                >
+                  Reset zoom
+                </button>
+              )}
+
               <Tooltip
                 data={tooltipData}
                 containerWidth={width}
@@ -403,10 +870,49 @@ export function TimeSeries({
                 style={resolvedStyles?.tooltip}
                 s={s}
               />
+
+              {/* Annotation hover tooltip — hidden when data-point tooltip is active (near line) */}
+              {annotationTooltip && !tooltipData && (() => {
+                // Clamp to viewport: measure position and flip if needed
+                const tooltipW = 200; // estimated width
+                const tooltipH = 80;  // estimated height
+                let left = annotationTooltip.x;
+                let top = annotationTooltip.y - 8;
+
+                // Horizontal: prefer centered above cursor, flip if overflows
+                if (left + tooltipW / 2 > width) {
+                  left = width - tooltipW / 2 - 4;
+                } else if (left - tooltipW / 2 < 0) {
+                  left = tooltipW / 2 + 4;
+                }
+
+                // Vertical: prefer above cursor, flip below if no room
+                if (top - tooltipH < 0) {
+                  top = annotationTooltip.y + 16; // below cursor
+                }
+
+                // Clamp final top
+                top = Math.max(4, Math.min(top, height - 4));
+
+                return (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left,
+                      top,
+                      transform: top === annotationTooltip.y + 16 ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+                      pointerEvents: 'none',
+                      zIndex: 5,
+                      maxWidth: width - 8,
+                    }}
+                  >
+                    {annotationTooltip.content}
+                  </div>
+                );
+              })()}
             </div>
-            {showLegend && legendPosition === 'bottom' && (
-              <Legend items={legendItems} onSelect={handleSelectMetric} position="bottom" style={resolvedStyles?.legend} s={s} />
-            )}
+            {isLegendVertical && legendPosition === 'right' && legendEl}
+            {isHorizontalLegend && legendPosition === 'bottom' && legendEl}
           </div>
         );
       }}

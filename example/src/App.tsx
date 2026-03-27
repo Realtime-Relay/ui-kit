@@ -7,14 +7,16 @@ import { ProgressBarDemo } from './pages/ProgressBarDemo';
 import { GaugeDemo } from './pages/GaugeDemo';
 import { StatCardDemo } from './pages/StatCardDemo';
 import { StateTimelineDemo } from './pages/StateTimelineDemo';
+import { TimeSeriesDemo } from './pages/TimeSeriesDemo';
 import { TestGauges } from './pages/TestGauges';
 import { TestProgressBar } from './pages/TestProgressBar';
 import { TestStatCards } from './pages/TestStatCards';
 import { TestStateTimeline } from './pages/TestStateTimeline';
+import { TestTimeSeries } from './pages/TestTimeSeries';
 import { useConfig } from './hooks/useConfig';
 import './App.css';
 
-export type Page = 'dashboard' | 'settings' | 'presence' | 'progressbar' | 'gauges' | 'statcards' | 'timelines';
+export type Page = 'dashboard' | 'settings' | 'presence' | 'progressbar' | 'gauges' | 'statcards' | 'timelines' | 'timeseries';
 
 /** Hash-based test routes for Playwright (no SDK needed) */
 function useTestRoute(): string | null {
@@ -28,6 +30,7 @@ function useTestRoute(): string | null {
   if (hash === '#/test-progress') return 'test-progress';
   if (hash === '#/test-statcards') return 'test-statcards';
   if (hash === '#/test-timelines') return 'test-timelines';
+  if (hash === '#/test-timeseries') return 'test-timeseries';
   return null;
 }
 
@@ -41,6 +44,7 @@ export function App() {
   if (testRoute === 'test-progress') return <TestProgressBar />;
   if (testRoute === 'test-statcards') return <TestStatCards />;
   if (testRoute === 'test-timelines') return <TestStateTimeline />;
+  if (testRoute === 'test-timeseries') return <TestTimeSeries />;
 
   return (
     <>
@@ -61,6 +65,7 @@ export function App() {
         {page === 'gauges' && <GaugeDemo />}
         {page === 'statcards' && <StatCardDemo />}
         {page === 'timelines' && <StateTimelineDemo />}
+        {page === 'timeseries' && <TimeSeriesDemo />}
       </main>
     </>
   );

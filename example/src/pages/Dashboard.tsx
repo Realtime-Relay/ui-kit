@@ -198,7 +198,7 @@ function DashboardContent({ config }: { config: AppConfig }) {
         <Card title="Time Series (Line)" span={2}>
           <div style={{ height: 300 }}>
             <TimeSeries
-              data={tsData}
+              data={{ [config.deviceIdent]: tsData }}
               title={`${config.metrics.join(', ')} — Line`}
               showLoading={tsLoading}
               timeWindow={isLive ? liveWindow : undefined}
@@ -211,7 +211,7 @@ function DashboardContent({ config }: { config: AppConfig }) {
         <Card title="Time Series (Area)" span={2}>
           <div style={{ height: 300 }}>
             <TimeSeries
-              data={tsData}
+              data={{ [config.deviceIdent]: tsData }}
               title={`${config.metrics.join(', ')} — Area`}
               area
               showLoading={tsLoading}
@@ -342,7 +342,7 @@ function DashboardContent({ config }: { config: AppConfig }) {
         <Card title="State Timeline" span={2}>
           <div style={{ height: 120 }}>
             <StateTimeline
-              data={tsData}
+              data={{ [config.deviceIdent]: tsData }}
               metricKey={firstMetric}
               stateMapper={(value: number) => {
                 if (value > 70) return 'critical';

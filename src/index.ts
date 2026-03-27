@@ -73,4 +73,7 @@ export type {
   RelayAppInstance,
   TimeRange,
   DownsampleConfig,
+  Annotation,
+  PointAnnotation,
+  RangeAnnotation,
 } from './utils/types';
