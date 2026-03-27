@@ -124,7 +124,7 @@ export function useRelayTimeSeries({
         }
         return merged;
       });
-    }, 250);
+    }, 16);
 
     return () => {
       cancelled = true;
