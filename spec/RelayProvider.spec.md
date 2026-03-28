@@ -54,7 +54,8 @@ interface UseRelayTimeSeriesOptions {
   deviceIdent: string;
   metrics: string[];
   timeRange: { start: string; end: string };
-  live?: boolean;        // default: true
+  /** 'historical' fetches history only. 'realtime' subscribes to stream only. 'both' fetches history then streams. Default: 'historical'. */
+  mode?: 'realtime' | 'historical' | 'both';
   maxPoints?: number;    // default: 10000
 }
 
@@ -65,15 +66,38 @@ interface UseRelayTimeSeriesResult {
 }
 ```
 
-- Fetches historical data via `app.telemetry.history()`
-- Subscribes to real-time stream via `app.telemetry.stream()` (when `live=true`)
-- Merges historical + real-time data with forward-fill for missing metrics
-- Buffers real-time points and flushes every 250ms
+Three modes:
+
+#### `mode: 'historical'` (default)
+- Fetches historical data via `app.telemetry.history()` using `timeRange` as the query window
+- No stream subscription — data is fetched once and does not update
+- Merges entries by timestamp, forward-fills missing metrics so each DataPoint has all values
+- Suitable for static charts displaying a fixed time range
+
+#### `mode: 'realtime'`
+- Subscribes to live stream via `app.telemetry.stream()` — no history fetch
+- Stream subscribes via `metric: metrics` (array)
+- Buffers incoming points and flushes every 16ms (~1 frame)
+- Flush merges buffer entries sharing the same timestamp (e.g. temperature + humidity arriving as separate messages), then forward-fills missing metrics from the last known values
+- Caps accumulated data at `maxPoints` (default 10000), trimming oldest points
+- Suitable for live-scrolling timeWindow charts
 - Cleanup: calls `app.telemetry.off()` to unsubscribe NATS streams
+
+#### `mode: 'both'`
+- Fetches historical data first, then subscribes to the live stream
+- Stream flush is gated by `historyLoaded` ref — buffered points are held until history arrives, preventing gaps
+- After history loads, stream points are appended via the same merge/forward-fill logic as realtime mode
+- Suitable for sparklines and charts that need historical context plus live updates
 
 ### useRelayLatest
 
 ```typescript
+interface UseRelayLatestOptions {
+  deviceIdent: string;
+  metric: string;
+  timeRange: TimeRange;
+}
+
 interface UseRelayLatestResult {
   value: number | null;
   timestamp: number | null;
@@ -81,11 +105,12 @@ interface UseRelayLatestResult {
   error: Error | null;
 }
 
-function useRelayLatest(deviceIdent: string, metric: string): UseRelayLatestResult
+function useRelayLatest(options: UseRelayLatestOptions): UseRelayLatestResult
 ```
 
-- Fetches latest value via `app.telemetry.latest()`
-- Subscribes to real-time stream for that single metric
+- Initiates both `telemetry.latest()` and `telemetry.stream()` concurrently in a single effect. Whichever delivers data first sets the value. Stream continues to update after.
+- `latest()` now requires `start` and `end` ISO string params
+- Stream uses `metric: [metric]` (array)
 - Returns the most recent value and timestamp
 - Cleanup: calls `app.telemetry.off()` to unsubscribe
 
@@ -107,47 +132,6 @@ function useRelayPresence(deviceIdent: string): UseRelayPresenceResult
 - `online` is `null` until first event received
 - No unsubscribe method available (cleaned up when provider disconnects)
 
-### useRelayAlertZones
-
-```typescript
-function useRelayAlertZones(deviceIdent: string, metric: string): {
-  zones: AlertZone[];
-  isLoading: boolean;
-  error: Error | null;
-}
-```
-
-- Fetches alert rules via `app.alert.list()`
-- Filters for rules matching the device/metric
-- Maps rule thresholds to `AlertZone[]` format
-- One-time fetch (no real-time subscription)
-
-### useRelayAlertTimeline
-
-```typescript
-function useRelayAlertTimeline(ruleId: string, timeRange: TimeRange): {
-  data: StateEntry[];
-  isLoading: boolean;
-  error: Error | null;
-}
-```
-
-- Fetches alert history via `app.alert.history()`
-- Maps fire/resolved/ack events to `StateEntry[]` for StateTimeline
-
-### useRelayDeviceStates
-
-```typescript
-function useRelayDeviceStates(deviceIdent: string, timeRange: TimeRange): {
-  data: StateEntry[];
-  isLoading: boolean;
-  error: Error | null;
-}
-```
-
-- Fetches device state changes over time
-- Maps to `StateEntry[]` for StateTimeline
-
 ---
 
 ## RelayAppInstance Interface
@@ -157,21 +141,14 @@ The UI kit defines a minimal TypeScript interface for the SDK methods it uses. T
 ```typescript
 interface RelayAppInstance {
   telemetry: {
-    stream: (opts) => Promise<void>;
-    history: (opts) => Promise<{ status: string; data: any[] }>;
-    latest: (opts) => Promise<{ status: string; data: any[] }>;
+    stream: (opts: { device_ident: string; metric: string | string[]; callback: (data: any) => void }) => Promise<void>;
+    history: (opts: { device_ident: string; metric: string[]; start: string; end: string }) => Promise<Record<string, { value: any; timestamp: number }[]>>;
+    latest: (opts: { device_ident: string; fields: string[]; start: string; end: string }) => Promise<Record<string, { value: any; timestamp: number }>>;
     off: (opts: { device_ident: string; metric?: string[] }) => Promise<void>;
   };
   connection: {
     listeners: (callback: (event: string) => void) => void;
     presence: (callback: (data: PresenceEvent) => void) => void;
-  };
-  alert: {
-    list: () => Promise<{ status: string; data: any[] }>;
-    history: (opts) => Promise<{ status: string; data: any[] }>;
-  };
-  device: {
-    get: (ident: string) => Promise<{ status: string; data: any }>;
   };
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;

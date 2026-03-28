@@ -39,15 +39,10 @@ export type { StateEntry } from './timelines/stateUtils';
 export { useRelayTimeSeries } from './hooks/useRelayTimeSeries';
 export type { UseRelayTimeSeriesOptions, UseRelayTimeSeriesResult } from './hooks/useRelayTimeSeries';
 export { useRelayLatest } from './hooks/useRelayLatest';
-export type { UseRelayLatestResult } from './hooks/useRelayLatest';
+export type { UseRelayLatestOptions, UseRelayLatestResult } from './hooks/useRelayLatest';
 export { useRelayPresence } from './hooks/useRelayPresence';
 export type { UseRelayPresenceResult, PresenceEvent } from './hooks/useRelayPresence';
-export { useRelayAlertZones } from './hooks/useRelayAlertZones';
-export type { UseRelayAlertZonesResult } from './hooks/useRelayAlertZones';
-export { useRelayDeviceStates } from './hooks/useRelayDeviceStates';
-export type { UseRelayDeviceStatesResult } from './hooks/useRelayDeviceStates';
-export { useRelayAlertTimeline } from './hooks/useRelayAlertTimeline';
-export type { UseRelayAlertTimelineResult } from './hooks/useRelayAlertTimeline';
+
 
 // Zone transition
 export { useZoneTransition } from './utils/useZoneTransition';

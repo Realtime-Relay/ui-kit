@@ -68,7 +68,7 @@ export interface RelayAppInstance {
   telemetry: {
     stream: (opts: {
       device_ident: string;
-      metric: string;
+      metric: string | string[];
       callback: (data: { metric: string; data: { value: any; timestamp: number } }) => void;
     }) => Promise<void>;
     history: (opts: {
@@ -76,11 +76,13 @@ export interface RelayAppInstance {
       fields: string[];
       start: string;
       end: string;
-    }) => Promise<{ status: string; data: any[] }>;
+    }) => Promise<Record<string, { value: any; timestamp: number }[]>>;
     latest: (opts: {
       device_ident: string;
       fields: string[];
-    }) => Promise<{ status: string; data: any[] }>;
+      start: string;
+      end: string;
+    }) => Promise<Record<string, { value: any; timestamp: number }>>;
     off: (opts: {
       device_ident: string;
       metric?: string[];

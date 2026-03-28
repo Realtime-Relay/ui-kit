@@ -34,7 +34,10 @@ export function groupStateEntries(
   stateMapper: (value: any) => string,
 ): StateEntry[] {
   if (!metricKey || data.length === 0) return [];
-  const sorted = [...data].sort((a, b) => a.timestamp - b.timestamp);
+  // Assume data is already sorted by timestamp (useRelayTimeSeries guarantees this).
+  // Check first/last to confirm; only sort if needed.
+  const needsSort = data.length > 1 && data[0].timestamp > data[data.length - 1].timestamp;
+  const sorted = needsSort ? [...data].sort((a, b) => a.timestamp - b.timestamp) : data;
   const result: StateEntry[] = [];
   let currentState: string | null = null;
   let start = 0;

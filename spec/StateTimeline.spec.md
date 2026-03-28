@@ -42,96 +42,39 @@ export interface StateTimelineProps {
 | `LABEL_GAP` | `8` | Horizontal gap between label column and bar area |
 | `X_AXIS_HEIGHT` | `20` | Vertical space reserved for X-axis tick labels below bars |
 | `LEGEND_HEIGHT` | `24` | Vertical space reserved for the state legend below the axis |
-| `MARGIN.top` | `8` | Top padding inside the SVG |
-| `MARGIN.right` | `12` | Right padding inside the SVG |
-| `MARGIN.bottom` | `8` | Bottom padding inside the SVG |
-| `MARGIN.left` | `12` | Left padding inside the SVG |
+| `MARGIN.top` | `8` | Top padding inside the canvas |
+| `MARGIN.right` | `12` | Right padding inside the canvas |
+| `MARGIN.bottom` | `8` | Bottom padding inside the canvas |
+| `MARGIN.left` | `12` | Left padding inside the canvas |
 | `LABEL_WIDTH` | `measuredLabelWidth ?? 120` | Width of the label column; 120px fallback before measurement |
-| `CHART_REFERENCE` | `500` | Reference width for proportional scaler (imported from `utils/scaler`) |
 
-## Scaler Setup
+## Canvas Rendering
 
-```
-rawS = createScaler(width, 100, CHART_REFERENCE, 'width')
-s = (px) => rawS(px) > px ? px : rawS(px)
-```
-
-The scaler produces a function where `factor = width / 500`. The `s` wrapper caps scaled values so they never exceed the raw input -- at widths >= 500 the scaler returns the raw pixel value unchanged. This prevents fonts and gaps from growing beyond their authored sizes.
-
-## SVG Element Tree
+The component renders a `<canvas>` element (not SVG) with a `useEffect` draw cycle. The wrapper structure:
 
 ```
 <div style="position: relative; width: 100%">                   // wrapper
-  <svg ref={svgRef} width={width} height={totalHeight}>          // main SVG
-    {deviceNames.map((name, rowIdx) => (
-      <g key={name}>                                             // row group
-        <text data-label                                         // device label
-          x={labelX}
-          y={yOffset + BAR_HEIGHT / 2}
-          dominantBaseline="central"
-          textAnchor={labelsOnRight ? 'end' : 'start'}
-          fontSize={rowLabelFontSize}
-          fontFamily={rowLabelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
-          fontWeight={rowLabelStyleR?.fontWeight ?? 500}
-          fill={rowLabelStyleR?.color ?? '#374151'}
-        />
-        <g transform="translate({barsX},{yOffset})">             // bar container
-          // empty row background (if entries.length === 0):
-          <rect x=0 y=0 width={chartWidth} height={BAR_HEIGHT}
-                fill={emptyRowColor} rx=2 />
-          // state bands (if xScale exists):
-          {entries.map((entry, i) => (
-            <rect
-              x={xScale(new Date(entry.start))}
-              y=0
-              width={max(1, xScale(new Date(entry.end)) - x)}
-              height={BAR_HEIGHT}
-              fill={getStateColor(entry.state, stateColors, uniqueStates.indexOf(entry.state))}
-              rx=0
-              opacity={hoveredEntry?.entry === entry ? 1 : 0.8}
-              style="cursor: pointer; transition: opacity 100ms ease"
-              // mouseEnter, mouseMove -> setHoveredEntry
-              // mouseLeave -> setHoveredEntry(null)
-            />
-          ))}
-        </g>
-      </g>
-    ))}
-    // X-axis group (only when xScale exists):
-    <g transform="translate({barsX},{MARGIN.top + rowCount*BAR_HEIGHT + (rowCount-1)*ROW_GAP + 4})">
-      {xScale.ticks(tickCount).map((tick, i) => (
-        <text
-          x={xScale(tick)}
-          y={axisLabelFontSize + 2}
-          textAnchor="middle"
-          fontSize={axisLabelFontSize}
-          fontFamily={labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
-          fill={labelStyleR?.color ?? '#9ca3af'}
-        >
-          {formatted tick label}
-        </text>
-      ))}
-    </g>
-    // Legend (only when uniqueStates.length > 0):
-    <foreignObject x=0
-                   y={MARGIN.top + rowCount*BAR_HEIGHT + (rowCount-1)*ROW_GAP + X_AXIS_HEIGHT}
-                   width={width}
-                   height={LEGEND_HEIGHT}>
-      <div style="display:flex; gap:12px; justifyContent:center;
-                  flexWrap:wrap; padding:4px 0;
-                  fontFamily:{labelStyleR?.fontFamily ?? 'var(--relay-font-family)'};
-                  fontSize:{labelStyleR?.fontSize ?? 11}">
-        {uniqueStates.map((state, i) => (
-          <div style="display:flex; alignItems:center; gap:4px">
-            <span style="width:10; height:10; borderRadius:2;
-                         backgroundColor:{getStateColor(state, stateColors, i)};
-                         display:inline-block" />
-            <span style="color:{labelStyleR?.color ?? '#6b7280'}">{state}</span>
-          </div>
-        ))}
+  <canvas ref={canvasRef}                                        // main canvas
+          width={width * devicePixelRatio}
+          height={totalHeight * devicePixelRatio}
+          style="width: {width}px; height: {totalHeight}px"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+  />
+  // Legend (only when uniqueStates.length > 0):
+  <div style="display:flex; gap:12px; justifyContent:center;
+              flexWrap:wrap; padding:4px 0;
+              fontFamily:{labelStyleR?.fontFamily ?? 'var(--relay-font-family)'};
+              fontSize:{labelStyleR?.fontSize ?? 11}">
+    {uniqueStates.map((state, i) => (
+      <div style="display:flex; alignItems:center; gap:4px">
+        <span style="width:10; height:10; borderRadius:2;
+                     backgroundColor:{getStateColor(state, stateColors, i)};
+                     display:inline-block" />
+        <span style="color:{labelStyleR?.color ?? '#6b7280'}">{state}</span>
       </div>
-    </foreignObject>
-  </svg>
+    ))}
+  </div>
   // Tooltip (only when hoveredEntry is not null):
   <div style="position:fixed; left:{x+12}; top:{y-10};
               background:var(--relay-tooltip-bg, #1a1a1a);
@@ -145,6 +88,26 @@ The scaler produces a function where `factor = width / 500`. The `s` wrapper cap
   </div>
 </div>
 ```
+
+### DPI Scaling
+
+```typescript
+const dpr = window.devicePixelRatio || 1;
+canvas.width = width * dpr;
+canvas.height = totalHeight * dpr;
+ctx.scale(dpr, dpr);
+```
+
+The canvas CSS dimensions remain at logical pixels (`width`/`totalHeight`), while the backing buffer is scaled by `devicePixelRatio` for crisp rendering on high-DPI displays.
+
+### Draw Cycle
+
+Inside the `useEffect`, the canvas context draws in this order:
+
+1. **Device labels**: `ctx.fillText()` at the label position for each device row. Font set via `ctx.font`. Width measured via `ctx.measureText()`.
+2. **Empty row backgrounds**: For devices with no state entries, `ctx.fillRect()` with `emptyRowColor`.
+3. **State bars**: For each state entry, `ctx.fillRect()` with the resolved state color. `ctx.globalAlpha` is set to `1` for the hovered entry and `0.8` for all others.
+4. **X-axis tick labels**: `ctx.fillText()` for each tick, centered at the tick position.
 
 ## Layout Calculations
 
@@ -185,34 +148,34 @@ yOffset = MARGIN.top + rowIdx * (BAR_HEIGHT + ROW_GAP)
 
 Label is vertically centered: `y = yOffset + BAR_HEIGHT / 2` with `dominantBaseline="central"`.
 
-## Label Measurement via Callback Ref
+## Label Measurement via Canvas measureText
 
-The SVG element receives a callback ref `svgRef`, not a `useRef`. This is a `useCallback` with the following dependency array:
+Label width is computed inline during render using an offscreen canvas context. No extra render cycle is needed (unlike the previous SVG callback ref approach).
 
 ```typescript
-[deviceNames, rowLabelStyleR?.fontSize, rowLabelStyleR?.fontFamily, rowLabelStyleR?.fontWeight]
+const measureCtx = document.createElement('canvas').getContext('2d')!;
+measureCtx.font = `${rowLabelStyleR?.fontWeight ?? 500} ${rowLabelFontSize}px ${rowLabelStyleR?.fontFamily ?? 'var(--relay-font-family)'}`;
+let maxWidth = 0;
+for (const name of deviceNames) {
+  maxWidth = Math.max(maxWidth, measureCtx.measureText(name).width);
+}
+const measuredLabelWidth = maxWidth > 0 ? Math.ceil(maxWidth) + 16 : null;
 ```
 
-When the callback fires:
-
-1. If `svg` is null, return immediately (unmount case).
-2. Query all `<text>` elements with `[data-label]` attribute: `svg.querySelectorAll<SVGTextElement>('[data-label]')`.
-3. Iterate and call `getComputedTextLength()` on each, tracking the maximum.
-4. Compute `newWidth = max > 0 ? Math.ceil(max) + 16 : null`.
-5. Update state only if `newWidth !== prev` to avoid infinite re-render loops.
-
-Initial state: `measuredLabelWidth = null`, which makes `LABEL_WIDTH` fall back to `120`.
+If no device names exist or all measure to zero width, `measuredLabelWidth` is `null` and `LABEL_WIDTH` falls back to `120`.
 
 ## D3 scaleTime Configuration
 
 ```typescript
-const globalExtent = extent(allTimestamps) as [number, number];  // [min, max] across all devices
+// globalExtent computed by iterating allTimestamps to find min/max
+const globalExtent: [number, number] | null = ...;  // [min, max] across all devices
 
 const xScale = scaleTime()
   .domain([new Date(globalExtent[0]), new Date(globalExtent[1])])
   .range([0, chartWidth]);
 ```
 
+- `globalExtent` is computed inline (no `d3.extent` import).
 - `xScale` is `null` when `globalExtent` is `null` (no valid timestamps in any device).
 - When `xScale` is null, no state bands, no axis ticks, and no legend are rendered.
 
@@ -231,7 +194,7 @@ function groupStateEntries(
 Step-by-step:
 
 1. **Guard**: If `metricKey` is falsy (`''`) or `data.length === 0`, return `[]`.
-2. **Sort**: `const sorted = [...data].sort((a, b) => a.timestamp - b.timestamp)` -- shallow copy, ascending by timestamp.
+2. **Sort**: Checks if data is already sorted by comparing the first and last timestamps. If `data[0].timestamp <= data[data.length - 1].timestamp`, the sort is skipped. Otherwise: `const sorted = [...data].sort((a, b) => a.timestamp - b.timestamp)` -- shallow copy, ascending by timestamp.
 3. **Initialize**: `currentState = null`, `start = 0`.
 4. **Loop** over `sorted` with index `i`:
    a. `state = stateMapper(sorted[i][metricKey])` -- map raw value to state name.
@@ -303,15 +266,11 @@ spansDays = new Date(globalExtent[0]).toDateString() !== new Date(globalExtent[1
 
 ### Axis position
 
-```
-<g transform="translate({barsX}, {MARGIN.top + rowCount * BAR_HEIGHT + (rowCount - 1) * ROW_GAP + 4})">
-```
-
-Each tick label: `y = axisLabelFontSize + 2`, `textAnchor = "middle"`.
+Tick labels are drawn via `ctx.fillText()` at y-position `MARGIN.top + rowCount * BAR_HEIGHT + (rowCount - 1) * ROW_GAP + 4 + axisLabelFontSize + 2`, with `ctx.textAlign = 'center'`.
 
 ## Tooltip Positioning
 
-The tooltip is a `<div>` rendered outside the SVG, inside the wrapper `<div>`.
+The tooltip is a `<div>` rendered outside the canvas, inside the wrapper `<div>`.
 
 ```css
 position: fixed;
@@ -324,15 +283,16 @@ whiteSpace: nowrap;
 
 `hoveredEntry.x` and `hoveredEntry.y` are `e.clientX` and `e.clientY` from the mouse event. The tooltip floats 12px to the right and 10px above the cursor.
 
-## Hover State Management
+## Hover / Hit Detection
 
 State: `hoveredEntry: { entry: StateEntry, deviceName: string, x: number, y: number } | null`
 
-- `onMouseEnter` on a state band `<rect>`: sets `hoveredEntry` with the entry, device name, and client coordinates.
-- `onMouseMove` on the same rect: updates `hoveredEntry` with new coordinates (tooltip follows cursor).
-- `onMouseLeave`: sets `hoveredEntry` to `null`.
+During the canvas draw cycle, a `HitRect[]` array is built and stored in a ref. Each hit rect records `{ x, y, width, height, entry, deviceName }` for every drawn state bar.
 
-Visual feedback: hovered band gets `opacity: 1`, all others are `opacity: 0.8`. Transition: `opacity 100ms ease`.
+- `onMouseMove` on the `<canvas>`: computes cursor position relative to the canvas, then iterates the stored `HitRect[]` to find the first rect containing the cursor. If found, sets `hoveredEntry` with the entry, device name, and `e.clientX`/`e.clientY`. If no rect matches, clears `hoveredEntry`.
+- `onMouseLeave` on the `<canvas>`: sets `hoveredEntry` to `null`.
+
+Visual feedback: during the draw cycle, the hovered entry's bar is drawn with `ctx.globalAlpha = 1`, all others with `ctx.globalAlpha = 0.8`.
 
 ## Tooltip Content Priority
 
@@ -353,16 +313,9 @@ Visual feedback: hovered band gets `opacity: 1`, all others are `opacity: 0.8`. 
 }
 ```
 
-## foreignObject Legend Rendering
+## Legend Rendering
 
-Rendered only when `uniqueStates.length > 0`.
-
-```html
-<foreignObject x=0
-               y={MARGIN.top + rowCount * BAR_HEIGHT + (rowCount - 1) * ROW_GAP + X_AXIS_HEIGHT}
-               width={width}
-               height={LEGEND_HEIGHT}>
-```
+The legend is an HTML `<div>` sibling rendered below the `<canvas>` element (not inside a `<foreignObject>`). Rendered only when `uniqueStates.length > 0`.
 
 Inside: a flex container with `gap: 12px`, `justifyContent: center`, `flexWrap: wrap`, `padding: 4px 0`.
 
@@ -371,15 +324,6 @@ Each state entry:
 - Label: `<span>` with `color` from `labelStyleR?.color ?? '#6b7280'`.
 
 Font: `labelStyleR?.fontFamily ?? 'var(--relay-font-family)'`, size `labelStyleR?.fontSize ?? 11`.
-
-## Proportional Scaling
-
-```typescript
-const rawS = createScaler(width, 100, CHART_REFERENCE, 'width');
-const s = (px: number) => rawS(px) > px ? px : rawS(px);
-```
-
-`CHART_REFERENCE = 500`. In `'width'` mode, `factor = width / 500`. The `s` wrapper ensures values never exceed their raw pixel values (no upscaling past 1:1). The scaler is defined inside the render callback but is available for use by all layout calculations.
 
 ## Loading State
 
@@ -391,13 +335,17 @@ This check happens before any layout calculations.
 
 ## Validation
 
-Data validation runs in a `useMemo` keyed on `[data, deviceNames, onError]`:
+Data validation runs in a `useMemo` keyed on `[data, deviceNames, onError]`.
+
+When `onError` is not provided, validation is skipped entirely -- data is passed through directly without per-point checks.
+
+When `onError` is provided:
 
 ```typescript
 for (const name of deviceNames) {
   result[name] = data[name].filter(point => {
     if (!isValidTimestamp(point.timestamp)) {
-      onError?.({
+      onError({
         type: 'invalid_timestamp',
         message: `StateTimeline [${name}]: invalid timestamp, received ${point.timestamp}`,
         rawValue: point.timestamp,
@@ -422,19 +370,18 @@ for (const name of deviceNames) {
 | `metricKey` not found in data points | `stateMapper` receives `undefined`; behavior depends on the user's mapper function |
 | Same device name appears as multiple keys | Not possible -- `Record<string, DataPoint[]>` enforces unique keys |
 | `stateMapper` returns different strings for same metric value across calls | Each call is independent; may produce fragmented state bands |
-| Thousands of devices | SVG height grows linearly: `totalHeight ~ rowCount * (BAR_HEIGHT + ROW_GAP)` |
+| Thousands of devices | Canvas height grows linearly: `totalHeight ~ rowCount * (BAR_HEIGHT + ROW_GAP)` |
 | `rowHeight = 0` | Bars have zero height; labels overlap; technically renders but not useful |
 
 ## Dependencies
 
 | Import | Source | Usage |
 |---|---|---|
-| `useMemo`, `useState`, `useCallback` | `react` | State and memoization |
-| `scaleTime`, `extent` | `d3` | Time scale and domain computation |
+| `useMemo`, `useState`, `useRef`, `useEffect` | `react` | State, memoization, refs, and draw cycle |
+| `scaleTime` | `d3` | Time scale |
 | `DataPoint`, `FontStyle`, `BackgroundStyle` | `../utils/types` | Type definitions |
 | `ResponsiveContainer` | `../charts/shared/ResponsiveContainer` | Width observation and resize handling |
 | `resolveFont` | `../utils/useResolvedStyles` | Font style resolution |
 | `ChartSkeleton` | `../charts/shared/Skeleton` | Loading skeleton |
-| `createScaler`, `CHART_REFERENCE` | `../utils/scaler` | Proportional scaling |
 | `isValidTimestamp`, `ComponentError` | `../utils/validation` | Timestamp validation |
 | `getStateColor`, `groupStateEntries`, `StateEntry` | `./stateUtils` | State processing and color resolution |

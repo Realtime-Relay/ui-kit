@@ -131,10 +131,11 @@ function DashboardContent({ config }: { config: AppConfig }) {
     live: isLive,
   });
 
-  const { value: latestValue, timestamp: latestTs } = useRelayLatest(
-    config.deviceIdent,
-    firstMetric
-  );
+  const { value: latestValue, timestamp: latestTs } = useRelayLatest({
+    deviceIdent: config.deviceIdent,
+    metric: firstMetric,
+    timeRange,
+  });
 
   return (
     <div style={{ padding: 24, overflow: 'auto', height: '100%' }}>

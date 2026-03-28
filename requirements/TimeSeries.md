@@ -6,6 +6,7 @@ Render real-time or historical time series line charts with support for multiple
 ## Core Behavior
 - Renders one line per device-metric combination with automatic color cycling
 - Shared X-axis (time) and Y-axis (value) across all series
+- Y-axis domain has 5% padding, but when all data is non-negative the bottom is clamped to 0 (so the 0 line sits on the x-axis)
 - Responsive to container width via `ResponsiveContainer`
 - Autoscroll for live data when `timeWindow` is set
 - Data is sorted by timestamp before rendering to prevent visual jumps
@@ -21,12 +22,14 @@ Render real-time or historical time series line charts with support for multiple
 ### Time Domain (X-Axis)
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `timeWindow` | `number?` (ms) | — | Sliding window. Only shows `[now - timeWindow, now]`. Enables `requestAnimationFrame` autoscroll. |
-| `autoScroll` | `boolean?` | `true` if `timeWindow` set | Disable rAF autoscroll even with `timeWindow`. |
+| `timeWindow` | `number?` (ms) | — | Sliding window. Only shows `[effectiveNow - timeWindow, effectiveNow]`. Autoscroll is driven by data changes (no separate rAF loop). |
+| `autoScroll` | `boolean?` | `true` if `timeWindow` set | Disable autoscroll even with `timeWindow`. |
 | `start` | `Date \| number?` | — | Fixed X-domain start. Overrides `timeWindow` and data extent. |
 | `end` | `Date \| number?` | — | Fixed X-domain end. Overrides `timeWindow` and data extent. |
 
 Domain priority: `zoomDomain` > `start/end` > `timeWindow` > data extent.
+
+**Autoscroll behavior**: when `timeWindow` is set, `effectiveNow` is computed inline during render as `Math.min(Date.now(), latestDataTs + 1000)`. The x-axis right edge advances naturally as data arrives (each data change triggers a re-render). Clamped to 1s past the latest data point to prevent empty space when data lags. No `requestAnimationFrame` loop — this eliminates double-render jitter.
 
 Without any domain props, the X-axis stretches from min to max timestamp in the data and grows rightward as new data arrives.
 
@@ -38,6 +41,7 @@ Without any domain props, the X-axis stretches from min to max timestamp in the 
 
 - Drag distance > 10px triggers zoom; < 10px is ignored (treated as a click)
 - Zoom domain overrides all other domain props while active
+- **Y-axis rescales** to the min/max of data within the zoomed time range, not the full dataset
 - Cursor: `crosshair` when zoom is enabled
 
 ### Line & Points
@@ -164,6 +168,8 @@ Default tooltip: timestamp header (via `formatTimestamp` or browser locale), col
 |---|---|---|---|
 | `downsample` | `DownsampleConfig?` | — | Downsampling config to reduce rendered points for large datasets. |
 | `showLoading` | `boolean?` | `true` | Show skeleton loader when all data arrays are empty. |
+
+**LTTB downsampling cache**: Downsampled results are cached per device. LTTB only re-runs when the source data grows by >5% or shrinks (prevents line jumping from re-bucketing on every stream flush). New realtime points arriving after the cached snapshot are appended directly to the end of the downsampled output without re-bucketing.
 
 ### Error Handling
 | Prop | Type | Default | Description |

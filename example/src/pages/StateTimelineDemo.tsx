@@ -173,15 +173,36 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
   const { isConnected } = useRelayConnection();
   const firstMetric = metrics[0] ?? 'value';
 
+  const [timeRange] = useState(() => ({
+    start: new Date(Date.now() - 10 * 24 * 60 * 60_000).toISOString(),
+    end: new Date().toISOString(),
+  }));
+
   const { data } = useRelayTimeSeries({
     deviceIdent,
     metrics,
-    timeRange: {
-      start: new Date(Date.now() - 5 * 60_000).toISOString(),
-      end: new Date().toISOString(),
-    },
-    live: true,
+    timeRange,
+    mode: 'both',
   });
+
+  const singleDeviceData = useMemo(() => ({ [deviceIdent]: data }), [deviceIdent, data]);
+
+  const stackedData = useMemo(() => ({
+    [deviceIdent]: data,
+    [`${deviceIdent}-zone-b`]: data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 0.7 })),
+    [`${deviceIdent}-zone-c`]: data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 1.3 })),
+  }), [data, deviceIdent, firstMetric]);
+
+  const twoDevices = useMemo(() => ({
+    [deviceIdent]: data,
+    [`${deviceIdent}-backup`]: data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) > 50 ? 0 : 100 })),
+  }), [data, deviceIdent, firstMetric]);
+
+  const longNameDevices = useMemo(() => ({
+    'warehouse-floor-sensor-unit-alpha-01or-unit-alpha-01': data,
+    'rooftop-hvac-monitor-bravo-02': data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 0.6 })),
+    'cold-storage-temp-probe-charlie-03': data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 1.4 })),
+  }), [data, firstMetric]);
 
   return (
     <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto' }}>
@@ -208,15 +229,15 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
       <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Basic</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 40 }}>
         <Card title="Online / Offline (default colors)" description="Binary mapper: value > 0 → online, else offline">
-          <StateTimeline data={{ [deviceIdent]: data }} stateMapper={onlineOfflineMapper} metricKey={firstMetric} />
+          <StateTimeline data={singleDeviceData} stateMapper={onlineOfflineMapper} metricKey={firstMetric} />
         </Card>
 
         <Card title="Three States: Normal / Warning / Critical" description="Thresholds at 40 and 70">
-          <StateTimeline data={{ [deviceIdent]: data }} stateMapper={threeStateMapper} metricKey={firstMetric} />
+          <StateTimeline data={singleDeviceData} stateMapper={threeStateMapper} metricKey={firstMetric} />
         </Card>
 
         <Card title="Five States" description="idle / running / warning / critical / error — fallback palette kicks in">
-          <StateTimeline data={{ [deviceIdent]: data }} stateMapper={fiveStateMapper} metricKey={firstMetric} />
+          <StateTimeline data={singleDeviceData} stateMapper={fiveStateMapper} metricKey={firstMetric} />
         </Card>
       </div>
 
@@ -225,7 +246,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 40 }}>
         <Card title="Temperature States (custom palette)" description="cold → blue, normal → green, warm → orange, hot → red">
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={temperatureMapper}
             metricKey={firstMetric}
             stateColors={{
@@ -239,7 +260,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
 
         <Card title="Override default colors" description="'online' overridden to purple, 'offline' to slate">
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={onlineOfflineMapper}
             metricKey={firstMetric}
             stateColors={{ online: '#8b5cf6', offline: '#475569' }}
@@ -255,7 +276,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
           description="Five raw states collapsed into healthy / degraded / down"
         >
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             metricKey={firstMetric}
             stateMapper={collapsedMapper}
             stateColors={{ healthy: '#22c55e', degraded: '#f59e0b', down: '#ef4444' }}
@@ -267,12 +288,12 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
       <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Tooltips</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 40 }}>
         <Card title="Default tooltip" description="Hover to see state + time range">
-          <StateTimeline data={{ [deviceIdent]: data }} stateMapper={threeStateMapper} metricKey={firstMetric} />
+          <StateTimeline data={singleDeviceData} stateMapper={threeStateMapper} metricKey={firstMetric} />
         </Card>
 
         <Card title="formatTooltip (string)" description="Custom string formatter showing duration">
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={threeStateMapper}
             metricKey={firstMetric}
             formatTooltip={(entry: StateEntry, _deviceName: string) => {
@@ -284,7 +305,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
 
         <Card title="renderTooltip (JSX)" description="Rich tooltip with colored badge" height={130}>
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={threeStateMapper}
             metricKey={firstMetric}
             renderTooltip={(entry: StateEntry, _deviceName: string) => (
@@ -318,7 +339,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 40 }}>
         <Card title="Dark background" description="Dark background with light label colors">
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={threeStateMapper}
             metricKey={firstMetric}
             styles={{
@@ -332,7 +353,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
 
         <Card title="Large labels, custom font" description="Bigger axis labels, monospace font">
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={threeStateMapper}
             metricKey={firstMetric}
             styles={{
@@ -343,7 +364,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
 
         <Card title="Subtle background" description="Light gray background">
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={onlineOfflineMapper}
             metricKey={firstMetric}
             styles={{ background: { color: '#f8fafc' } }}
@@ -352,7 +373,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
 
         <Card title="Warm background + custom tooltip" description="Cream background, warm tooltip style">
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={temperatureMapper}
             metricKey={firstMetric}
             stateColors={{ cold: '#38bdf8', normal: '#22c55e', warm: '#f97316', hot: '#dc2626' }}
@@ -397,12 +418,12 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
       <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Resizable</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 40 }}>
         <Card title="Resizable — Three States" height={120} resizable>
-          <StateTimeline data={{ [deviceIdent]: data }} stateMapper={threeStateMapper} metricKey={firstMetric} />
+          <StateTimeline data={singleDeviceData} stateMapper={threeStateMapper} metricKey={firstMetric} />
         </Card>
 
         <Card title="Resizable — Dark Theme" height={120} resizable>
           <StateTimeline
-            data={{ [deviceIdent]: data }}
+            data={singleDeviceData}
             stateMapper={temperatureMapper}
             metricKey={firstMetric}
             stateColors={{ cold: '#38bdf8', normal: '#22c55e', warm: '#f97316', hot: '#dc2626' }}
@@ -421,21 +442,6 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
         Same live data simulated across multiple devices with value offsets.
       </p>
       {(() => {
-        // Build multi-device data by offsetting the live data
-        const stackedData: Record<string, DataPoint[]> = {
-          [deviceIdent]: data,
-          [`${deviceIdent}-zone-b`]: data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 0.7 })),
-          [`${deviceIdent}-zone-c`]: data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 1.3 })),
-        };
-        const twoDevices: Record<string, DataPoint[]> = {
-          [deviceIdent]: data,
-          [`${deviceIdent}-backup`]: data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) > 50 ? 0 : 100 })),
-        };
-        const longNameDevices: Record<string, DataPoint[]> = {
-          'warehouse-floor-sensor-unit-alpha-01or-unit-alpha-01': data,
-          'rooftop-hvac-monitor-bravo-02': data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 0.6 })),
-          'cold-storage-temp-probe-charlie-03': data.map((p) => ({ ...p, [firstMetric]: Number(p[firstMetric] ?? 0) * 1.4 })),
-        };
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 40 }}>
             <Card title="3 Devices — Three State Mapper" description="Same metric with value offsets across zones" height={160}>
@@ -465,7 +471,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
 
             <Card title="Single Device (graceful fallback)" description="One device renders as a labeled single row" height={90}>
               <StateTimeline
-                data={{ [deviceIdent]: data }}
+                data={singleDeviceData}
                 stateMapper={threeStateMapper}
                 metricKey={firstMetric}
               />
@@ -482,7 +488,7 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
 
             <Card title="Single Device — Temperature" description="StateTimeline with a single device entry and custom colors" height={90}>
               <StateTimeline
-                data={{ [deviceIdent]: data }}
+                data={singleDeviceData}
                 stateMapper={temperatureMapper}
                 metricKey={firstMetric}
                 stateColors={{ cold: '#38bdf8', normal: '#22c55e', warm: '#f97316', hot: '#dc2626' }}

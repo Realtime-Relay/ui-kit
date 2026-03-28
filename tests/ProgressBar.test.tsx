@@ -145,45 +145,52 @@ describe('ProgressBar', () => {
   });
 
   describe('styles', () => {
+    // Helper to find the bar container (the element with overflow:hidden and borderRadius)
+    function getBarContainer(container: HTMLElement): HTMLElement {
+      return container.querySelector('[style*="overflow: hidden"]') as HTMLElement;
+    }
+
     it('applies custom background color', () => {
       const { container } = render(
         <ProgressBar value={50} styles={{ background: { color: '#f1f5f9' } }} />
       );
-      const root = container.firstChild as HTMLElement;
-      expect(root.style.backgroundColor).toBe('rgb(241, 245, 249)');
+      const bar = getBarContainer(container);
+      expect(bar.style.backgroundColor).toBe('rgb(241, 245, 249)');
     });
 
     it('applies custom width', () => {
       const { container } = render(
         <ProgressBar value={50} styles={{ width: 300 }} />
       );
-      const root = container.firstChild as HTMLElement;
-      expect(root.style.width).toBe('300px');
+      // Width is on the outer flex wrapper, not the bar itself
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.style.width).toBe('300px');
     });
 
     it('applies custom height', () => {
       const { container } = render(
         <ProgressBar value={50} styles={{ height: 40 }} />
       );
-      const root = container.firstChild as HTMLElement;
-      expect(root.style.height).toBe('40px');
+      const bar = getBarContainer(container);
+      expect(bar.style.height).toBe('40px');
     });
 
     it('accepts string values for width/height (CSS units)', () => {
       const { container } = render(
         <ProgressBar value={50} styles={{ width: '80%', height: '2rem' }} />
       );
-      const root = container.firstChild as HTMLElement;
-      expect(root.style.width).toBe('80%');
-      expect(root.style.height).toBe('2rem');
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.style.width).toBe('80%');
+      const bar = getBarContainer(container);
+      expect(bar.style.height).toBe('2rem');
     });
 
     it('keeps maxWidth 100% for responsiveness', () => {
       const { container } = render(
         <ProgressBar value={50} styles={{ width: 500 }} />
       );
-      const root = container.firstChild as HTMLElement;
-      expect(root.style.maxWidth).toBe('100%');
+      const wrapper = container.firstChild as HTMLElement;
+      expect(wrapper.style.maxWidth).toBe('100%');
     });
 
     it('applies custom label font styles', () => {
@@ -252,6 +259,163 @@ describe('ProgressBar', () => {
     it('handles very large values', () => {
       render(<ProgressBar value={999999} max={100} formatValue={(v) => `${v}`} />);
       expect(screen.getByText('999999')).toBeInTheDocument();
+    });
+  });
+
+  describe('showZoneLegend', () => {
+    const zones = [
+      { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+      { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+      { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+    ];
+
+    it('renders legend with zone swatches and labels', () => {
+      render(<ProgressBar value={50} alertZones={zones} showZoneLegend />);
+      expect(screen.getByText('Normal')).toBeInTheDocument();
+      expect(screen.getByText('Warning')).toBeInTheDocument();
+      expect(screen.getByText('Critical')).toBeInTheDocument();
+    });
+
+    it('hides legend when showZoneLegend is false', () => {
+      render(<ProgressBar value={50} alertZones={zones} showZoneLegend={false} />);
+      expect(screen.queryByText('Normal')).not.toBeInTheDocument();
+    });
+
+    it('skips zones without labels', () => {
+      render(
+        <ProgressBar
+          value={50}
+          alertZones={[
+            { min: 0, max: 50, color: '#22c55e', label: 'OK' },
+            { min: 50, max: 100, color: '#ef4444' },
+          ]}
+          showZoneLegend
+        />
+      );
+      expect(screen.getByText('OK')).toBeInTheDocument();
+      const legend = screen.getByTestId('zone-legend');
+      expect(legend.children.length).toBe(1);
+    });
+
+    it('renders legend swatches with correct colors', () => {
+      const { container } = render(<ProgressBar value={50} alertZones={zones} showZoneLegend />);
+      const swatches = container.querySelectorAll('[data-testid="zone-legend"] span[style*="background-color"]');
+      expect(swatches.length).toBe(3);
+    });
+  });
+
+  describe('showZoneValues', () => {
+    const zones = [
+      { min: 0, max: 40, color: '#22c55e' },
+      { min: 40, max: 70, color: '#f59e0b' },
+      { min: 70, max: 100, color: '#ef4444' },
+    ];
+
+    it('renders zone boundary values', () => {
+      const { container } = render(<ProgressBar value={50} alertZones={zones} showZoneValues />);
+      const zoneVals = container.querySelectorAll('[data-zone-value]');
+      expect(zoneVals.length).toBe(2);
+    });
+
+    it('boundary values are 40 and 70 for 3-zone setup', () => {
+      render(<ProgressBar value={50} alertZones={zones} showZoneValues />);
+      expect(screen.getByText('40')).toBeInTheDocument();
+      expect(screen.getByText('70')).toBeInTheDocument();
+    });
+
+    it('hides zone values when showZoneValues is false', () => {
+      const { container } = render(<ProgressBar value={50} alertZones={zones} showZoneValues={false} />);
+      const zoneVals = container.querySelectorAll('[data-zone-value]');
+      expect(zoneVals.length).toBe(0);
+    });
+
+    it('zone value color matches zone color by default', () => {
+      const { container } = render(
+        <ProgressBar value={50} alertZones={zones} showZoneValues />
+      );
+      const zv40 = container.querySelector('[data-zone-value="40"]') as HTMLElement;
+      // 40 is the start of the warning zone (#f59e0b)
+      expect(zv40.style.color).toBeTruthy();
+    });
+
+    it('applies zoneValue font styling override', () => {
+      const { container } = render(
+        <ProgressBar
+          value={50}
+          alertZones={zones}
+          showZoneValues
+          styles={{ zoneValue: { fontSize: 14, fontWeight: 700, color: '#1e293b' } }}
+        />
+      );
+      const zoneVal = container.querySelector('[data-zone-value]') as HTMLElement;
+      expect(zoneVal.style.fontSize).toBe('14px');
+      expect(zoneVal.style.fontWeight).toBe('700');
+      expect(zoneVal.style.color).toBe('rgb(30, 41, 59)');
+    });
+  });
+
+  describe('showMinMax', () => {
+    it('renders min and max labels', () => {
+      const { container } = render(<ProgressBar value={50} showMinMax />);
+      const minEl = container.querySelector('[data-minmax="min"]');
+      const maxEl = container.querySelector('[data-minmax="max"]');
+      expect(minEl?.textContent).toBe('0');
+      expect(maxEl?.textContent).toBe('100');
+    });
+
+    it('renders custom min/max range', () => {
+      const { container } = render(<ProgressBar value={500} min={0} max={1000} showMinMax />);
+      const minEl = container.querySelector('[data-minmax="min"]');
+      const maxEl = container.querySelector('[data-minmax="max"]');
+      expect(minEl?.textContent).toBe('0');
+      expect(maxEl?.textContent).toBe('1000');
+    });
+
+    it('hides min/max when showMinMax is false', () => {
+      const { container } = render(<ProgressBar value={50} showMinMax={false} />);
+      expect(container.querySelector('[data-minmax]')).toBeNull();
+    });
+
+    it('uses formatValue for min/max labels', () => {
+      const { container } = render(
+        <ProgressBar value={50} showMinMax formatValue={(v) => `${v} RPM`} />
+      );
+      const minEl = container.querySelector('[data-minmax="min"]');
+      expect(minEl?.textContent).toBe('0 RPM');
+    });
+  });
+
+  describe('vertical with new features', () => {
+    const zones = [
+      { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+      { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+      { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+    ];
+
+    it('renders label in vertical mode', () => {
+      render(<ProgressBar value={50} orientation="vertical" />);
+      expect(screen.getByText('50')).toBeInTheDocument();
+    });
+
+    it('renders zone legend in vertical mode', () => {
+      render(<ProgressBar value={50} orientation="vertical" alertZones={zones} showZoneLegend />);
+      expect(screen.getByText('Normal')).toBeInTheDocument();
+    });
+
+    it('renders zone values in vertical mode', () => {
+      const { container } = render(
+        <ProgressBar value={50} orientation="vertical" alertZones={zones} showZoneValues />
+      );
+      const zoneVals = container.querySelectorAll('[data-zone-value]');
+      expect(zoneVals.length).toBe(2);
+    });
+
+    it('renders min/max in vertical mode', () => {
+      const { container } = render(
+        <ProgressBar value={50} orientation="vertical" showMinMax />
+      );
+      expect(container.querySelector('[data-minmax="min"]')).toBeTruthy();
+      expect(container.querySelector('[data-minmax="max"]')).toBeTruthy();
     });
   });
 });

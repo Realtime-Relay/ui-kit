@@ -89,7 +89,7 @@ Type guard: `isRangeAnnotation(a)` checks for `'end' in a`.
 ### Layout Structure
 - Outer: `ResponsiveContainer` (width: 100%, observes resize)
 - Flex container: direction depends on legend position (row for left/right, column for top/bottom)
-- Inner: `<svg>` with `<g transform>` for margin offset
+- Inner: `<svg>` with `style={{ userSelect: 'none' }}` and `<g transform>` for margin offset
 - Tooltip: absolutely positioned `<div>` outside SVG, in the `position: relative` wrapper
 
 ### Rendering Order (SVG stacking, bottom to top)
@@ -100,7 +100,7 @@ Type guard: `isRangeAnnotation(a)` checks for `'end' in a`.
 5. Brush/annotation preview overlay (zoom selection or annotation-in-progress)
 6. Hover crosshair line (dashed vertical)
 7. X-axis and Y-axis
-8. **Invisible overlay rect** (captures all mouse events: mouseDown, mouseMove, mouseUp, mouseLeave)
+8. **Invisible overlay rect** (`ref={overlayRef}`) (captures all mouse events: mouseDown, mouseMove, mouseUp, mouseLeave)
 
 ### Proportional Scaling
 - Reference: 500px width (`CHART_REFERENCE`)
@@ -122,13 +122,20 @@ Priority order (first match wins):
 
 ### Autoscroll
 - Active when: `timeWindow` is set AND `autoScroll !== false` AND no `start/end` AND no `zoomDomain`
-- Uses `requestAnimationFrame` to update `now` state continuously
-- Paused during zoom
+- `effectiveNow` is computed inline during render (no rAF loop): `Math.min(Date.now(), latestDataTs + 1000)`
+- This avoids double-render jitter — data flush is the only render trigger; the x-axis right edge advances as a side effect of data changes
+- Clamped to `latestDataTs + 1000ms` so the chart never scrolls more than 1s past the latest data point (prevents empty space when data lags)
+- When no data exists yet, falls back to `Date.now()`
+- Paused during zoom (falls back to static `now` state)
 
 ## Y-Domain Resolution
 
-- Computed from visible data across all active series
-- `d3.scaleLinear().domain([yMin, yMax]).range([chartHeight, 0]).nice()`
+- Computed from **visible** data across all active series — filtered to the current x-domain (zoom, timeWindow, start/end) before computing min/max
+- When zoomed: y-axis rescales to the min/max of data within the zoomed time range (not the full dataset)
+- Padding: 5% of `(yMax - yMin)` added to top and bottom
+- **Zero clamping**: when `yMin >= 0`, the domain bottom is `Math.max(0, yMin - padding)` — ensures the 0 line sits on the x-axis instead of floating above it
+- When data contains negative values, padding extends below normally
+- `d3.scaleLinear().domain([yDomainMin, yMax + padding]).range([chartHeight, 0]).nice()`
 - Alert zones extend the Y domain if their min/max exceed data range
 
 ## Series Resolution
@@ -192,7 +199,8 @@ else if zoomEnabled && isDragging:
 ```
 
 ### handleMouseLeave
-- Clear isDragging, brushStart, brushEnd, tooltipData
+- If a drag is active (isDragging), the drag is **NOT** cancelled — only tooltip and annotation hover state are cleared
+- If no drag is active: clear isDragging, brushStart, brushEnd, tooltipData
 - Clear annotation hover state (fire `onAnnotationHover(false, ...)` if active)
 - Fire `onRelease` callback
 
@@ -222,6 +230,12 @@ When `brushStart != null && brushEnd != null && !annotationMode`:
 - Fill: `zoomColor` at `opacity={0.15}`
 - Stroke: `zoomColor` at `strokeWidth={1}`
 
+### Window-Level Drag Handling
+When a drag starts (`mouseDown`), `mousemove` and `mouseup` listeners are attached to `window` so the zoom selection continues even when the cursor leaves the chart area.
+- `overlayRef` is used to map window-level mouse coordinates back to chart-relative positions via `getBoundingClientRect()`
+- On `mouseLeave` during an active drag, the drag is NOT cancelled — only tooltip and annotation hover are cleared
+- The window `mousemove` and `mouseup` listeners clean up automatically on mouseup or effect cleanup
+
 ### Annotation Preview
 When `brushStart != null && brushEnd != null && annotationMode`:
 - Drag < 10px: vertical dashed `<line>` at brushStart using `annotationColor`
@@ -241,6 +255,8 @@ Preview disappears on mouseUp (brush state cleared).
 
 - Uses shared `<Tooltip>` component
 - Z-index: 10 (above annotation tooltip)
+- Positioned at the cursor position (`mx + MARGIN.left`, `my + MARGIN.top`) instead of snapping to the nearest data point's chart position
+- Crosshair line also appears at the cursor position
 - Horizontal flip: if tooltip would overflow right edge, render to the left of cursor
 - Vertical clamp: `Math.max(0, Math.min(y - 20, containerHeight - 60))`
 - `renderTooltip` overrides with custom JSX
@@ -254,7 +270,16 @@ Preview disappears on mouseUp (brush state cleared).
 - Dimmed items: `opacity: 0.4`
 - Vertical positions (left/right): `maxWidth: 140px`, `flexShrink: 0`, `overflow: hidden`
 
-## Annotation ID Management
+## Refs
+
+### Drag / Window Listener Refs
+```typescript
+const overlayRef = useRef<SVGRectElement>(null);                    // reference to the invisible overlay rect for coordinate mapping during window-level drag
+const windowMoveRef = useRef<((e: MouseEvent) => void) | null>(null); // window mousemove handler during drag
+const windowUpRef = useRef<((e: MouseEvent) => void) | null>(null);   // window mouseup handler during drag
+```
+
+### Annotation ID Management
 
 ```typescript
 const annotationIdRef = useRef(0);       // global counter
@@ -365,6 +390,30 @@ interface TooltipProps {
   s?: (px: number) => number;
 }
 ```
+
+## Downsampling (LTTB Cache)
+
+Per-device downsampling is cached to prevent line jumping when new data arrives via stream flush.
+
+### Cache Structure
+```typescript
+const downsampleCache = useRef<Record<string, { data: DataPoint[]; srcLen: number; lastTs: number }>>();
+```
+
+### Cache Logic
+```
+for each device:
+  if no cache OR data grew >5% OR data shrank:
+    run full LTTB downsample → store { sampled, srcLen, lastTs }
+  else (cache hit):
+    append any new points with timestamp > cached.lastTs to cached data
+    update lastTs
+```
+
+- The 5% growth threshold prevents LTTB from re-bucketing on every stream flush, which shifts bucket boundaries and causes visible line jumping
+- New realtime points (timestamp > last cached point) are appended directly without LTTB — they're few enough that bucketing isn't needed
+- When data shrinks (zoom trim or window slide), the cache invalidates and LTTB re-runs
+- For historical-only charts (static data), LTTB runs once and the cache is permanent
 
 ## Empty Data Handling
 

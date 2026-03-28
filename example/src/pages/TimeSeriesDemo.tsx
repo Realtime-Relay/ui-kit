@@ -285,14 +285,23 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
   const { isConnected } = useRelayConnection();
   const firstMetric = metrics[0] ?? 'value';
 
+  const [timeRange] = useState(() => ({
+    start: new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString(),
+    end: new Date().toISOString(),
+  }));
+
   const { data } = useRelayTimeSeries({
     deviceIdent,
     metrics,
-    timeRange: {
-      start: new Date(Date.now() - 5 * 60_000).toISOString(),
-      end: new Date().toISOString(),
-    },
-    live: true,
+    timeRange,
+    mode: 'historical',
+  });
+
+  const { data: realtimeData } = useRelayTimeSeries({
+    deviceIdent,
+    metrics,
+    timeRange,
+    mode: 'realtime',
   });
 
   // Hover/release state display
@@ -305,6 +314,11 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
   const singleDeviceData: Record<string, DataPoint[]> = useMemo(
     () => ({ [deviceIdent]: data }),
     [deviceIdent, data],
+  );
+
+  const realtimeDeviceData: Record<string, DataPoint[]> = useMemo(
+    () => ({ [deviceIdent]: realtimeData }),
+    [deviceIdent, realtimeData],
   );
 
   const multiDeviceData: Record<string, DataPoint[]> = useMemo(
@@ -433,8 +447,8 @@ function LivePage({ deviceIdent, metrics }: { deviceIdent: string; metrics: stri
           <TimeSeries data={singleDeviceData} metricKey={firstMetric} annotations={annotations} />
         </Card>
 
-        <Card title="Annotations with timeWindow (30s)" description="Autoscroll — annotations drift left and eventually leave the window">
-          <TimeSeries data={singleDeviceData} metricKey={firstMetric} annotations={annotations} timeWindow={30000} />
+        <Card title="Annotations with timeWindow (30s)" description="Realtime stream only — autoscroll pinned to latest data point">
+          <TimeSeries data={realtimeDeviceData} metricKey={firstMetric} annotations={annotations} timeWindow={30000} />
         </Card>
       </div>
 

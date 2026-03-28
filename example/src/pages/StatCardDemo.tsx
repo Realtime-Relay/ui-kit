@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { RelayApp } from 'relayx-app-js';
 import {
   StatCard,
@@ -67,16 +67,18 @@ function LiveStatCardPage({ deviceIdent, metrics }: { deviceIdent: string; metri
   const firstMetric = metrics[0] ?? 'value';
   const secondMetric = metrics[1];
 
-  const { value: val1, timestamp: ts1 } = useRelayLatest(deviceIdent, firstMetric);
-  const { value: val2, timestamp: ts2 } = useRelayLatest(deviceIdent, secondMetric ?? firstMetric);
+  const [timeRange] = useState(() => ({
+    start: new Date(Date.now() - 10 * 24 * 60 * 60_000).toISOString(),
+    end: new Date().toISOString(),
+  }));
+
+  const { value: val1, timestamp: ts1 } = useRelayLatest({ deviceIdent, metric: firstMetric, timeRange });
+  const { value: val2, timestamp: ts2 } = useRelayLatest({ deviceIdent, metric: secondMetric ?? firstMetric, timeRange });
   const { data: tsData } = useRelayTimeSeries({
     deviceIdent,
     metrics,
-    timeRange: {
-      start: new Date(Date.now() - 60000).toISOString(),
-      end: new Date().toISOString(),
-    },
-    live: true,
+    timeRange,
+    mode: 'both',
   });
 
   const v = val1 ?? 0;

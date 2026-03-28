@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect, useId } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, useId, memo } from 'react';
 import { scaleTime, scaleLinear, line, area, extent, bisector, pointer, timeFormat } from 'd3';
 import type { DataPoint, MetricConfig, AlertZone, Annotation, FontStyle, BackgroundStyle, DownsampleConfig } from '../utils/types';
 import { resolveMetrics } from '../utils/metrics';
@@ -120,7 +120,7 @@ function isRangeAnnotation(a: Annotation): a is import('../utils/types').RangeAn
 
 /* ── Component ─────────────────────────────────────────────── */
 
-export function TimeSeries({
+export const TimeSeries = memo(function TimeSeries({
   data,
   metrics: metricsProp,
   title,
@@ -171,6 +171,11 @@ export function TimeSeries({
   const [brushStart, setBrushStart] = useState<number | null>(null);
   const [brushEnd, setBrushEnd] = useState<number | null>(null);
   const isDragging = useRef(false);
+  const overlayRef = useRef<SVGRectElement>(null);
+  const windowMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const windowUpRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingMouseEvent = useRef<React.MouseEvent<SVGRectElement> | null>(null);
 
   // Annotation ID counter — auto-increments, shared between start_drag/end_drag of same annotation
   const annotationIdRef = useRef(0);
@@ -181,19 +186,29 @@ export function TimeSeries({
   const [annotationTooltip, setAnnotationTooltip] = useState<{ content: React.ReactNode; x: number; y: number } | null>(null);
   const hoveredAnnotationIdx = useRef<number | null>(null);
 
-  // Autoscroll: update `now` on animation frame when timeWindow is set
+  // Autoscroll: derive `now` from the latest data timestamp during render.
+  // No rAF loop needed — data flush already triggers re-renders at ~60fps.
+  // This eliminates double-render jitter (rAF + data flush competing).
   const hasFixedRange = startProp != null && endProp != null;
   const isAutoScroll = !hasFixedRange && timeWindow != null && (autoScroll !== false) && !zoomDomain;
-  useEffect(() => {
-    if (!isAutoScroll) return;
-    let rafId: number;
-    const tick = () => {
-      setNow(Date.now());
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [isAutoScroll]);
+
+  const latestDataTs = useMemo(() => {
+    let max = 0;
+    for (const key of Object.keys(data)) {
+      const arr = data[key];
+      if (arr && arr.length > 0) {
+        const last = arr[arr.length - 1].timestamp;
+        if (last > max) max = last;
+      }
+    }
+    return max;
+  }, [data]);
+
+  // When autoscrolling, use wall clock clamped to latest data + 1s buffer.
+  // When not autoscrolling, fall back to static `now` state.
+  const effectiveNow = isAutoScroll && latestDataTs > 0
+    ? Math.min(Date.now(), latestDataTs + 1000)
+    : now;
 
   const deviceNames = useMemo(() => Object.keys(data), [data]);
   const deviceCount = deviceNames.length;
@@ -266,14 +281,41 @@ export function TimeSeries({
     [allSeries, seriesVisibility],
   );
 
-  // Downsample per device
+  // Downsample per device — throttle LTTB so it doesn't re-run on every
+  // stream flush (which shifts bucket boundaries and causes line jumping).
+  // Cache stores the last downsampled snapshot + the timestamp of the last
+  // point in that snapshot, so new realtime points can be appended without
+  // re-bucketing the entire dataset.
+  const downsampleCache = useRef<Record<string, { data: DataPoint[]; srcLen: number; lastTs: number }>>({});
+
   const downsampledMap = useMemo(() => {
     const result: Record<string, DataPoint[]> = {};
+    const refMetric = resolvedMetrics[0]?.key;
+
     for (const device of deviceNames) {
       const deviceData = validDataMap[device] ?? [];
       if (deviceData.length === 0) { result[device] = []; continue; }
-      const refMetric = resolvedMetrics[0]?.key;
-      result[device] = refMetric ? applyDownsample(deviceData, downsample, refMetric) : deviceData;
+      if (!refMetric || downsample === false) { result[device] = deviceData; continue; }
+
+      const cached = downsampleCache.current[device];
+      // Re-downsample when data grows by >5% or shrinks (zoom/trim) or no cache yet
+      if (!cached || deviceData.length > cached.srcLen * 1.05 || deviceData.length < cached.srcLen) {
+        const sampled = applyDownsample(deviceData, downsample, refMetric);
+        const lastTs = sampled.length > 0 ? sampled[sampled.length - 1].timestamp : 0;
+        downsampleCache.current[device] = { data: sampled, srcLen: deviceData.length, lastTs };
+        result[device] = sampled;
+      } else {
+        // Append any new points that arrived after the cached snapshot (realtime stream)
+        const newPoints = deviceData.filter((p) => p.timestamp > cached.lastTs);
+        if (newPoints.length > 0) {
+          const extended = [...cached.data, ...newPoints];
+          cached.lastTs = newPoints[newPoints.length - 1].timestamp;
+          cached.data = extended;
+          result[device] = extended;
+        } else {
+          result[device] = cached.data;
+        }
+      }
     }
     return result;
   }, [validDataMap, deviceNames, downsample, resolvedMetrics]);
@@ -366,14 +408,18 @@ export function TimeSeries({
         const allVisibleData: { device: string; data: DataPoint[] }[] = [];
         for (const ser of activeSeries) {
           const deviceData = downsampledMap[ser.device] ?? [];
-          // Filter by time window or start/end
+          // Filter to the visible x-range so y-axis rescales on zoom
           let filtered: DataPoint[];
-          if (hasFixedRange) {
+          if (zoomDomain) {
+            const z0 = zoomDomain[0].getTime();
+            const z1 = zoomDomain[1].getTime();
+            filtered = deviceData.filter((d) => d.timestamp >= z0 && d.timestamp <= z1);
+          } else if (hasFixedRange) {
             const s0 = typeof startProp === 'number' ? startProp : new Date(startProp!).getTime();
             const e0 = typeof endProp === 'number' ? endProp : new Date(endProp!).getTime();
             filtered = deviceData.filter((d) => d.timestamp >= s0 && d.timestamp <= e0);
-          } else if (timeWindow && !zoomDomain) {
-            filtered = deviceData.filter((d) => d.timestamp >= now - timeWindow && d.timestamp <= now);
+          } else if (timeWindow) {
+            filtered = deviceData.filter((d) => d.timestamp >= effectiveNow - timeWindow && d.timestamp <= effectiveNow);
           } else {
             filtered = deviceData;
           }
@@ -394,13 +440,13 @@ export function TimeSeries({
           xDomainMin = new Date(startProp!);
           xDomainMax = new Date(endProp!);
         } else if (timeWindow) {
-          xDomainMin = new Date(now - timeWindow);
-          xDomainMax = new Date(now);
+          xDomainMin = new Date(effectiveNow - timeWindow);
+          xDomainMax = new Date(effectiveNow);
         } else {
           const allTimestamps = flatVisibleData.map((d) => d.timestamp);
           const [tMin, tMax] = extent(allTimestamps) as [number, number];
-          xDomainMin = new Date(tMin ?? now);
-          xDomainMax = new Date(tMax ?? now);
+          xDomainMin = new Date(tMin ?? effectiveNow);
+          xDomainMax = new Date(tMax ?? effectiveNow);
         }
         const xScale = scaleTime().domain([xDomainMin, xDomainMax]).range([0, chartWidth]);
 
@@ -426,8 +472,9 @@ export function TimeSeries({
         }
         if (!isFinite(yMin)) { yMin = 0; yMax = 1; }
         const yPadding = (yMax - yMin) * 0.05 || 1;
+        const yDomainMin = yMin >= 0 ? Math.max(0, yMin - yPadding) : yMin - yPadding;
         const yScale = scaleLinear()
-          .domain([yMin - yPadding, yMax + yPadding])
+          .domain([yDomainMin, yMax + yPadding])
           .range([chartHeight, 0])
           .nice();
 
@@ -439,6 +486,11 @@ export function TimeSeries({
           const clamped = Math.max(0, Math.min(px, chartWidth));
           const t = xScale.invert(clamped).getTime();
           return Math.max(xDomainMin.getTime(), Math.min(t, xDomainMax.getTime()));
+        };
+
+        const cleanupWindowListeners = () => {
+          if (windowMoveRef.current) { window.removeEventListener('mousemove', windowMoveRef.current); windowMoveRef.current = null; }
+          if (windowUpRef.current) { window.removeEventListener('mouseup', windowUpRef.current); windowUpRef.current = null; }
         };
 
         const handleMouseDown = (event: React.MouseEvent<SVGRectElement>) => {
@@ -455,6 +507,38 @@ export function TimeSeries({
           setBrushStart(mx);
           setBrushEnd(mx);
           isDragging.current = true;
+
+          // Attach window listeners so drag continues outside the chart
+          cleanupWindowListeners();
+          windowMoveRef.current = (e: MouseEvent) => {
+            if (!isDragging.current || !overlayRef.current) return;
+            const [wmx] = pointer(e, overlayRef.current);
+            const clamped = Math.max(0, Math.min(wmx, chartWidth));
+            setBrushEnd(clamped);
+          };
+          windowUpRef.current = (e: MouseEvent) => {
+            if (isDragging.current && overlayRef.current) {
+              isDragging.current = false;
+              setBrushStart((prevStart) => {
+                setBrushEnd((prevEnd) => {
+                  if (prevStart != null && prevEnd != null) {
+                    const x0 = Math.min(prevStart, prevEnd);
+                    const x1 = Math.max(prevStart, prevEnd);
+                    if (x1 - x0 > 10) {
+                      const t0 = xScale.invert(x0);
+                      const t1 = xScale.invert(x1);
+                      setZoomDomain([t0, t1]);
+                    }
+                  }
+                  return null;
+                });
+                return null;
+              });
+            }
+            cleanupWindowListeners();
+          };
+          window.addEventListener('mousemove', windowMoveRef.current);
+          window.addEventListener('mouseup', windowUpRef.current);
         };
 
         const handleMouseMove = (event: React.MouseEvent<SVGRectElement>) => {
@@ -473,14 +557,26 @@ export function TimeSeries({
             return; // Don't update tooltip while dragging
           }
 
+          // Throttle tooltip updates to one per animation frame
+          pendingMouseEvent.current = event;
+          if (rafRef.current != null) return;
+          rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null;
+            const evt = pendingMouseEvent.current;
+            if (!evt) return;
+            processMouseMove(evt);
+          });
+        };
+
+        const processMouseMove = (event: React.MouseEvent<SVGRectElement>) => {
           // Tooltip logic
-          const [mx] = pointer(event.nativeEvent, event.currentTarget);
+          const [mx, my] = pointer(event.nativeEvent, overlayRef.current ?? event.currentTarget);
           const x0 = xScale.invert(mx).getTime();
           const refData = firstDeviceData.length > 0 ? firstDeviceData : flatVisibleData;
-          const sorted = [...refData].sort((a, b) => a.timestamp - b.timestamp);
-          const idx = bisect(sorted, x0, 1);
-          const d0 = sorted[idx - 1];
-          const d1 = sorted[idx];
+          // Data is already sorted by timestamp from the hook — skip copy+sort
+          const idx = bisect(refData, x0, 1);
+          const d0 = refData[idx - 1];
+          const d1 = refData[idx];
 
           if (!d0 && !d1) return;
 
@@ -508,7 +604,6 @@ export function TimeSeries({
           const py = yScale(metricValues[0]?.value ?? 0);
 
           // Check if cursor is near a data line (pixel distance from cursor to nearest line point)
-          const [, my] = pointer(event.nativeEvent, event.currentTarget);
           const SNAP_PX = 20; // pixel threshold to consider "on a data point"
           let nearLine = false;
           for (const mv of metricValues) {
@@ -542,8 +637,8 @@ export function TimeSeries({
             setTooltipData({
               point: closest,
               metrics: metricValues,
-              x: px + MARGIN.left,
-              y: py + MARGIN.top,
+              x: mx + MARGIN.left,
+              y: my + MARGIN.top,
             });
           }
 
@@ -632,9 +727,17 @@ export function TimeSeries({
         };
 
         const handleMouseLeave = (event: React.MouseEvent<SVGRectElement>) => {
-          isDragging.current = false;
-          setBrushStart(null);
-          setBrushEnd(null);
+          // Cancel any pending rAF tooltip update
+          if (rafRef.current != null) {
+            cancelAnimationFrame(rafRef.current);
+            rafRef.current = null;
+          }
+          pendingMouseEvent.current = null;
+          // If dragging, don't cancel — window listeners will handle it
+          if (!isDragging.current) {
+            setBrushStart(null);
+            setBrushEnd(null);
+          }
           setTooltipData(null);
           // Clear annotation hover
           if (onAnnotationHover && hoveredAnnotationIdx.current !== null) {
@@ -662,7 +765,7 @@ export function TimeSeries({
             const e0 = typeof endProp === 'number' ? endProp : new Date(endProp!).getTime();
             filtered = deviceData.filter((d) => d.timestamp >= s0 && d.timestamp <= e0);
           } else if (timeWindow) {
-            filtered = deviceData.filter((d) => d.timestamp >= now - timeWindow && d.timestamp <= now);
+            filtered = deviceData.filter((d) => d.timestamp >= effectiveNow - timeWindow && d.timestamp <= effectiveNow);
           } else {
             filtered = deviceData;
           }
@@ -702,7 +805,7 @@ export function TimeSeries({
             {isHorizontalLegend && (legendPosition === 'top') && legendEl}
             {isLegendVertical && legendPosition === 'left' && legendEl}
             <div style={{ flex: 1, position: 'relative', order: 0 }}>
-              <svg ref={svgRef} width={isLegendVertical ? chartWidth + MARGIN.left + MARGIN.right : width} height={chartHeight + MARGIN.top + MARGIN.bottom}>
+              <svg ref={svgRef} width={isLegendVertical ? chartWidth + MARGIN.left + MARGIN.right : width} height={chartHeight + MARGIN.top + MARGIN.bottom} style={{ userSelect: 'none' }}>
                 <defs>
                   <clipPath id={clipId}>
                     <rect x={0} y={0} width={chartWidth} height={chartHeight} />
@@ -875,6 +978,7 @@ export function TimeSeries({
 
                   {/* Invisible overlay for mouse events */}
                   <rect
+                    ref={overlayRef}
                     width={chartWidth}
                     height={chartHeight}
                     fill="transparent"
@@ -971,4 +1075,4 @@ export function TimeSeries({
       }}
     </ResponsiveContainer>
   );
-}
+});

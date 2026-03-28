@@ -13,6 +13,7 @@ import type { ZoneTransition } from '../utils/useZoneTransition';
 export interface ProgressBarStyles {
   label_font_file?: FontStyle;
   lastUpdated?: FontStyle;
+  zoneValue?: FontStyle;                               // zone boundary + min/max label styling
   background?: BackgroundStyle;
   width?: string | number;
   height?: string | number;
@@ -27,6 +28,9 @@ export interface ProgressBarProps {
   formatValue?: (value: number) => string;             // default: defaultFormatValue
   alertZones?: AlertZone[];                            // default: []
   showAlertZones?: boolean;                            // default: true when zones exist
+  showZoneLegend?: boolean;                            // default: false
+  showZoneValues?: boolean;                            // default: false
+  showMinMax?: boolean;                                // default: false
   styles?: ProgressBarStyles;
   lastUpdated?: Date | number;
   showLastUpdated?: boolean;                           // default: false
@@ -406,6 +410,34 @@ If `value` is null/undefined:
 - If `showLoading = true`: skeleton shimmer renders.
 - If `showLoading = false`: `safeValue = min`, bar renders at 0%.
 
+## Zone Legend
+
+When `showZoneLegend` is true and `alertZones` has entries:
+- Renders a flex row of colored swatches + zone label text below the bar
+- Only zones with a `label` property are shown
+- Swatch: 10x10px `<span>` with `borderRadius: 2px`, `backgroundColor: zone.color`
+- Label: `<span>` with `color` from `styles.zoneValue?.color ?? '#9ca3af'`
+- Container: `data-testid="zone-legend"`, `display: flex`, `gap: 12px`, `justifyContent: center`, `flexWrap: wrap`
+
+## Zone Boundary Values
+
+When `showZoneValues` is true and `alertZones` has entries:
+- Uses `getZoneBoundaries(alertZones, min, max)` from `src/gauges/shared.ts` to extract unique boundary values between adjacent zones (excluding min/max)
+- Each boundary renders as a `<span>` with `data-zone-value={bv}` attribute
+- **Color**: defaults to the zone color of the zone whose `min` matches the boundary value. Falls back to the zone whose `max` matches. When `styles.zoneValue.color` is set, it overrides all boundary colors uniformly.
+- **Horizontal**: positioned absolutely above the bar, centered at the proportional x-offset (`left: {ratio}%`, `transform: translateX(-50%)`)
+- **Vertical**: positioned absolutely to the right of the bar, at the proportional y-offset (`bottom: {ratio}%`, `transform: translateY(50%)`)
+- Values are formatted through `formatValue`
+
+## Min/Max Labels
+
+When `showMinMax` is true:
+- Renders min and max values at the ends of the bar using `formatValue`
+- Labels have `data-minmax="min"` / `data-minmax="max"` attributes
+- Uses `styles.zoneValue` font styling (shared with zone boundary values)
+- **Horizontal**: min on the left, max on the right, in a flex row with the bar
+- **Vertical**: max on top, min on bottom, in a flex column with the bar
+
 ## Dependencies
 
 | Import | Source | Usage |
@@ -416,3 +448,4 @@ If `value` is null/undefined:
 | `resolveFontFamily` | `../utils/fonts` | Font file auto-loading |
 | `useZoneTransition`, `ZoneTransition` | `../utils/useZoneTransition` | Alert zone change detection |
 | `validateRange`, `validateAlertZones`, `validateValue`, `ComponentError` | `../utils/validation` | Hard and soft validation |
+| `getZoneBoundaries` | `../gauges/shared` | Extract unique zone boundary values for `showZoneValues` |

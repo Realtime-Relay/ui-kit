@@ -64,6 +64,17 @@ Each zone also renders an invisible tooltip hit area on top of all other layers 
 
 The hit areas are transparent `<div>` elements positioned identically to their corresponding background bands but at the highest z-index, ensuring tooltips work even over the fill bar.
 
+### Zone Legend, Zone Values & Min/Max
+
+| Prop | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `showZoneLegend` | `boolean` | No | `false` | Show a legend of alert zones below the bar. Each zone with a `label` renders a colored swatch + label text. Zones without labels are omitted. |
+| `showZoneValues` | `boolean` | No | `false` | Show zone boundary values along the bar. Uses `getZoneBoundaries()` from `src/gauges/shared.ts` to extract unique boundary values between adjacent zones (excluding min/max). Horizontal: positioned above the bar. Vertical: positioned to the right. |
+| `showMinMax` | `boolean` | No | `false` | Show min and max values at the ends of the bar. Horizontal: min on left, max on right. Vertical: max on top, min on bottom. |
+| `styles.zoneValue` | `FontStyle` | No | -- | Font styling for zone boundary values and min/max labels. Default: fontSize 10, fontWeight 400, fontFamily `var(--relay-font-family)`. |
+
+Zone boundary values are colored to match their zone color by default (the color of the zone whose `min` equals the boundary value). When `styles.zoneValue.color` is explicitly set, it overrides the per-zone coloring for all boundary labels.
+
 #### Fill Color from Zones
 
 The fill bar color is determined by `getZoneColor(clampedValue, alertZones, fallback)`:
@@ -77,6 +88,7 @@ The fill bar color is determined by `getZoneColor(clampedValue, alertZones, fall
 |---|---|---|---|---|
 | `styles.label_font_file` | `FontStyle` | No | -- | Font styling for the value label. `fontFamily` can be a CSS string or a file path (.otf/.ttf/.woff/.woff2) which triggers auto `@font-face` injection. Defaults: fontSize 12, fontWeight 600, color determined by fill percentage. |
 | `styles.lastUpdated` | `FontStyle` | No | -- | Font styling for the last-updated timestamp text. Defaults: fontSize 11, fontWeight 400, color `#9ca3af`. |
+| `styles.zoneValue` | `FontStyle` | No | -- | Font styling for zone boundary values and min/max labels. Defaults: fontSize 10, fontWeight 400, color matches zone color (or `#9ca3af` fallback). Explicit `color` overrides per-zone coloring. |
 | `styles.background` | `BackgroundStyle` | No | -- | `color` property sets the track background. Default: `var(--relay-progress-bg, #e5e7eb)`. |
 | `styles.width` | `string \| number` | No | `'100%'` | Custom width. Numbers are treated as pixels. Strings are used as CSS values. The container always has `maxWidth: 100%` to prevent overflow. |
 | `styles.height` | `string \| number` | No | `'24px'` (horizontal) / `'100%'` (vertical) | Custom height. Same type handling as width. For horizontal, defaults to `var(--relay-progress-height, 24px)`. For vertical, defaults to `100%`. |

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { RelayApp } from 'relayx-app-js';
 import {
   ProgressBar,
@@ -42,8 +42,13 @@ function LiveProgressPage({ deviceIdent, metrics }: { deviceIdent: string; metri
   const firstMetric = metrics[0] ?? 'value';
   const secondMetric = metrics[1];
 
-  const { value: val1, timestamp: ts1 } = useRelayLatest(deviceIdent, firstMetric);
-  const { value: val2, timestamp: ts2 } = useRelayLatest(deviceIdent, secondMetric ?? firstMetric);
+  const [timeRange] = useState(() => ({
+    start: new Date(Date.now() - 10 * 24 * 60 * 60_000).toISOString(),
+    end: new Date().toISOString(),
+  }));
+
+  const { value: val1, timestamp: ts1 } = useRelayLatest({ deviceIdent, metric: firstMetric, timeRange });
+  const { value: val2, timestamp: ts2 } = useRelayLatest({ deviceIdent, metric: secondMetric ?? firstMetric, timeRange });
 
   const v = val1 ?? 0;
   const v2 = val2 ?? 0;
@@ -284,6 +289,214 @@ function LiveProgressPage({ deviceIdent, metrics }: { deviceIdent: string; metri
           </div>
         </Card>
 
+        {/* === Zone Legend, Zone Values, Min/Max Permutations === */}
+        <div style={{ gridColumn: 'span 2', marginTop: 16 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Zone Legend, Zone Values & Min/Max</h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+            Permutations of showZoneLegend, showZoneValues, and showMinMax.
+          </p>
+        </div>
+
+        <Card title="Zone Legend Only" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneLegend
+          />
+        </Card>
+
+        <Card title="Zone Values Only" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneValues
+          />
+        </Card>
+
+        <Card title="Min/Max Only" span={2}>
+          <ProgressBar value={v} showMinMax />
+        </Card>
+
+        <Card title="Legend + Zone Values" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneLegend
+            showZoneValues
+          />
+        </Card>
+
+        <Card title="Legend + Min/Max" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneLegend
+            showMinMax
+          />
+        </Card>
+
+        <Card title="Zone Values + Min/Max" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneValues
+            showMinMax
+          />
+        </Card>
+
+        <Card title="All Three (Legend + Values + Min/Max)" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneLegend
+            showZoneValues
+            showMinMax
+          />
+        </Card>
+
+        <Card title="All + Label + Timestamp" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneLegend
+            showZoneValues
+            showMinMax
+            lastUpdated={lastTs}
+            showLastUpdated
+          />
+        </Card>
+
+        <Card title="All + Custom zoneValue Styling" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showZoneLegend
+            showZoneValues
+            showMinMax
+            styles={{ zoneValue: { fontSize: 12, fontWeight: 600, color: '#374151' } }}
+          />
+        </Card>
+
+        <Card title="Hidden Bands + Legend Visible" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+              { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+              { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+            ]}
+            showAlertZones={false}
+            showZoneLegend
+          />
+        </Card>
+
+        <Card title="4-Zone + All Features" span={2}>
+          <ProgressBar
+            value={v}
+            alertZones={[
+              { min: 0, max: 25, color: '#3b82f6', label: 'Cold' },
+              { min: 25, max: 50, color: '#06b6d4', label: 'Cool' },
+              { min: 50, max: 75, color: '#f59e0b', label: 'Warm' },
+              { min: 75, max: 100, color: '#ef4444', label: 'Hot' },
+            ]}
+            showZoneLegend
+            showZoneValues
+            showMinMax
+          />
+        </Card>
+
+        <Card title="Custom Range (0-1000) + All Features" span={2}>
+          <ProgressBar
+            value={v * 10}
+            min={0}
+            max={1000}
+            formatValue={(val) => `${val.toFixed(0)} RPM`}
+            alertZones={[
+              { min: 0, max: 400, color: '#22c55e', label: 'Idle' },
+              { min: 400, max: 700, color: '#f59e0b', label: 'Active' },
+              { min: 700, max: 1000, color: '#ef4444', label: 'Redline' },
+            ]}
+            showZoneLegend
+            showZoneValues
+            showMinMax
+          />
+        </Card>
+
+        {/* Vertical permutations */}
+        <Card title="Vertical + Label">
+          <div style={{ width: 80 }}>
+            <ProgressBar value={v} orientation="vertical" styles={{ height: 300 }} />
+          </div>
+        </Card>
+
+        <Card title="Vertical + Legend + Values + Min/Max">
+          <div style={{ width: 120 }}>
+            <ProgressBar
+              value={v}
+              orientation="vertical"
+              alertZones={[
+                { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+                { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+                { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+              ]}
+              showZoneLegend
+              showZoneValues
+              showMinMax
+              styles={{ height: 300 }}
+            />
+          </div>
+        </Card>
+
+        <Card title="Vertical + All + Custom Style">
+          <div style={{ width: 120 }}>
+            <ProgressBar
+              value={v}
+              orientation="vertical"
+              alertZones={[
+                { min: 0, max: 40, color: '#22c55e', label: 'Normal' },
+                { min: 40, max: 70, color: '#f59e0b', label: 'Warning' },
+                { min: 70, max: 100, color: '#ef4444', label: 'Critical' },
+              ]}
+              showZoneLegend
+              showZoneValues
+              showMinMax
+              styles={{ height: 400, zoneValue: { fontSize: 10, fontWeight: 600, color: '#1e293b' } }}
+            />
+          </div>
+        </Card>
+
         {/* === Resizable variations === */}
         <div style={{ gridColumn: 'span 2', marginTop: 16 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Resizable Variations</h2>
@@ -363,7 +576,11 @@ function LiveProgressPage({ deviceIdent, metrics }: { deviceIdent: string; metri
 
 /** Individual metric row that subscribes to its own live value */
 function MetricProgressRow({ deviceIdent, metric }: { deviceIdent: string; metric: string }) {
-  const { value } = useRelayLatest(deviceIdent, metric);
+  const [timeRange] = useState(() => ({
+    start: new Date(Date.now() - 10 * 24 * 60 * 60_000).toISOString(),
+    end: new Date().toISOString(),
+  }));
+  const { value } = useRelayLatest({ deviceIdent, metric, timeRange });
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <span style={{ fontSize: 13, color: '#6b7280', width: 80, fontFamily: 'monospace' }}>{metric}</span>

@@ -275,3 +275,62 @@ test.describe('ProgressBar - Resizable', () => {
     await expect(page.locator('text=drag corner to resize').first()).toBeVisible();
   });
 });
+
+// ─── Zone Legend ──────────────────────────────────────────────
+
+test.describe('ProgressBar - Zone Legend', () => {
+  test('zone legend renders with labeled zones', async ({ page }) => {
+    const legend = page.getByTestId('zone-legend').first();
+    await legend.scrollIntoViewIfNeeded();
+    await expect(legend).toBeVisible();
+  });
+
+  test('legend shows zone labels', async ({ page }) => {
+    const legend = page.getByTestId('zone-legend').first();
+    await legend.scrollIntoViewIfNeeded();
+    const text = await legend.textContent();
+    expect(text).toContain('Normal');
+    expect(text).toContain('Warning');
+    expect(text).toContain('Critical');
+  });
+
+  test('legend has colored swatches', async ({ page }) => {
+    const legend = page.getByTestId('zone-legend').first();
+    await legend.scrollIntoViewIfNeeded();
+    const swatches = legend.locator('span[style*="background-color"]');
+    expect(await swatches.count()).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// ─── Zone Values ─────────────────────────────────────────────
+
+test.describe('ProgressBar - Zone Values', () => {
+  test('zone boundary values are rendered', async ({ page }) => {
+    const vals = page.locator('[data-zone-value]');
+    expect(await vals.count()).toBeGreaterThanOrEqual(2);
+  });
+
+  test('boundary values include 40 and 70', async ({ page }) => {
+    await expect(page.locator('[data-zone-value="40"]').first()).toBeVisible();
+    await expect(page.locator('[data-zone-value="70"]').first()).toBeVisible();
+  });
+});
+
+// ─── Min/Max Labels ──────────────────────────────────────────
+
+test.describe('ProgressBar - Min/Max', () => {
+  test('min and max labels are rendered', async ({ page }) => {
+    const minEl = page.locator('[data-minmax="min"]').first();
+    const maxEl = page.locator('[data-minmax="max"]').first();
+    await minEl.scrollIntoViewIfNeeded();
+    await expect(minEl).toBeVisible();
+    await expect(maxEl).toBeVisible();
+  });
+
+  test('min shows 0 and max shows 100 for default range', async ({ page }) => {
+    const minEl = page.locator('[data-minmax="min"]').first();
+    const maxEl = page.locator('[data-minmax="max"]').first();
+    await expect(minEl).toHaveText('0');
+    await expect(maxEl).toHaveText('100');
+  });
+});
