@@ -8,8 +8,8 @@ export interface Dimensions {
 interface ResponsiveContainerProps {
   className?: string;
   style?: React.CSSProperties;
-  explicitWidth?: number;
-  explicitHeight?: number;
+  explicitWidth?: number | string;
+  explicitHeight?: number | string;
   children: (dimensions: Dimensions) => ReactNode;
 }
 
@@ -61,8 +61,8 @@ export function ResponsiveContainer({
       ref={containerRef}
       className={className}
       style={{
-        width: explicitWidth ? `${explicitWidth}px` : "100%",
-        height: explicitHeight ? `${explicitHeight}px` : "100%",
+        width: explicitWidth != null ? (typeof explicitWidth === "number" ? `${explicitWidth}px` : explicitWidth) : "100%",
+        height: explicitHeight != null ? (typeof explicitHeight === "number" ? `${explicitHeight}px` : explicitHeight) : "100%",
         maxWidth: "100%",
         position: "relative",
         overflow: "hidden",

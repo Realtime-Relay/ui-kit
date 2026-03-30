@@ -16,6 +16,8 @@ export interface StateTimelineStyles {
   tooltip?: FontStyle;
   background?: BackgroundStyle;
   emptyRowColor?: string;
+  width?: number | string;
+  height?: number | string;
 }
 
 export interface StateTimelineProps {

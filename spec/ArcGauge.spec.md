@@ -21,8 +21,8 @@ interface ArcGaugeStyles {
   background?: BackgroundStyle;
   arcThickness?: number; // default: 20
   arcAngle?: number; // 30–300, default: 180
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
 }
 
 interface ArcGaugeProps {

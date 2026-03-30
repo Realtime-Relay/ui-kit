@@ -12,6 +12,8 @@ interface TimeSeriesStyles {
   tooltip?: FontStyle;
   axis?: FontStyle;
   background?: BackgroundStyle;
+  width?: number | string;   // passed to ResponsiveContainer as explicitWidth
+  height?: number | string;  // passed to ResponsiveContainer as explicitHeight
 }
 
 interface TimeSeriesZoneTransition {

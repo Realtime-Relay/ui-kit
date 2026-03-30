@@ -410,6 +410,43 @@ describe("StateTimeline - styles", () => {
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper?.style.backgroundColor).toBe("transparent");
   });
+
+  it("applies explicit width via styles", () => {
+    const { container } = render(
+      <StateTimeline
+        data={makeSingleDevice()}
+        stateMapper={mapper}
+        styles={{ width: 800 }}
+      />,
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.width).toBe("800px");
+  });
+
+  it("applies explicit height via styles", () => {
+    const { container } = render(
+      <StateTimeline
+        data={makeSingleDevice()}
+        stateMapper={mapper}
+        styles={{ height: 300 }}
+      />,
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.height).toBe("300px");
+  });
+
+  it("accepts string CSS values for width/height", () => {
+    const { container } = render(
+      <StateTimeline
+        data={makeSingleDevice()}
+        stateMapper={mapper}
+        styles={{ width: "50vw", height: "80%" }}
+      />,
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.width).toBe("50vw");
+    expect(wrapper.style.height).toBe("80%");
+  });
 });
 
 // ─── Narrow container ───────────────────────────────────────

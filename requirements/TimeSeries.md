@@ -183,6 +183,8 @@ Default tooltip: timestamp header (via `formatTimestamp` or browser locale), col
 | `gridColor`     | `string?`           | —       | Grid line color.                                                       |
 | `gridThickness` | `number?`           | —       | Grid line stroke width.                                                |
 | `alertZones`    | `AlertZone[]?`      | `[]`    | Horizontal shaded bands for thresholds: `{ min, max, color, label? }`. |
+| `styles.width`  | `number \| string`  | —       | Explicit dimension. Number = pixels, string = any CSS value (e.g. '100%', '50vw', '2rem'). Default: fills parent (100%). |
+| `styles.height` | `number \| string`  | —       | Explicit dimension. Number = pixels, string = any CSS value (e.g. '100%', '50vw', '2rem'). Default: fills parent (100%). |
 
 ### Performance & Loading
 

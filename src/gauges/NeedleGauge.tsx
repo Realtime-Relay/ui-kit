@@ -45,8 +45,8 @@ export interface NeedleGaugeStyles {
   arcThickness?: number;
   needleThickness?: number;
   arcAngle?: number;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
 }
 
 export interface NeedleGaugeProps {

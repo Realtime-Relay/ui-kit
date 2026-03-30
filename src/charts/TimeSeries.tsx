@@ -65,6 +65,10 @@ export interface TimeSeriesStyles {
   legend?: FontStyle;
   tooltip?: FontStyle;
   background?: BackgroundStyle;
+  /** Explicit width. Number = pixels, string = CSS value (e.g. '100%', '50vw'). Default: fills parent. */
+  width?: number | string;
+  /** Explicit height. Number = pixels, string = CSS value. Default: fills parent. */
+  height?: number | string;
 }
 
 export interface TimeSeriesProps {
@@ -464,7 +468,7 @@ export const TimeSeries = memo(function TimeSeries({
   // Loading state
   if (showLoading && allEmpty) {
     return (
-      <ResponsiveContainer>
+      <ResponsiveContainer explicitWidth={styles?.width} explicitHeight={styles?.height}>
         {({ width, height }) => <ChartSkeleton width={width} height={height} />}
       </ResponsiveContainer>
     );
@@ -483,6 +487,8 @@ export const TimeSeries = memo(function TimeSeries({
 
   return (
     <ResponsiveContainer
+      explicitWidth={styles?.width}
+      explicitHeight={styles?.height}
       style={{
         backgroundColor:
           styles?.background?.color ?? "var(--relay-bg-color, transparent)",
@@ -492,7 +498,7 @@ export const TimeSeries = memo(function TimeSeries({
         const rawS = createScaler(width, height, CHART_REFERENCE, "width");
         const s = (px: number) => Math.min(rawS(px), px); // never upscale beyond 1x
         const legendSpace = showLegend ? (isLegendVertical ? 140 : s(30)) : 0;
-        const MARGIN = { top: s(20), right: s(20), bottom: s(30), left: s(50) };
+        const MARGIN = { top: s(20), right: s(20), bottom: s(40), left: s(50) };
         const chartWidth =
           width -
           MARGIN.left -

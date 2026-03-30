@@ -90,6 +90,8 @@ Where ML = MARGIN.left, MR = MARGIN.right, LW = LABEL_WIDTH, LG = LABEL_GAP.
 | `styles.tooltip`       | `FontStyle`       | No       | --          | Font styling for the tooltip container. Defaults: fontSize 12, fontFamily `var(--relay-font-family)`. Background and text colors come from CSS variables `--relay-tooltip-bg` (default `#1a1a1a`) and `--relay-tooltip-text` (default `#ffffff`). |
 | `styles.background`    | `BackgroundStyle` | No       | transparent | Background color applied to the `ResponsiveContainer` wrapper via `backgroundColor`.                                                                                                                                                              |
 | `styles.emptyRowColor` | `string`          | No       | `'#f3f4f6'` | Fill color for the background rect rendered in rows whose data array is empty.                                                                                                                                                                    |
+| `styles.width`         | `number \| string` | No       | —           | Explicit dimension. Number = pixels, string = any CSS value (e.g. '100%', '50vw', '2rem'). Default: fills parent (100%). |
+| `styles.height`        | `number \| string` | No       | —           | Explicit dimension. Number = pixels, string = any CSS value (e.g. '100%', '50vw', '2rem'). Default: fills parent (100%). |
 
 ### Loading and Error Props
 

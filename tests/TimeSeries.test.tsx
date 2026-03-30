@@ -494,6 +494,40 @@ describe("TimeSeries - styles", () => {
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper?.style.backgroundColor).toBe("rgb(15, 23, 42)");
   });
+
+  it("applies explicit width via styles", () => {
+    const { container } = render(
+      <TimeSeries
+        data={singleDevice()}
+        styles={{ width: 600 }}
+      />,
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.width).toBe("600px");
+  });
+
+  it("applies explicit height via styles", () => {
+    const { container } = render(
+      <TimeSeries
+        data={singleDevice()}
+        styles={{ height: 400 }}
+      />,
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.height).toBe("400px");
+  });
+
+  it("accepts string CSS values for width/height", () => {
+    const { container } = render(
+      <TimeSeries
+        data={singleDevice()}
+        styles={{ width: "50vw", height: "80%" }}
+      />,
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.width).toBe("50vw");
+    expect(wrapper.style.height).toBe("80%");
+  });
 });
 
 // ─── Zoom ───────────────────────────────────────────────────

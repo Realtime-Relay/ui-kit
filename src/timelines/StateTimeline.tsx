@@ -14,6 +14,10 @@ export interface StateTimelineStyles {
   tooltip?: FontStyle;
   background?: BackgroundStyle;
   emptyRowColor?: string;
+  /** Explicit width. Number = pixels, string = CSS value (e.g. '100%', '50vw'). Default: fills parent. */
+  width?: number | string;
+  /** Explicit height. Number = pixels, string = CSS value. Default: fills parent. */
+  height?: number | string;
 }
 
 export interface StateTimelineProps {
@@ -146,7 +150,7 @@ export function StateTimeline({
   if (deviceNames.length === 0) {
     if (!showLoading) return null;
     return (
-      <ResponsiveContainer>
+      <ResponsiveContainer explicitWidth={styles?.width} explicitHeight={styles?.height}>
         {({ width, height }) => <ChartSkeleton width={width} height={height} />}
       </ResponsiveContainer>
     );
@@ -156,6 +160,8 @@ export function StateTimeline({
 
   return (
     <ResponsiveContainer
+      explicitWidth={styles?.width}
+      explicitHeight={styles?.height}
       style={{ backgroundColor: styles?.background?.color ?? "transparent" }}
     >
       {({ width }) => {

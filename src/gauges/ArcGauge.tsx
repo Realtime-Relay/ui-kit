@@ -44,8 +44,8 @@ export interface ArcGaugeStyles {
   background?: BackgroundStyle;
   arcThickness?: number;
   arcAngle?: number;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
 }
 
 export interface ArcGaugeProps {

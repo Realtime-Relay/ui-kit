@@ -22,8 +22,8 @@ interface NeedleGaugeStyles {
   arcThickness?: number; // default: 14
   needleThickness?: number; // default: 2.5
   arcAngle?: number; // 30–300, default: 180
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
 }
 
 interface NeedleGaugeProps {
