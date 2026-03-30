@@ -497,10 +497,7 @@ describe("TimeSeries - styles", () => {
 
   it("applies explicit width via styles", () => {
     const { container } = render(
-      <TimeSeries
-        data={singleDevice()}
-        styles={{ width: 600 }}
-      />,
+      <TimeSeries data={singleDevice()} styles={{ width: 600 }} />,
     );
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper.style.width).toBe("600px");
@@ -508,10 +505,7 @@ describe("TimeSeries - styles", () => {
 
   it("applies explicit height via styles", () => {
     const { container } = render(
-      <TimeSeries
-        data={singleDevice()}
-        styles={{ height: 400 }}
-      />,
+      <TimeSeries data={singleDevice()} styles={{ height: 400 }} />,
     );
     const wrapper = container.firstChild as HTMLElement;
     expect(wrapper.style.height).toBe("400px");

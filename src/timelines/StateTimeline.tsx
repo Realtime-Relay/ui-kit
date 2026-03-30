@@ -150,7 +150,10 @@ export function StateTimeline({
   if (deviceNames.length === 0) {
     if (!showLoading) return null;
     return (
-      <ResponsiveContainer explicitWidth={styles?.width} explicitHeight={styles?.height}>
+      <ResponsiveContainer
+        explicitWidth={styles?.width}
+        explicitHeight={styles?.height}
+      >
         {({ width, height }) => <ChartSkeleton width={width} height={height} />}
       </ResponsiveContainer>
     );

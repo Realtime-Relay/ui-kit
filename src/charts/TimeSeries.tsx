@@ -468,7 +468,10 @@ export const TimeSeries = memo(function TimeSeries({
   // Loading state
   if (showLoading && allEmpty) {
     return (
-      <ResponsiveContainer explicitWidth={styles?.width} explicitHeight={styles?.height}>
+      <ResponsiveContainer
+        explicitWidth={styles?.width}
+        explicitHeight={styles?.height}
+      >
         {({ width, height }) => <ChartSkeleton width={width} height={height} />}
       </ResponsiveContainer>
     );

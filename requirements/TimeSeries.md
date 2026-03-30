@@ -175,14 +175,14 @@ Default tooltip: timestamp header (via `formatTimestamp` or browser locale), col
 
 ### Styling
 
-| Prop            | Type                | Default | Description                                                            |
-| --------------- | ------------------- | ------- | ---------------------------------------------------------------------- |
-| `styles`        | `TimeSeriesStyles?` | —       | Nested object: `{ title?, legend?, tooltip?, axis?, background? }`     |
-| `title`         | `string?`           | —       | Chart title rendered above the chart area, centered.                   |
-| `showGrid`      | `boolean?`          | `true`  | Horizontal dashed grid lines.                                          |
-| `gridColor`     | `string?`           | —       | Grid line color.                                                       |
-| `gridThickness` | `number?`           | —       | Grid line stroke width.                                                |
-| `alertZones`    | `AlertZone[]?`      | `[]`    | Horizontal shaded bands for thresholds: `{ min, max, color, label? }`. |
+| Prop            | Type                | Default | Description                                                                                                              |
+| --------------- | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `styles`        | `TimeSeriesStyles?` | —       | Nested object: `{ title?, legend?, tooltip?, axis?, background? }`                                                       |
+| `title`         | `string?`           | —       | Chart title rendered above the chart area, centered.                                                                     |
+| `showGrid`      | `boolean?`          | `true`  | Horizontal dashed grid lines.                                                                                            |
+| `gridColor`     | `string?`           | —       | Grid line color.                                                                                                         |
+| `gridThickness` | `number?`           | —       | Grid line stroke width.                                                                                                  |
+| `alertZones`    | `AlertZone[]?`      | `[]`    | Horizontal shaded bands for thresholds: `{ min, max, color, label? }`.                                                   |
 | `styles.width`  | `number \| string`  | —       | Explicit dimension. Number = pixels, string = any CSS value (e.g. '100%', '50vw', '2rem'). Default: fills parent (100%). |
 | `styles.height` | `number \| string`  | —       | Explicit dimension. Number = pixels, string = any CSS value (e.g. '100%', '50vw', '2rem'). Default: fills parent (100%). |
 
