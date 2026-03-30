@@ -69,7 +69,10 @@ export interface RelayAppInstance {
     stream: (opts: {
       device_ident: string;
       metric: string | string[];
-      callback: (data: { metric: string; data: { value: any; timestamp: number } }) => void;
+      callback: (data: {
+        metric: string;
+        data: { value: any; timestamp: number };
+      }) => void;
     }) => Promise<void>;
     history: (opts: {
       device_ident: string;
@@ -83,18 +86,17 @@ export interface RelayAppInstance {
       start: string;
       end: string;
     }) => Promise<Record<string, { value: any; timestamp: number }>>;
-    off: (opts: {
-      device_ident: string;
-      metric?: string[];
-    }) => Promise<void>;
+    off: (opts: { device_ident: string; metric?: string[] }) => Promise<void>;
   };
   connection: {
     listeners: (callback: (event: string) => void) => void;
-    presence: (callback: (data: {
-      event: 'connected' | 'disconnected';
-      device_ident: string;
-      data: { start: number; stop?: number };
-    }) => void) => void;
+    presence: (
+      callback: (data: {
+        event: "connected" | "disconnected";
+        device_ident: string;
+        data: { start: number; stop?: number };
+      }) => void,
+    ) => void;
   };
   alert: {
     list: () => Promise<{ status: string; data: any[] }>;
@@ -119,5 +121,14 @@ export interface TimeRange {
   end: Date | string;
 }
 
+/** A single value + timestamp pair from useRelayLatest or similar hooks. */
+export interface RelayDataPoint {
+  value: number | null;
+  timestamp: number | null;
+}
+
 /** Downsampling configuration: false to disable, number for target count, function for custom. */
-export type DownsampleConfig = false | number | ((data: DataPoint[]) => DataPoint[]);
+export type DownsampleConfig =
+  | false
+  | number
+  | ((data: DataPoint[]) => DataPoint[]);

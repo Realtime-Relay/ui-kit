@@ -1,12 +1,12 @@
-import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { scaleTime } from 'd3';
-import type { DataPoint, FontStyle, BackgroundStyle } from '../utils/types';
-import { ResponsiveContainer } from '../charts/shared/ResponsiveContainer';
-import { resolveFont } from '../utils/useResolvedStyles';
-import { ChartSkeleton } from '../charts/shared/Skeleton';
-import { isValidTimestamp, type ComponentError } from '../utils/validation';
-import { getStateColor, groupStateEntries } from './stateUtils';
-import type { StateEntry } from './stateUtils';
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { scaleTime } from "d3";
+import type { DataPoint, FontStyle, BackgroundStyle } from "../utils/types";
+import { ResponsiveContainer } from "../charts/shared/ResponsiveContainer";
+import { resolveFont } from "../utils/useResolvedStyles";
+import { ChartSkeleton } from "../charts/shared/Skeleton";
+import { isValidTimestamp, type ComponentError } from "../utils/validation";
+import { getStateColor, groupStateEntries } from "./stateUtils";
+import type { StateEntry } from "./stateUtils";
 
 export interface StateTimelineStyles {
   label?: FontStyle;
@@ -25,7 +25,7 @@ export interface StateTimelineProps {
   renderTooltip?: (entry: StateEntry, deviceName: string) => React.ReactNode;
   styles?: StateTimelineStyles;
   rowHeight?: number;
-  labelAlign?: 'left' | 'right';
+  labelAlign?: "left" | "right";
   showLoading?: boolean;
   onError?: (error: ComponentError) => void;
 }
@@ -49,7 +49,7 @@ export function StateTimeline({
   renderTooltip,
   styles,
   rowHeight: rowHeightProp,
-  labelAlign = 'left',
+  labelAlign = "left",
   showLoading = true,
   onError,
 }: StateTimelineProps) {
@@ -76,10 +76,10 @@ export function StateTimeline({
       result[name] = (data[name] ?? []).filter((point) => {
         if (!isValidTimestamp(point.timestamp)) {
           onError({
-            type: 'invalid_timestamp',
+            type: "invalid_timestamp",
             message: `StateTimeline [${name}]: invalid timestamp, received ${point.timestamp}`,
             rawValue: point.timestamp,
-            component: 'StateTimeline',
+            component: "StateTimeline",
           });
           return false;
         }
@@ -95,18 +95,22 @@ export function StateTimeline({
     for (const name of deviceNames) {
       const points = validDataMap[name];
       if (points && points.length > 0) {
-        const keys = Object.keys(points[0]).filter((k) => k !== 'timestamp');
+        const keys = Object.keys(points[0]).filter((k) => k !== "timestamp");
         if (keys.length > 0) return keys[0];
       }
     }
-    return '';
+    return "";
   }, [validDataMap, deviceNames, metricKeyProp]);
 
   // Group state entries per device
   const entriesMap = useMemo(() => {
     const result: Record<string, StateEntry[]> = {};
     for (const name of deviceNames) {
-      result[name] = groupStateEntries(validDataMap[name] ?? [], metricKey, stateMapper);
+      result[name] = groupStateEntries(
+        validDataMap[name] ?? [],
+        metricKey,
+        stateMapper,
+      );
     }
     return result;
   }, [validDataMap, deviceNames, metricKey, stateMapper]);
@@ -152,7 +156,7 @@ export function StateTimeline({
 
   return (
     <ResponsiveContainer
-      style={{ backgroundColor: styles?.background?.color ?? 'transparent' }}
+      style={{ backgroundColor: styles?.background?.color ?? "transparent" }}
     >
       {({ width }) => {
         const BAR_HEIGHT = rowHeightProp ?? 28;
@@ -163,18 +167,20 @@ export function StateTimeline({
         const MARGIN = { top: 8, right: 12, bottom: 8, left: 12 };
 
         const rowLabelFontSize = rowLabelStyleR?.fontSize ?? 12;
-        const rowLabelFontFamily = rowLabelStyleR?.fontFamily ?? 'system-ui, sans-serif';
+        const rowLabelFontFamily =
+          rowLabelStyleR?.fontFamily ?? "system-ui, sans-serif";
         const rowLabelFontWeight = rowLabelStyleR?.fontWeight ?? 500;
-        const rowLabelColor = rowLabelStyleR?.color ?? '#374151';
+        const rowLabelColor = rowLabelStyleR?.color ?? "#374151";
         const axisLabelFontSize = labelStyleR?.fontSize ?? 11;
-        const axisLabelFontFamily = labelStyleR?.fontFamily ?? 'system-ui, sans-serif';
-        const axisLabelColor = labelStyleR?.color ?? '#9ca3af';
-        const emptyRowColor = styles?.emptyRowColor ?? '#f3f4f6';
+        const axisLabelFontFamily =
+          labelStyleR?.fontFamily ?? "system-ui, sans-serif";
+        const axisLabelColor = labelStyleR?.color ?? "#9ca3af";
+        const emptyRowColor = styles?.emptyRowColor ?? "#f3f4f6";
 
         // Measure label width using an offscreen canvas
         const labelFont = `${rowLabelFontWeight} ${rowLabelFontSize}px ${rowLabelFontFamily}`;
         let maxLabelWidth = 0;
-        const offscreen = document.createElement('canvas').getContext('2d');
+        const offscreen = document.createElement("canvas").getContext("2d");
         if (offscreen) {
           offscreen.font = labelFont;
           for (const name of deviceNames) {
@@ -182,21 +188,33 @@ export function StateTimeline({
             if (w > maxLabelWidth) maxLabelWidth = w;
           }
         }
-        const LABEL_WIDTH = maxLabelWidth > 0 ? Math.ceil(maxLabelWidth) + 16 : 120;
+        const LABEL_WIDTH =
+          maxLabelWidth > 0 ? Math.ceil(maxLabelWidth) + 16 : 120;
 
-        const chartWidth = width - MARGIN.left - LABEL_WIDTH - LABEL_GAP - MARGIN.right;
+        const chartWidth =
+          width - MARGIN.left - LABEL_WIDTH - LABEL_GAP - MARGIN.right;
         if (chartWidth <= 0) return null;
 
-        const labelsOnRight = labelAlign === 'right';
-        const barsX = labelsOnRight ? MARGIN.left : MARGIN.left + LABEL_WIDTH + LABEL_GAP;
+        const labelsOnRight = labelAlign === "right";
+        const barsX = labelsOnRight
+          ? MARGIN.left
+          : MARGIN.left + LABEL_WIDTH + LABEL_GAP;
         const hasData = globalExtent !== null;
-        const canvasHeight = MARGIN.top + rowCount * BAR_HEIGHT + (rowCount - 1) * ROW_GAP + X_AXIS_HEIGHT + MARGIN.bottom;
+        const canvasHeight =
+          MARGIN.top +
+          rowCount * BAR_HEIGHT +
+          (rowCount - 1) * ROW_GAP +
+          X_AXIS_HEIGHT +
+          MARGIN.bottom;
 
         const xScale = hasData
-          ? scaleTime().domain([new Date(globalExtent[0]), new Date(globalExtent[1])]).range([0, chartWidth])
+          ? scaleTime()
+              .domain([new Date(globalExtent[0]), new Date(globalExtent[1])])
+              .range([0, chartWidth])
           : null;
         const spansDays = hasData
-          ? new Date(globalExtent[0]).toDateString() !== new Date(globalExtent[1]).toDateString()
+          ? new Date(globalExtent[0]).toDateString() !==
+            new Date(globalExtent[1]).toDateString()
           : false;
 
         return (
@@ -279,7 +297,7 @@ function CanvasRenderer({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -302,12 +320,12 @@ function CanvasRenderer({
       ctx.save();
       ctx.font = labelFont;
       ctx.fillStyle = rowLabelColor;
-      ctx.textBaseline = 'middle';
+      ctx.textBaseline = "middle";
       if (labelsOnRight) {
-        ctx.textAlign = 'end';
+        ctx.textAlign = "end";
         ctx.fillText(name, width - MARGIN.right, yOffset + BAR_HEIGHT / 2);
       } else {
-        ctx.textAlign = 'start';
+        ctx.textAlign = "start";
         ctx.fillText(name, MARGIN.left, yOffset + BAR_HEIGHT / 2);
       }
       ctx.restore();
@@ -347,22 +365,28 @@ function CanvasRenderer({
 
     // X-axis labels
     if (xScale) {
-      const axisY = MARGIN.top + rowCount * BAR_HEIGHT + (rowCount - 1) * ROW_GAP + 4;
+      const axisY =
+        MARGIN.top + rowCount * BAR_HEIGHT + (rowCount - 1) * ROW_GAP + 4;
       const labelWidth = axisLabelFontSize * 7.5;
-      const maxTicks = Math.max(2, Math.floor(chartWidth / (labelWidth + axisLabelFontSize * 2)));
+      const maxTicks = Math.max(
+        2,
+        Math.floor(chartWidth / (labelWidth + axisLabelFontSize * 2)),
+      );
       const tickCount = Math.min(maxTicks, 6);
 
       ctx.save();
       ctx.font = `${axisLabelFontSize}px ${axisLabelFontFamily}`;
       ctx.fillStyle = axisLabelColor;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
 
       for (const tick of xScale.ticks(tickCount)) {
         const tx = barsX + xScale(tick);
         const label = spansDays
-          ? tick.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + tick.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : tick.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          ? tick.toLocaleDateString([], { month: "short", day: "numeric" }) +
+            " " +
+            tick.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          : tick.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         ctx.fillText(label, tx, axisY);
       }
       ctx.restore();
@@ -370,38 +394,76 @@ function CanvasRenderer({
 
     hitRectsRef.current = hitRects;
   }, [
-    canvasRef, hitRectsRef, width, canvasHeight, deviceNames, entriesMap, uniqueStates,
-    xScale, spansDays, barsX, chartWidth, labelsOnRight, BAR_HEIGHT, ROW_GAP, MARGIN,
-    LABEL_WIDTH, labelFont, rowLabelColor, axisLabelFontSize, axisLabelFontFamily,
-    axisLabelColor, emptyRowColor, stateColors, hoveredEntry,
+    canvasRef,
+    hitRectsRef,
+    width,
+    canvasHeight,
+    deviceNames,
+    entriesMap,
+    uniqueStates,
+    xScale,
+    spansDays,
+    barsX,
+    chartWidth,
+    labelsOnRight,
+    BAR_HEIGHT,
+    ROW_GAP,
+    MARGIN,
+    LABEL_WIDTH,
+    labelFont,
+    rowLabelColor,
+    axisLabelFontSize,
+    axisLabelFontFamily,
+    axisLabelColor,
+    emptyRowColor,
+    stateColors,
+    hoveredEntry,
   ]);
 
   // Mouse handlers
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
 
-    for (const hr of hitRectsRef.current) {
-      if (mx >= hr.x && mx <= hr.x + hr.w && my >= hr.y && my <= hr.y + hr.h) {
-        setHoveredEntry({ entry: hr.entry, deviceName: hr.deviceName, x: e.clientX, y: e.clientY });
-        return;
+      for (const hr of hitRectsRef.current) {
+        if (
+          mx >= hr.x &&
+          mx <= hr.x + hr.w &&
+          my >= hr.y &&
+          my <= hr.y + hr.h
+        ) {
+          setHoveredEntry({
+            entry: hr.entry,
+            deviceName: hr.deviceName,
+            x: e.clientX,
+            y: e.clientY,
+          });
+          return;
+        }
       }
-    }
-    setHoveredEntry(null);
-  }, [canvasRef, hitRectsRef, setHoveredEntry]);
+      setHoveredEntry(null);
+    },
+    [canvasRef, hitRectsRef, setHoveredEntry],
+  );
 
   const handleMouseLeave = useCallback(() => {
     setHoveredEntry(null);
   }, [setHoveredEntry]);
 
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div style={{ position: "relative", width: "100%" }}>
       <canvas
         ref={canvasRef}
-        style={{ width, height: canvasHeight, cursor: 'default', display: 'block' }}
+        style={{
+          width,
+          height: canvasHeight,
+          cursor: "default",
+          display: "block",
+        }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       />
@@ -410,28 +472,33 @@ function CanvasRenderer({
       {hasData && uniqueStates.length > 0 && (
         <div
           style={{
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            padding: '4px 0',
-            fontFamily: labelStyleR?.fontFamily ?? 'var(--relay-font-family)',
+            display: "flex",
+            gap: "12px",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            padding: "4px 0",
+            fontFamily: labelStyleR?.fontFamily ?? "var(--relay-font-family)",
             fontSize: labelStyleR?.fontSize ?? 11,
             height: LEGEND_HEIGHT,
           }}
         >
           {uniqueStates.map((state: string, i: number) => (
-            <div key={state} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div
+              key={state}
+              style={{ display: "flex", alignItems: "center", gap: 4 }}
+            >
               <span
                 style={{
                   width: 10,
                   height: 10,
                   borderRadius: 2,
                   backgroundColor: getStateColor(state, stateColors, i),
-                  display: 'inline-block',
+                  display: "inline-block",
                 }}
               />
-              <span style={{ color: labelStyleR?.color ?? '#6b7280' }}>{state}</span>
+              <span style={{ color: labelStyleR?.color ?? "#6b7280" }}>
+                {state}
+              </span>
             </div>
           ))}
         </div>
@@ -441,18 +508,18 @@ function CanvasRenderer({
       {hoveredEntry && (
         <div
           style={{
-            position: 'fixed',
+            position: "fixed",
             left: hoveredEntry.x + 12,
             top: hoveredEntry.y - 10,
-            background: 'var(--relay-tooltip-bg, #1a1a1a)',
-            color: 'var(--relay-tooltip-text, #ffffff)',
-            borderRadius: 'var(--relay-tooltip-border-radius, 4px)',
-            padding: 'var(--relay-tooltip-padding, 8px 12px)',
+            background: "var(--relay-tooltip-bg, #1a1a1a)",
+            color: "var(--relay-tooltip-text, #ffffff)",
+            borderRadius: "var(--relay-tooltip-border-radius, 4px)",
+            padding: "var(--relay-tooltip-padding, 8px 12px)",
             fontSize: tooltipStyleR?.fontSize ?? 12,
-            fontFamily: tooltipStyleR?.fontFamily ?? 'var(--relay-font-family)',
-            pointerEvents: 'none',
+            fontFamily: tooltipStyleR?.fontFamily ?? "var(--relay-font-family)",
+            pointerEvents: "none",
             zIndex: 1000,
-            whiteSpace: 'nowrap',
+            whiteSpace: "nowrap",
           }}
         >
           {renderTooltip ? (
@@ -465,7 +532,7 @@ function CanvasRenderer({
                 {hoveredEntry.deviceName} — {hoveredEntry.entry.state}
               </div>
               <div style={{ opacity: 0.7 }}>
-                {new Date(hoveredEntry.entry.start).toLocaleTimeString()} –{' '}
+                {new Date(hoveredEntry.entry.start).toLocaleTimeString()} –{" "}
                 {new Date(hoveredEntry.entry.end).toLocaleTimeString()}
               </div>
             </>

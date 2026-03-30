@@ -1,5 +1,5 @@
-import type { ScaleLinear } from 'd3';
-import type { AlertZone } from '../../utils/types';
+import type { ScaleLinear } from "d3";
+import type { AlertZone } from "../../utils/types";
 
 const identity = (px: number) => px;
 
@@ -12,7 +12,13 @@ interface AlertZonesProps {
   s?: (px: number) => number;
 }
 
-export function AlertZonesOverlay({ zones, yScale, width, height, s = identity }: AlertZonesProps) {
+export function AlertZonesOverlay({
+  zones,
+  yScale,
+  width,
+  height,
+  s = identity,
+}: AlertZonesProps) {
   if (!zones.length) return null;
 
   const [yMin, yMax] = yScale.domain();

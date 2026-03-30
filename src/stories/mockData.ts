@@ -1,10 +1,10 @@
-import type { DataPoint } from '../utils/types';
+import type { DataPoint } from "../utils/types";
 
 /** Generate time series mock data with multiple metrics. */
 export function generateTimeSeriesData(
   points = 100,
-  metrics = ['temperature', 'humidity'],
-  intervalMs = 60000
+  metrics = ["temperature", "humidity"],
+  intervalMs = 60000,
 ): DataPoint[] {
   const now = Date.now();
   const data: DataPoint[] = [];
@@ -46,11 +46,11 @@ export function generateTimeSeriesData(
 
 /** Generate sparkline data (single metric). */
 export function generateSparklineData(points = 30): DataPoint[] {
-  return generateTimeSeriesData(points, ['value'], 300000);
+  return generateTimeSeriesData(points, ["value"], 300000);
 }
 
 /** Generate state timeline data with varying states. */
 export function generateStateData(points = 50): DataPoint[] {
-  const data = generateTimeSeriesData(points, ['temperature'], 120000);
+  const data = generateTimeSeriesData(points, ["temperature"], 120000);
   return data;
 }

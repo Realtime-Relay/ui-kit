@@ -1,7 +1,7 @@
-import { render, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StateTimeline } from '../src/timelines/StateTimeline';
-import type { DataPoint } from '../src/utils/types';
+import { render, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { StateTimeline } from "../src/timelines/StateTimeline";
+import type { DataPoint } from "../src/utils/types";
 
 // ─── Mocks ──────────────────────────────────────────────────
 
@@ -13,11 +13,15 @@ let drawCalls: { method: string; args: any[] }[] = [];
 
 function createMockContext() {
   drawCalls = [];
-  const record = (method: string) => (...args: any[]) => { drawCalls.push({ method, args }); };
+  const record =
+    (method: string) =>
+    (...args: any[]) => {
+      drawCalls.push({ method, args });
+    };
   return {
-    clearRect: record('clearRect'),
-    fillRect: record('fillRect'),
-    fillText: record('fillText'),
+    clearRect: record("clearRect"),
+    fillRect: record("fillRect"),
+    fillText: record("fillText"),
     measureText: (text: string) => ({ width: text.length * 8 }),
     save: vi.fn(),
     restore: vi.fn(),
@@ -29,19 +33,33 @@ function createMockContext() {
     arc: vi.fn(),
     fill: vi.fn(),
     set font(_: string) {},
-    get font() { return ''; },
+    get font() {
+      return "";
+    },
     set fillStyle(_: string) {},
-    get fillStyle() { return ''; },
+    get fillStyle() {
+      return "";
+    },
     set strokeStyle(_: string) {},
-    get strokeStyle() { return ''; },
+    get strokeStyle() {
+      return "";
+    },
     set globalAlpha(_: number) {},
-    get globalAlpha() { return 1; },
+    get globalAlpha() {
+      return 1;
+    },
     set textAlign(_: string) {},
-    get textAlign() { return 'start'; },
+    get textAlign() {
+      return "start";
+    },
     set textBaseline(_: string) {},
-    get textBaseline() { return 'alphabetic'; },
+    get textBaseline() {
+      return "alphabetic";
+    },
     set lineWidth(_: number) {},
-    get lineWidth() { return 1; },
+    get lineWidth() {
+      return 1;
+    },
   };
 }
 
@@ -50,26 +68,35 @@ beforeEach(() => {
   mockDisconnect.mockClear();
   drawCalls = [];
 
-  vi.stubGlobal('ResizeObserver', class {
-    constructor(private cb: ResizeObserverCallback) {}
-    observe(target: Element) {
-      mockObserve(target);
-      this.cb(
-        [{ contentRect: { width: 600, height: 400 } } as any],
-        this as any,
-      );
-    }
-    unobserve() {}
-    disconnect() { mockDisconnect(); }
-  });
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(private cb: ResizeObserverCallback) {}
+      observe(target: Element) {
+        mockObserve(target);
+        this.cb(
+          [{ contentRect: { width: 600, height: 400 } } as any],
+          this as any,
+        );
+      }
+      unobserve() {}
+      disconnect() {
+        mockDisconnect();
+      }
+    },
+  );
 
   // Mock HTMLCanvasElement.getContext
-  HTMLCanvasElement.prototype.getContext = vi.fn(function (this: HTMLCanvasElement) {
+  HTMLCanvasElement.prototype.getContext = vi.fn(function (
+    this: HTMLCanvasElement,
+  ) {
     return createMockContext() as any;
   }) as any;
 
   // jsdom doesn't implement getComputedTextLength — keep stub for any remaining SVG usage
-  (SVGElement.prototype as any).getComputedTextLength = function () { return 80; };
+  (SVGElement.prototype as any).getComputedTextLength = function () {
+    return 80;
+  };
 });
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -77,12 +104,12 @@ beforeEach(() => {
 const now = Date.now();
 const mapper = (v: any) => {
   const n = Number(v);
-  if (n >= 70) return 'critical';
-  if (n >= 40) return 'warning';
-  return 'normal';
+  if (n >= 70) return "critical";
+  if (n >= 40) return "warning";
+  return "normal";
 };
 
-function makePoints(count: number, metricKey = 'value'): DataPoint[] {
+function makePoints(count: number, metricKey = "value"): DataPoint[] {
   return Array.from({ length: count }, (_, i) => ({
     timestamp: now - (count - i) * 10_000,
     [metricKey]: (i * 30) % 100,
@@ -90,14 +117,20 @@ function makePoints(count: number, metricKey = 'value'): DataPoint[] {
 }
 
 function makeSingleDevice(count = 10): Record<string, DataPoint[]> {
-  return { 'device-a': makePoints(count) };
+  return { "device-a": makePoints(count) };
 }
 
 function makeMultiDevice(): Record<string, DataPoint[]> {
   return {
-    'device-a': makePoints(10),
-    'device-b': makePoints(10).map((p) => ({ ...p, value: Number(p.value ?? 0) * 0.5 })),
-    'device-c': makePoints(10).map((p) => ({ ...p, value: Number(p.value ?? 0) * 1.5 })),
+    "device-a": makePoints(10),
+    "device-b": makePoints(10).map((p) => ({
+      ...p,
+      value: Number(p.value ?? 0) * 0.5,
+    })),
+    "device-c": makePoints(10).map((p) => ({
+      ...p,
+      value: Number(p.value ?? 0) * 1.5,
+    })),
   };
 }
 
@@ -107,117 +140,141 @@ function getDrawCalls(method: string) {
 
 // ─── Empty data ─────────────────────────────────────────────
 
-describe('StateTimeline - empty data', () => {
-  it('renders skeleton when data={} and showLoading=true', () => {
+describe("StateTimeline - empty data", () => {
+  it("renders skeleton when data={} and showLoading=true", () => {
     const { container } = render(
       <StateTimeline data={{}} stateMapper={mapper} />,
     );
     expect(container.firstChild).toBeTruthy();
     // No canvas rendered (skeleton instead)
-    expect(container.querySelector('canvas')).toBeFalsy();
+    expect(container.querySelector("canvas")).toBeFalsy();
   });
 
-  it('renders nothing when data={} and showLoading=false', () => {
+  it("renders nothing when data={} and showLoading=false", () => {
     const { container } = render(
       <StateTimeline data={{}} stateMapper={mapper} showLoading={false} />,
     );
-    expect(container.innerHTML).toBe('');
+    expect(container.innerHTML).toBe("");
   });
 });
 
 // ─── Invalid timestamps ─────────────────────────────────────
 
-describe('StateTimeline - invalid timestamps', () => {
-  it('filters NaN timestamps and calls onError', () => {
+describe("StateTimeline - invalid timestamps", () => {
+  it("filters NaN timestamps and calls onError", () => {
     const onError = vi.fn();
-    const data = { d1: [{ timestamp: NaN, value: 50 }, { timestamp: now, value: 50 }] };
+    const data = {
+      d1: [
+        { timestamp: NaN, value: 50 },
+        { timestamp: now, value: 50 },
+      ],
+    };
     const { container } = render(
       <StateTimeline data={data} stateMapper={mapper} onError={onError} />,
     );
     expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'invalid_timestamp', component: 'StateTimeline' }),
+      expect.objectContaining({
+        type: "invalid_timestamp",
+        component: "StateTimeline",
+      }),
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
+    expect(container.querySelector("canvas")).toBeTruthy();
   });
 
-  it('filters negative timestamps', () => {
+  it("filters negative timestamps", () => {
     const onError = vi.fn();
-    const data = { d1: [{ timestamp: -1, value: 50 }, { timestamp: now, value: 50 }] };
-    render(<StateTimeline data={data} stateMapper={mapper} onError={onError} />);
+    const data = {
+      d1: [
+        { timestamp: -1, value: 50 },
+        { timestamp: now, value: 50 },
+      ],
+    };
+    render(
+      <StateTimeline data={data} stateMapper={mapper} onError={onError} />,
+    );
     expect(onError).toHaveBeenCalled();
   });
 
-  it('does not call onError when all timestamps are valid', () => {
+  it("does not call onError when all timestamps are valid", () => {
     const onError = vi.fn();
-    render(<StateTimeline data={makeSingleDevice()} stateMapper={mapper} onError={onError} />);
+    render(
+      <StateTimeline
+        data={makeSingleDevice()}
+        stateMapper={mapper}
+        onError={onError}
+      />,
+    );
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it('works without onError callback', () => {
+  it("works without onError callback", () => {
     const data = { d1: [{ timestamp: NaN, value: 50 }] };
-    expect(() => render(<StateTimeline data={data} stateMapper={mapper} />)).not.toThrow();
+    expect(() =>
+      render(<StateTimeline data={data} stateMapper={mapper} />),
+    ).not.toThrow();
   });
 });
 
 // ─── Metric key resolution ──────────────────────────────────
 
-describe('StateTimeline - metric key resolution', () => {
-  it('uses explicit metricKey prop', () => {
+describe("StateTimeline - metric key resolution", () => {
+  it("uses explicit metricKey prop", () => {
     const data = { d1: [{ timestamp: now, temp: 30, humidity: 60 }] };
     const { container } = render(
       <StateTimeline data={data} stateMapper={mapper} metricKey="temp" />,
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
+    expect(container.querySelector("canvas")).toBeTruthy();
   });
 
-  it('auto-detects first non-timestamp key', () => {
+  it("auto-detects first non-timestamp key", () => {
     const data = { d1: [{ timestamp: now, value: 30 }] };
     const { container } = render(
       <StateTimeline data={data} stateMapper={mapper} />,
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
+    expect(container.querySelector("canvas")).toBeTruthy();
   });
 
-  it('skips empty devices to find first with data', () => {
-    const data = { empty: [] as DataPoint[], d2: [{ timestamp: now, value: 30 }] };
+  it("skips empty devices to find first with data", () => {
+    const data = {
+      empty: [] as DataPoint[],
+      d2: [{ timestamp: now, value: 30 }],
+    };
     const { container } = render(
       <StateTimeline data={data} stateMapper={mapper} />,
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
+    expect(container.querySelector("canvas")).toBeTruthy();
     // Two device labels drawn via fillText
-    const textCalls = getDrawCalls('fillText');
-    const labelCalls = textCalls.filter((c) => c.args[0] === 'empty' || c.args[0] === 'd2');
+    const textCalls = getDrawCalls("fillText");
+    const labelCalls = textCalls.filter(
+      (c) => c.args[0] === "empty" || c.args[0] === "d2",
+    );
     expect(labelCalls.length).toBe(2);
   });
 });
 
 // ─── Canvas structure ────────────────────────────────────────
 
-describe('StateTimeline - canvas structure', () => {
-  it('renders a canvas element', () => {
+describe("StateTimeline - canvas structure", () => {
+  it("renders a canvas element", () => {
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
+    expect(container.querySelector("canvas")).toBeTruthy();
   });
 
-  it('draws device labels via fillText', () => {
-    render(
-      <StateTimeline data={makeMultiDevice()} stateMapper={mapper} />,
-    );
-    const textCalls = getDrawCalls('fillText');
+  it("draws device labels via fillText", () => {
+    render(<StateTimeline data={makeMultiDevice()} stateMapper={mapper} />);
+    const textCalls = getDrawCalls("fillText");
     const labels = textCalls.map((c) => c.args[0]);
-    expect(labels).toContain('device-a');
-    expect(labels).toContain('device-b');
-    expect(labels).toContain('device-c');
+    expect(labels).toContain("device-a");
+    expect(labels).toContain("device-b");
+    expect(labels).toContain("device-c");
   });
 
-  it('draws state bars via fillRect', () => {
-    render(
-      <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
-    );
+  it("draws state bars via fillRect", () => {
+    render(<StateTimeline data={makeSingleDevice()} stateMapper={mapper} />);
     // fillRect calls include clearRect + empty rows + state bars
-    const fillRectCalls = getDrawCalls('fillRect');
+    const fillRectCalls = getDrawCalls("fillRect");
     // At least some state bars should be drawn (more than just the clearRect)
     expect(fillRectCalls.length).toBeGreaterThan(0);
   });
@@ -225,93 +282,90 @@ describe('StateTimeline - canvas structure', () => {
 
 // ─── Empty rows ─────────────────────────────────────────────
 
-describe('StateTimeline - empty rows', () => {
-  it('devices with empty arrays draw background rects', () => {
+describe("StateTimeline - empty rows", () => {
+  it("devices with empty arrays draw background rects", () => {
     render(
-      <StateTimeline data={{ 'sensor-a': [], 'sensor-b': [] }} stateMapper={mapper} />,
+      <StateTimeline
+        data={{ "sensor-a": [], "sensor-b": [] }}
+        stateMapper={mapper}
+      />,
     );
     // Two empty devices → two fillRect calls for backgrounds (plus clearRect)
-    const fillRectCalls = getDrawCalls('fillRect');
+    const fillRectCalls = getDrawCalls("fillRect");
     expect(fillRectCalls.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('mix of empty and populated devices', () => {
+  it("mix of empty and populated devices", () => {
     const data = {
       populated: makePoints(5),
       empty: [] as DataPoint[],
     };
-    render(
-      <StateTimeline data={data} stateMapper={mapper} />,
-    );
-    const textCalls = getDrawCalls('fillText');
+    render(<StateTimeline data={data} stateMapper={mapper} />);
+    const textCalls = getDrawCalls("fillText");
     const labels = textCalls.map((c) => c.args[0]);
-    expect(labels).toContain('populated');
-    expect(labels).toContain('empty');
+    expect(labels).toContain("populated");
+    expect(labels).toContain("empty");
   });
 });
 
 // ─── X-axis ─────────────────────────────────────────────────
 
-describe('StateTimeline - x-axis', () => {
-  it('draws x-axis tick labels when data exists', () => {
-    render(
-      <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
-    );
-    const textCalls = getDrawCalls('fillText');
+describe("StateTimeline - x-axis", () => {
+  it("draws x-axis tick labels when data exists", () => {
+    render(<StateTimeline data={makeSingleDevice()} stateMapper={mapper} />);
+    const textCalls = getDrawCalls("fillText");
     // Should have more text calls than just device labels (axis ticks)
     const deviceLabelCount = 1; // single device
     expect(textCalls.length).toBeGreaterThan(deviceLabelCount);
   });
 
-  it('no x-axis labels when all devices have empty data', () => {
-    render(
-      <StateTimeline data={{ d1: [], d2: [] }} stateMapper={mapper} />,
-    );
-    const textCalls = getDrawCalls('fillText');
+  it("no x-axis labels when all devices have empty data", () => {
+    render(<StateTimeline data={{ d1: [], d2: [] }} stateMapper={mapper} />);
+    const textCalls = getDrawCalls("fillText");
     // Only device labels, no axis labels
     const labels = textCalls.map((c) => c.args[0]);
-    expect(labels).toContain('d1');
-    expect(labels).toContain('d2');
+    expect(labels).toContain("d1");
+    expect(labels).toContain("d2");
     expect(labels.length).toBe(2); // only the two device labels
   });
 });
 
 // ─── Legend (HTML) ───────────────────────────────────────────
 
-describe('StateTimeline - legend', () => {
-  it('renders legend as HTML div when states exist', () => {
+describe("StateTimeline - legend", () => {
+  it("renders legend as HTML div when states exist", () => {
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
     // Legend is now an HTML div sibling to canvas
-    const legendText = container.textContent ?? '';
-    expect(legendText).toContain('normal');
+    const legendText = container.textContent ?? "";
+    expect(legendText).toContain("normal");
   });
 
-  it('legend contains state names', () => {
+  it("legend contains state names", () => {
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
-    const text = container.textContent ?? '';
-    expect(text).toContain('normal');
+    const text = container.textContent ?? "";
+    expect(text).toContain("normal");
   });
 
-  it('no legend when all devices have empty data', () => {
+  it("no legend when all devices have empty data", () => {
     const { container } = render(
       <StateTimeline data={{ d1: [] }} stateMapper={mapper} />,
     );
     // Legend should not render — text content should not contain state names
-    const text = container.textContent ?? '';
-    expect(text).not.toContain('normal');
-    expect(text).not.toContain('warning');
-    expect(text).not.toContain('critical');
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("normal");
+    expect(text).not.toContain("warning");
+    expect(text).not.toContain("critical");
   });
 });
 
 // ─── Tooltip ────────────────────────────────────────────────
 
-describe('StateTimeline - tooltip', () => {
-  it('no tooltip visible initially', () => {
+describe("StateTimeline - tooltip", () => {
+  it("no tooltip visible initially", () => {
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
@@ -319,11 +373,11 @@ describe('StateTimeline - tooltip', () => {
     expect(tooltip).toBeFalsy();
   });
 
-  it('mouseMove on canvas can trigger tooltip via hit detection', () => {
+  it("mouseMove on canvas can trigger tooltip via hit detection", () => {
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
-    const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+    const canvas = container.querySelector("canvas") as HTMLCanvasElement;
     // We can't perfectly simulate hit detection in jsdom since canvas isn't real,
     // but we can verify the canvas has mouse handlers
     expect(canvas).toBeTruthy();
@@ -336,139 +390,142 @@ describe('StateTimeline - tooltip', () => {
 
 // ─── Styles ─────────────────────────────────────────────────
 
-describe('StateTimeline - styles', () => {
-  it('applies background color', () => {
+describe("StateTimeline - styles", () => {
+  it("applies background color", () => {
     const { container } = render(
       <StateTimeline
         data={makeSingleDevice()}
         stateMapper={mapper}
-        styles={{ background: { color: '#0f172a' } }}
+        styles={{ background: { color: "#0f172a" } }}
       />,
     );
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper?.style.backgroundColor).toBe('rgb(15, 23, 42)');
+    expect(wrapper?.style.backgroundColor).toBe("rgb(15, 23, 42)");
   });
 
-  it('default background is transparent', () => {
+  it("default background is transparent", () => {
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
     const wrapper = container.firstChild as HTMLElement;
-    expect(wrapper?.style.backgroundColor).toBe('transparent');
+    expect(wrapper?.style.backgroundColor).toBe("transparent");
   });
 });
 
 // ─── Narrow container ───────────────────────────────────────
 
-describe('StateTimeline - narrow container', () => {
-  it('returns null when chartWidth <= 0', () => {
-    vi.stubGlobal('ResizeObserver', class {
-      constructor(private cb: ResizeObserverCallback) {}
-      observe(target: Element) {
-        this.cb(
-          [{ contentRect: { width: 50, height: 400 } } as any],
-          this as any,
-        );
-      }
-      unobserve() {}
-      disconnect() {}
-    });
+describe("StateTimeline - narrow container", () => {
+  it("returns null when chartWidth <= 0", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe(target: Element) {
+          this.cb(
+            [{ contentRect: { width: 50, height: 400 } } as any],
+            this as any,
+          );
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
 
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
-    expect(container.querySelector('canvas')).toBeFalsy();
+    expect(container.querySelector("canvas")).toBeFalsy();
   });
 });
 
 // ─── Multi-device rendering ─────────────────────────────────
 
-describe('StateTimeline - multi-device', () => {
-  it('draws all device labels', () => {
-    render(
-      <StateTimeline data={makeMultiDevice()} stateMapper={mapper} />,
-    );
-    const textCalls = getDrawCalls('fillText');
+describe("StateTimeline - multi-device", () => {
+  it("draws all device labels", () => {
+    render(<StateTimeline data={makeMultiDevice()} stateMapper={mapper} />);
+    const textCalls = getDrawCalls("fillText");
     const labels = textCalls.map((c) => c.args[0]);
-    expect(labels).toContain('device-a');
-    expect(labels).toContain('device-b');
-    expect(labels).toContain('device-c');
+    expect(labels).toContain("device-a");
+    expect(labels).toContain("device-b");
+    expect(labels).toContain("device-c");
   });
 });
 
 // ─── State bar count ─────────────────────────────────────────
 
-describe('StateTimeline - state bar rendering', () => {
-  it('draws multiple state bars for varying data', () => {
-    render(
-      <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
-    );
-    const fillRectCalls = getDrawCalls('fillRect');
+describe("StateTimeline - state bar rendering", () => {
+  it("draws multiple state bars for varying data", () => {
+    render(<StateTimeline data={makeSingleDevice()} stateMapper={mapper} />);
+    const fillRectCalls = getDrawCalls("fillRect");
     // makePoints(10) cycles through states, so we should get several state bars
     expect(fillRectCalls.length).toBeGreaterThan(2);
   });
 
-  it('state bars are drawn after clearing the canvas', () => {
-    render(
-      <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
-    );
-    const clearCalls = getDrawCalls('clearRect');
+  it("state bars are drawn after clearing the canvas", () => {
+    render(<StateTimeline data={makeSingleDevice()} stateMapper={mapper} />);
+    const clearCalls = getDrawCalls("clearRect");
     expect(clearCalls.length).toBeGreaterThan(0);
     // fillRect calls should come after clearRect
-    const fillRectCalls = getDrawCalls('fillRect');
+    const fillRectCalls = getDrawCalls("fillRect");
     expect(fillRectCalls.length).toBeGreaterThan(0);
   });
 });
 
 // ─── Custom state colors ─────────────────────────────────────
 
-describe('StateTimeline - custom state colors', () => {
-  it('renders without crashing with custom stateColors', () => {
+describe("StateTimeline - custom state colors", () => {
+  it("renders without crashing with custom stateColors", () => {
     const { container } = render(
       <StateTimeline
         data={makeSingleDevice()}
         stateMapper={mapper}
-        stateColors={{ normal: '#00ff00', warning: '#ffff00', critical: '#ff0000' }}
+        stateColors={{
+          normal: "#00ff00",
+          warning: "#ffff00",
+          critical: "#ff0000",
+        }}
       />,
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
-    const fillRectCalls = getDrawCalls('fillRect');
+    expect(container.querySelector("canvas")).toBeTruthy();
+    const fillRectCalls = getDrawCalls("fillRect");
     expect(fillRectCalls.length).toBeGreaterThan(0);
   });
 });
 
 // ─── Label alignment via canvas ──────────────────────────────
 
-describe('StateTimeline - label alignment (canvas)', () => {
-  it('draws labels for left alignment (default)', () => {
-    render(
-      <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
-    );
-    const textCalls = getDrawCalls('fillText');
-    expect(textCalls.some((c) => c.args[0] === 'device-a')).toBe(true);
+describe("StateTimeline - label alignment (canvas)", () => {
+  it("draws labels for left alignment (default)", () => {
+    render(<StateTimeline data={makeSingleDevice()} stateMapper={mapper} />);
+    const textCalls = getDrawCalls("fillText");
+    expect(textCalls.some((c) => c.args[0] === "device-a")).toBe(true);
   });
 
-  it('draws labels for right alignment', () => {
+  it("draws labels for right alignment", () => {
     render(
-      <StateTimeline data={makeSingleDevice()} stateMapper={mapper} labelAlign="right" />,
+      <StateTimeline
+        data={makeSingleDevice()}
+        stateMapper={mapper}
+        labelAlign="right"
+      />,
     );
-    const textCalls = getDrawCalls('fillText');
-    expect(textCalls.some((c) => c.args[0] === 'device-a')).toBe(true);
+    const textCalls = getDrawCalls("fillText");
+    expect(textCalls.some((c) => c.args[0] === "device-a")).toBe(true);
   });
 });
 
 // ─── Large dataset performance ───────────────────────────────
 
-describe('StateTimeline - large dataset', () => {
-  it('handles 10k points without crashing', () => {
-    const data = { 'big-device': makePoints(10000) };
+describe("StateTimeline - large dataset", () => {
+  it("handles 10k points without crashing", () => {
+    const data = { "big-device": makePoints(10000) };
     const { container } = render(
       <StateTimeline data={data} stateMapper={mapper} />,
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
+    expect(container.querySelector("canvas")).toBeTruthy();
   });
 
-  it('handles multiple devices with large datasets', () => {
+  it("handles multiple devices with large datasets", () => {
     const data = {
       d1: makePoints(5000),
       d2: makePoints(5000),
@@ -477,35 +534,43 @@ describe('StateTimeline - large dataset', () => {
     const { container } = render(
       <StateTimeline data={data} stateMapper={mapper} />,
     );
-    expect(container.querySelector('canvas')).toBeTruthy();
-    const textCalls = getDrawCalls('fillText');
+    expect(container.querySelector("canvas")).toBeTruthy();
+    const textCalls = getDrawCalls("fillText");
     const labels = textCalls.map((c) => c.args[0]);
-    expect(labels).toContain('d1');
-    expect(labels).toContain('d2');
-    expect(labels).toContain('d3');
+    expect(labels).toContain("d1");
+    expect(labels).toContain("d2");
+    expect(labels).toContain("d3");
   });
 });
 
 // ─── formatTooltip and renderTooltip ─────────────────────────
 
-describe('StateTimeline - tooltip callbacks', () => {
-  it('accepts formatTooltip without crashing', () => {
-    expect(() => render(
-      <StateTimeline
-        data={makeSingleDevice()}
-        stateMapper={mapper}
-        formatTooltip={(entry, name) => `${name}: ${entry.state}`}
-      />,
-    )).not.toThrow();
+describe("StateTimeline - tooltip callbacks", () => {
+  it("accepts formatTooltip without crashing", () => {
+    expect(() =>
+      render(
+        <StateTimeline
+          data={makeSingleDevice()}
+          stateMapper={mapper}
+          formatTooltip={(entry, name) => `${name}: ${entry.state}`}
+        />,
+      ),
+    ).not.toThrow();
   });
 
-  it('accepts renderTooltip without crashing', () => {
-    expect(() => render(
-      <StateTimeline
-        data={makeSingleDevice()}
-        stateMapper={mapper}
-        renderTooltip={(entry, name) => <span>{name}-{entry.state}</span>}
-      />,
-    )).not.toThrow();
+  it("accepts renderTooltip without crashing", () => {
+    expect(() =>
+      render(
+        <StateTimeline
+          data={makeSingleDevice()}
+          stateMapper={mapper}
+          renderTooltip={(entry, name) => (
+            <span>
+              {name}-{entry.state}
+            </span>
+          )}
+        />,
+      ),
+    ).not.toThrow();
   });
 });

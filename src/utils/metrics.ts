@@ -1,5 +1,5 @@
-import type { DataPoint, MetricConfig } from './types';
-import { getMetricColor } from '../theme/palette';
+import type { DataPoint, MetricConfig } from "./types";
+import { getMetricColor } from "../theme/palette";
 
 /**
  * Auto-detect metric configs from data when the developer doesn't provide them.
@@ -8,15 +8,15 @@ import { getMetricColor } from '../theme/palette';
  */
 export function resolveMetrics(
   data: DataPoint[],
-  metrics?: MetricConfig[]
+  metrics?: MetricConfig[],
 ): MetricConfig[] {
   if (metrics && metrics.length > 0) return metrics;
 
   const keys = new Set<string>();
   for (const point of data) {
     for (const key of Object.keys(point)) {
-      if (key === 'timestamp') continue;
-      if (typeof point[key] === 'number') {
+      if (key === "timestamp") continue;
+      if (typeof point[key] === "number") {
         keys.add(key);
       }
     }

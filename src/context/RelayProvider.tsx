@@ -5,8 +5,8 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from 'react';
-import type { RelayAppInstance } from '../utils/types';
+} from "react";
+import type { RelayAppInstance } from "../utils/types";
 
 interface RelayContextValue {
   app: RelayAppInstance | null;
@@ -59,15 +59,17 @@ export function RelayProvider({ app, children }: RelayProviderProps) {
         app.connection.listeners((event: string) => {
           if (cancelled) return;
 
-          if (event === 'connected' || event === 'reconnected') {
+          if (event === "connected" || event === "reconnected") {
             setState({ app, isConnected: true, error: null });
-          } else if (event === 'disconnected') {
+          } else if (event === "disconnected") {
             setState((prev) => ({ ...prev, isConnected: false }));
-          } else if (event === 'auth_failed') {
+          } else if (event === "auth_failed") {
             setState({
               app: null,
               isConnected: false,
-              error: new Error('RelayX authentication failed. Check your API key and secret.'),
+              error: new Error(
+                "RelayX authentication failed. Check your API key and secret.",
+              ),
             });
           }
         });
@@ -98,7 +100,9 @@ export function RelayProvider({ app, children }: RelayProviderProps) {
     };
   }, [app]);
 
-  return <RelayContext.Provider value={state}>{children}</RelayContext.Provider>;
+  return (
+    <RelayContext.Provider value={state}>{children}</RelayContext.Provider>
+  );
 }
 
 /**

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useRelayApp } from '../context/RelayProvider';
+import { useState, useEffect } from "react";
+import { useRelayApp } from "../context/RelayProvider";
 
 export interface PresenceEvent {
-  event: 'connected' | 'disconnected';
+  event: "connected" | "disconnected";
   device_ident: string;
   data: { start: number; stop?: number };
 }
@@ -35,13 +35,13 @@ export function useRelayPresence(deviceIdent: string): UseRelayPresenceResult {
       app.connection.presence((data) => {
         if (cancelled) return;
 
-        console.log('[RelayX presence]', data);
+        console.log("[RelayX presence]", data);
 
         // Filter for our device
         if (data.device_ident !== deviceIdent) return;
 
         setLastEvent(data);
-        setOnline(data.event === 'connected');
+        setOnline(data.event === "connected");
         setIsLoading(false);
       });
     } catch (err) {
@@ -51,7 +51,9 @@ export function useRelayPresence(deviceIdent: string): UseRelayPresenceResult {
       }
     }
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [app, deviceIdent]);
 
   return { online, lastEvent, isLoading, error };

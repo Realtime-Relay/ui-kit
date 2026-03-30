@@ -6,9 +6,9 @@ Requirements: `requirements/StateTimeline.md`
 ## Component Signature
 
 ```typescript
-import type { DataPoint, FontStyle, BackgroundStyle } from '../utils/types';
-import type { StateEntry } from './stateUtils';
-import type { ComponentError } from '../utils/validation';
+import type { DataPoint, FontStyle, BackgroundStyle } from "../utils/types";
+import type { StateEntry } from "./stateUtils";
+import type { ComponentError } from "../utils/validation";
 
 export interface StateTimelineStyles {
   label?: FontStyle;
@@ -27,7 +27,7 @@ export interface StateTimelineProps {
   renderTooltip?: (entry: StateEntry, deviceName: string) => React.ReactNode;
   styles?: StateTimelineStyles;
   rowHeight?: number;
-  labelAlign?: 'left' | 'right';
+  labelAlign?: "left" | "right";
   showLoading?: boolean;
   onError?: (error: ComponentError) => void;
 }
@@ -35,18 +35,18 @@ export interface StateTimelineProps {
 
 ## Internal Constants
 
-| Name | Value | Description |
-|---|---|---|
-| `BAR_HEIGHT` | `rowHeightProp ?? 28` | Height of each device row in pixels |
-| `ROW_GAP` | `6` | Vertical spacing between consecutive device rows |
-| `LABEL_GAP` | `8` | Horizontal gap between label column and bar area |
-| `X_AXIS_HEIGHT` | `20` | Vertical space reserved for X-axis tick labels below bars |
-| `LEGEND_HEIGHT` | `24` | Vertical space reserved for the state legend below the axis |
-| `MARGIN.top` | `8` | Top padding inside the canvas |
-| `MARGIN.right` | `12` | Right padding inside the canvas |
-| `MARGIN.bottom` | `8` | Bottom padding inside the canvas |
-| `MARGIN.left` | `12` | Left padding inside the canvas |
-| `LABEL_WIDTH` | `measuredLabelWidth ?? 120` | Width of the label column; 120px fallback before measurement |
+| Name            | Value                       | Description                                                  |
+| --------------- | --------------------------- | ------------------------------------------------------------ |
+| `BAR_HEIGHT`    | `rowHeightProp ?? 28`       | Height of each device row in pixels                          |
+| `ROW_GAP`       | `6`                         | Vertical spacing between consecutive device rows             |
+| `LABEL_GAP`     | `8`                         | Horizontal gap between label column and bar area             |
+| `X_AXIS_HEIGHT` | `20`                        | Vertical space reserved for X-axis tick labels below bars    |
+| `LEGEND_HEIGHT` | `24`                        | Vertical space reserved for the state legend below the axis  |
+| `MARGIN.top`    | `8`                         | Top padding inside the canvas                                |
+| `MARGIN.right`  | `12`                        | Right padding inside the canvas                              |
+| `MARGIN.bottom` | `8`                         | Bottom padding inside the canvas                             |
+| `MARGIN.left`   | `12`                        | Left padding inside the canvas                               |
+| `LABEL_WIDTH`   | `measuredLabelWidth ?? 120` | Width of the label column; 120px fallback before measurement |
 
 ## Canvas Rendering
 
@@ -134,11 +134,11 @@ If `chartWidth <= 0`, the render callback returns `null` (nothing is drawn).
 
 ### Bar and Label Positions
 
-| Value | `labelAlign = 'left'` | `labelAlign = 'right'` |
-|---|---|---|
-| `barsX` | `MARGIN.left + LABEL_WIDTH + LABEL_GAP` | `MARGIN.left` |
-| `labelX` | `MARGIN.left` | `width - MARGIN.right` |
-| `textAnchor` | `'start'` | `'end'` |
+| Value        | `labelAlign = 'left'`                   | `labelAlign = 'right'` |
+| ------------ | --------------------------------------- | ---------------------- |
+| `barsX`      | `MARGIN.left + LABEL_WIDTH + LABEL_GAP` | `MARGIN.left`          |
+| `labelX`     | `MARGIN.left`                           | `width - MARGIN.right` |
+| `textAnchor` | `'start'`                               | `'end'`                |
 
 ### Row Y Offset
 
@@ -153,8 +153,8 @@ Label is vertically centered: `y = yOffset + BAR_HEIGHT / 2` with `dominantBasel
 Label width is computed inline during render using an offscreen canvas context. No extra render cycle is needed (unlike the previous SVG callback ref approach).
 
 ```typescript
-const measureCtx = document.createElement('canvas').getContext('2d')!;
-measureCtx.font = `${rowLabelStyleR?.fontWeight ?? 500} ${rowLabelFontSize}px ${rowLabelStyleR?.fontFamily ?? 'var(--relay-font-family)'}`;
+const measureCtx = document.createElement("canvas").getContext("2d")!;
+measureCtx.font = `${rowLabelStyleR?.fontWeight ?? 500} ${rowLabelFontSize}px ${rowLabelStyleR?.fontFamily ?? "var(--relay-font-family)"}`;
 let maxWidth = 0;
 for (const name of deviceNames) {
   maxWidth = Math.max(maxWidth, measureCtx.measureText(name).width);
@@ -187,8 +187,8 @@ Located in `src/timelines/stateUtils.ts`.
 function groupStateEntries(
   data: DataPoint[],
   metricKey: string,
-  stateMapper: (value: any) => string
-): StateEntry[]
+  stateMapper: (value: any) => string,
+): StateEntry[];
 ```
 
 Step-by-step:
@@ -199,12 +199,13 @@ Step-by-step:
 4. **Loop** over `sorted` with index `i`:
    a. `state = stateMapper(sorted[i][metricKey])` -- map raw value to state name.
    b. If `state !== currentState`:
-      - If `currentState !== null` (not the first point), push `{ state: currentState, start, end: sorted[i].timestamp }`.
-      - Set `currentState = state`, `start = sorted[i].timestamp`.
+   - If `currentState !== null` (not the first point), push `{ state: currentState, start, end: sorted[i].timestamp }`.
+   - Set `currentState = state`, `start = sorted[i].timestamp`.
 5. **Close last group**: After the loop, if `currentState !== null`, push `{ state: currentState, start, end: sorted[sorted.length - 1].timestamp }`.
 6. **Return**: the `StateEntry[]` array.
 
 Key behaviors:
+
 - A single data point produces one entry with `start === end`.
 - A transition boundary: the old group's `end` equals the new group's `start` (the transitioning point's timestamp).
 - The function is pure -- no side effects.
@@ -217,8 +218,8 @@ Located in `src/timelines/stateUtils.ts`.
 function getStateColor(
   state: string,
   stateColors?: Record<string, string>,
-  index?: number
-): string
+  index?: number,
+): string;
 ```
 
 1. If `stateColors?.[state]` is truthy, return it.
@@ -320,6 +321,7 @@ The legend is an HTML `<div>` sibling rendered below the `<canvas>` element (not
 Inside: a flex container with `gap: 12px`, `justifyContent: center`, `flexWrap: wrap`, `padding: 4px 0`.
 
 Each state entry:
+
 - Color swatch: `<span>` with `width: 10px`, `height: 10px`, `borderRadius: 2px`, `backgroundColor` from `getStateColor`.
 - Label: `<span>` with `color` from `labelStyleR?.color ?? '#6b7280'`.
 
@@ -328,6 +330,7 @@ Font: `labelStyleR?.fontFamily ?? 'var(--relay-font-family)'`, size `labelStyleR
 ## Loading State
 
 When `deviceNames.length === 0` (empty data object):
+
 - If `showLoading = true`: returns `<ResponsiveContainer>{({ width, height }) => <ChartSkeleton width={width} height={height} />}</ResponsiveContainer>`.
 - If `showLoading = false`: returns `null`.
 
@@ -343,13 +346,13 @@ When `onError` is provided:
 
 ```typescript
 for (const name of deviceNames) {
-  result[name] = data[name].filter(point => {
+  result[name] = data[name].filter((point) => {
     if (!isValidTimestamp(point.timestamp)) {
       onError({
-        type: 'invalid_timestamp',
+        type: "invalid_timestamp",
         message: `StateTimeline [${name}]: invalid timestamp, received ${point.timestamp}`,
         rawValue: point.timestamp,
-        component: 'StateTimeline',
+        component: "StateTimeline",
       });
       return false;
     }
@@ -362,26 +365,26 @@ for (const name of deviceNames) {
 
 ## Edge Cases
 
-| Scenario | Behavior |
-|---|---|
-| `chartWidth <= 0` (container too narrow for labels + margins) | Render callback returns `null` -- nothing is drawn |
-| All data points have invalid timestamps | All devices become empty arrays after validation; `globalExtent` is null; no axis, no bands, no legend |
-| Single data point per device | One state entry with `start === end`; bar renders with `width = max(1, 0) = 1px` minimum |
-| `metricKey` not found in data points | `stateMapper` receives `undefined`; behavior depends on the user's mapper function |
-| Same device name appears as multiple keys | Not possible -- `Record<string, DataPoint[]>` enforces unique keys |
-| `stateMapper` returns different strings for same metric value across calls | Each call is independent; may produce fragmented state bands |
-| Thousands of devices | Canvas height grows linearly: `totalHeight ~ rowCount * (BAR_HEIGHT + ROW_GAP)` |
-| `rowHeight = 0` | Bars have zero height; labels overlap; technically renders but not useful |
+| Scenario                                                                   | Behavior                                                                                               |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `chartWidth <= 0` (container too narrow for labels + margins)              | Render callback returns `null` -- nothing is drawn                                                     |
+| All data points have invalid timestamps                                    | All devices become empty arrays after validation; `globalExtent` is null; no axis, no bands, no legend |
+| Single data point per device                                               | One state entry with `start === end`; bar renders with `width = max(1, 0) = 1px` minimum               |
+| `metricKey` not found in data points                                       | `stateMapper` receives `undefined`; behavior depends on the user's mapper function                     |
+| Same device name appears as multiple keys                                  | Not possible -- `Record<string, DataPoint[]>` enforces unique keys                                     |
+| `stateMapper` returns different strings for same metric value across calls | Each call is independent; may produce fragmented state bands                                           |
+| Thousands of devices                                                       | Canvas height grows linearly: `totalHeight ~ rowCount * (BAR_HEIGHT + ROW_GAP)`                        |
+| `rowHeight = 0`                                                            | Bars have zero height; labels overlap; technically renders but not useful                              |
 
 ## Dependencies
 
-| Import | Source | Usage |
-|---|---|---|
-| `useMemo`, `useState`, `useRef`, `useEffect` | `react` | State, memoization, refs, and draw cycle |
-| `scaleTime` | `d3` | Time scale |
-| `DataPoint`, `FontStyle`, `BackgroundStyle` | `../utils/types` | Type definitions |
-| `ResponsiveContainer` | `../charts/shared/ResponsiveContainer` | Width observation and resize handling |
-| `resolveFont` | `../utils/useResolvedStyles` | Font style resolution |
-| `ChartSkeleton` | `../charts/shared/Skeleton` | Loading skeleton |
-| `isValidTimestamp`, `ComponentError` | `../utils/validation` | Timestamp validation |
-| `getStateColor`, `groupStateEntries`, `StateEntry` | `./stateUtils` | State processing and color resolution |
+| Import                                             | Source                                 | Usage                                    |
+| -------------------------------------------------- | -------------------------------------- | ---------------------------------------- |
+| `useMemo`, `useState`, `useRef`, `useEffect`       | `react`                                | State, memoization, refs, and draw cycle |
+| `scaleTime`                                        | `d3`                                   | Time scale                               |
+| `DataPoint`, `FontStyle`, `BackgroundStyle`        | `../utils/types`                       | Type definitions                         |
+| `ResponsiveContainer`                              | `../charts/shared/ResponsiveContainer` | Width observation and resize handling    |
+| `resolveFont`                                      | `../utils/useResolvedStyles`           | Font style resolution                    |
+| `ChartSkeleton`                                    | `../charts/shared/Skeleton`            | Loading skeleton                         |
+| `isValidTimestamp`, `ComponentError`               | `../utils/validation`                  | Timestamp validation                     |
+| `getStateColor`, `groupStateEntries`, `StateEntry` | `./stateUtils`                         | State processing and color resolution    |

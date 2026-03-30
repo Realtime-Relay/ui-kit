@@ -1,7 +1,7 @@
-import '@testing-library/jest-dom/vitest';
+import "@testing-library/jest-dom/vitest";
 
 // Polyfill ResizeObserver for jsdom (used by proportional scaling in components)
-if (typeof globalThis.ResizeObserver === 'undefined') {
+if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class ResizeObserver {
     private callback: ResizeObserverCallback;
     constructor(callback: ResizeObserverCallback) {

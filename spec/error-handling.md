@@ -12,14 +12,14 @@ All `@relayx/ui` components implement a consistent error handling strategy with 
 
 These are developer configuration mistakes that indicate broken props. The component throws an `Error` immediately on render. The app crashes unless the developer wraps with an error boundary.
 
-| Error | Condition | Affected Components |
-|---|---|---|
-| Invalid range | `min > max` | NeedleGauge, ArcGauge, ProgressBar |
-| Zero range | `min === max` | NeedleGauge, ArcGauge, ProgressBar |
-| Missing zone bounds | A zone is missing `min` or `max` (null, undefined) | All components with `alertZones` prop |
-| Invalid zone bounds | `zone.min` or `zone.max` is not a finite number (NaN, Infinity, string) | All components with `alertZones` prop |
-| Inverted alert zone | A single zone has `zone.min > zone.max` | All components with `alertZones` prop |
-| Overlapping alert zones | Two zones share any value in their `[min, max]` range | All components with `alertZones` prop |
+| Error                   | Condition                                                               | Affected Components                   |
+| ----------------------- | ----------------------------------------------------------------------- | ------------------------------------- |
+| Invalid range           | `min > max`                                                             | NeedleGauge, ArcGauge, ProgressBar    |
+| Zero range              | `min === max`                                                           | NeedleGauge, ArcGauge, ProgressBar    |
+| Missing zone bounds     | A zone is missing `min` or `max` (null, undefined)                      | All components with `alertZones` prop |
+| Invalid zone bounds     | `zone.min` or `zone.max` is not a finite number (NaN, Infinity, string) | All components with `alertZones` prop |
+| Inverted alert zone     | A single zone has `zone.min > zone.max`                                 | All components with `alertZones` prop |
+| Overlapping alert zones | Two zones share any value in their `[min, max]` range                   | All components with `alertZones` prop |
 
 **Rationale:** These are always developer mistakes, never runtime data issues. Failing loudly prevents silent misconfiguration.
 
@@ -27,11 +27,11 @@ These are developer configuration mistakes that indicate broken props. The compo
 
 These are runtime data issues — bad values coming from a sensor, API, or stream. The component fires `onError`, renders a fallback, and continues operating.
 
-| Error | Condition | Fallback Behavior | Affected Components |
-|---|---|---|---|
-| Invalid value | Value is `NaN`, `string`, `boolean`, `object`, `array`, or any non-finite number | Render last valid value | NeedleGauge, ArcGauge, ProgressBar, StatCard, StatCardWithGraph |
-| Invalid data point | A metric value in a `DataPoint` is non-numeric | Skip that point, render the rest | TimeSeries, BarGraph |
-| Invalid timestamp | `DataPoint.timestamp` is `NaN`, negative, non-finite, or non-numeric | Drop the entire point | TimeSeries, BarGraph, StateTimeline |
+| Error              | Condition                                                                        | Fallback Behavior                | Affected Components                                             |
+| ------------------ | -------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------- |
+| Invalid value      | Value is `NaN`, `string`, `boolean`, `object`, `array`, or any non-finite number | Render last valid value          | NeedleGauge, ArcGauge, ProgressBar, StatCard, StatCardWithGraph |
+| Invalid data point | A metric value in a `DataPoint` is non-numeric                                   | Skip that point, render the rest | TimeSeries, BarGraph                                            |
+| Invalid timestamp  | `DataPoint.timestamp` is `NaN`, negative, non-finite, or non-numeric             | Drop the entire point            | TimeSeries, BarGraph, StateTimeline                             |
 
 **Firing frequency:** `onError` fires on **every render** that encounters a bad value. No deduplication. The developer can debounce on their end if needed.
 
@@ -41,12 +41,12 @@ These are runtime data issues — bad values coming from a sensor, API, or strea
 
 These are edge cases that are handled automatically without notification.
 
-| Scenario | Behavior | Affected Components |
-|---|---|---|
-| Value out of range | Visual (needle/fill/bar) clamped to `[min, max]`. Display label shows the actual unclamped value. | NeedleGauge, ArcGauge, ProgressBar |
-| Alert zone gaps | Base arc/bar color shows through the gap. No zones rendered for the uncovered range. | All components with `alertZones` |
-| Non-boolean for `online` prop | Defaults to `false` (offline). | PresenceIndicator |
-| Empty data array | Shows loading skeleton (if `showLoading=true`) or renders empty. | TimeSeries, BarGraph, StateTimeline |
+| Scenario                      | Behavior                                                                                          | Affected Components                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Value out of range            | Visual (needle/fill/bar) clamped to `[min, max]`. Display label shows the actual unclamped value. | NeedleGauge, ArcGauge, ProgressBar  |
+| Alert zone gaps               | Base arc/bar color shows through the gap. No zones rendered for the uncovered range.              | All components with `alertZones`    |
+| Non-boolean for `online` prop | Defaults to `false` (offline).                                                                    | PresenceIndicator                   |
+| Empty data array              | Shows loading skeleton (if `showLoading=true`) or renders empty.                                  | TimeSeries, BarGraph, StateTimeline |
 
 ---
 
@@ -63,7 +63,7 @@ onError?: (error: ComponentError) => void;
 ```typescript
 interface ComponentError {
   /** Error category for programmatic handling. */
-  type: 'invalid_value' | 'invalid_data_point' | 'invalid_timestamp';
+  type: "invalid_value" | "invalid_data_point" | "invalid_timestamp";
 
   /** Human-readable description of what went wrong. */
   message: string;
@@ -78,11 +78,11 @@ interface ComponentError {
 
 ### Error Types
 
-| Type | When | Example Message |
-|---|---|---|
-| `invalid_value` | Primary value prop is non-numeric | `"NeedleGauge: value must be a finite number, received string 'hello'"` |
-| `invalid_data_point` | A metric value inside a DataPoint is non-numeric | `"TimeSeries: invalid value for metric 'temperature' at timestamp 1711234567, received object"` |
-| `invalid_timestamp` | DataPoint.timestamp is not a positive finite number | `"BarGraph: invalid timestamp, received NaN"` |
+| Type                 | When                                                | Example Message                                                                                 |
+| -------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `invalid_value`      | Primary value prop is non-numeric                   | `"NeedleGauge: value must be a finite number, received string 'hello'"`                         |
+| `invalid_data_point` | A metric value inside a DataPoint is non-numeric    | `"TimeSeries: invalid value for metric 'temperature' at timestamp 1711234567, received object"` |
+| `invalid_timestamp`  | DataPoint.timestamp is not a positive finite number | `"BarGraph: invalid timestamp, received NaN"`                                                   |
 
 ### Example Usage
 
@@ -104,13 +104,13 @@ interface ComponentError {
 
 The library does **not** wrap developer-provided callbacks in try-catch. If these functions throw, the error propagates normally (React error boundary or uncaught).
 
-| Function | Behavior on Throw |
-|---|---|
-| `formatValue` | Crashes. Developer's responsibility. |
-| `stateMapper` | Crashes. Developer's responsibility. |
-| `renderTooltip` | Crashes. Developer's responsibility. |
-| `onError` itself | Crashes. Developer's responsibility. |
-| `onZoneChange` | Crashes. Developer's responsibility. |
+| Function                | Behavior on Throw                    |
+| ----------------------- | ------------------------------------ |
+| `formatValue`           | Crashes. Developer's responsibility. |
+| `stateMapper`           | Crashes. Developer's responsibility. |
+| `renderTooltip`         | Crashes. Developer's responsibility. |
+| `onError` itself        | Crashes. Developer's responsibility. |
+| `onZoneChange`          | Crashes. Developer's responsibility. |
 | `onHover` / `onRelease` | Crashes. Developer's responsibility. |
 
 **Rationale:** These are developer-authored functions. Silently catching their errors would hide bugs. The developer should wrap their own functions in try-catch if they need safety.
@@ -170,6 +170,7 @@ The library does **not** wrap developer-provided callbacks in try-catch. If thes
 Alert zones are validated on every render. Validation checks (all throw on failure):
 
 ### 1. Missing Bounds
+
 ```
 For each zone at index i:
   if zone.min == null or zone.max == null → throw Error
@@ -177,6 +178,7 @@ For each zone at index i:
 ```
 
 ### 2. Invalid Bounds (non-finite)
+
 ```
 For each zone at index i:
   if typeof zone.min !== 'number' or !Number.isFinite(zone.min) → throw Error
@@ -185,11 +187,13 @@ For each zone at index i:
 ```
 
 ### 3. Inverted Zone
+
 ```
 For each zone: if zone.min > zone.max → throw Error
 ```
 
 ### 4. Overlapping Zones
+
 ```
 Sort zones by min value.
 For each consecutive pair (a, b): if a.max > b.min → throw Error
@@ -198,14 +202,15 @@ For each consecutive pair (a, b): if a.max > b.min → throw Error
 **Note:** Adjacent zones (e.g., `[0, 50]` and `[50, 100]`) are allowed — the boundary value belongs to both zones. Only true overlaps (shared interior range) are errors.
 
 ### 5. Gaps
+
 Gaps between zones are allowed and render the base component color (gray arc for gauges, background color for progress bar).
 
 ---
 
 ## Components Without onError
 
-| Component | Reason |
-|---|---|
+| Component         | Reason                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------- |
 | PresenceIndicator | Boolean prop only. Non-boolean silently defaults to false. No numeric validation needed. |
 
 All other components support `onError`.
@@ -220,26 +225,26 @@ All error handling described in this spec is implemented and tested.
 
 ### Files
 
-| File | Role |
-|---|---|
-| `src/utils/validation.ts` | Shared utilities: `validateRange()`, `validateAlertZones()`, `validateValue()`, `isValidNumber()`, `isValidTimestamp()`, `ComponentError` interface |
-| `src/gauges/NeedleGauge.tsx` | Hard: range + zones. Soft: value via `lastValidRef`. Clamps visual, shows actual in label. |
-| `src/gauges/ArcGauge.tsx` | Same as NeedleGauge. |
-| `src/indicators/ProgressBar.tsx` | Hard: range + zones. Soft: value via `lastValidRef`. Clamps visual, shows actual in label. |
-| `src/cards/StatCard.tsx` | Soft: numeric value via `lastValidRef`. String values pass through unvalidated. |
-| `src/cards/StatCardWithGraph.tsx` | Same as StatCard. |
-| `src/charts/TimeSeries.tsx` | Hard: zones. Soft: filters invalid timestamps via `useMemo`, skips bad metric values. |
-| `src/charts/BarGraph.tsx` | Same as TimeSeries. |
-| `src/timelines/StateTimeline.tsx` | Soft: filters invalid timestamps. No zone validation (no alertZones prop). |
-| `src/indicators/PresenceIndicator.tsx` | Silent: coerces non-boolean `online` to `false`. No `onError`. |
-| `src/index.ts` | Exports `ComponentError` type. |
+| File                                   | Role                                                                                                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/utils/validation.ts`              | Shared utilities: `validateRange()`, `validateAlertZones()`, `validateValue()`, `isValidNumber()`, `isValidTimestamp()`, `ComponentError` interface |
+| `src/gauges/NeedleGauge.tsx`           | Hard: range + zones. Soft: value via `lastValidRef`. Clamps visual, shows actual in label.                                                          |
+| `src/gauges/ArcGauge.tsx`              | Same as NeedleGauge.                                                                                                                                |
+| `src/indicators/ProgressBar.tsx`       | Hard: range + zones. Soft: value via `lastValidRef`. Clamps visual, shows actual in label.                                                          |
+| `src/cards/StatCard.tsx`               | Soft: numeric value via `lastValidRef`. String values pass through unvalidated.                                                                     |
+| `src/cards/StatCardWithGraph.tsx`      | Same as StatCard.                                                                                                                                   |
+| `src/charts/TimeSeries.tsx`            | Hard: zones. Soft: filters invalid timestamps via `useMemo`, skips bad metric values.                                                               |
+| `src/charts/BarGraph.tsx`              | Same as TimeSeries.                                                                                                                                 |
+| `src/timelines/StateTimeline.tsx`      | Soft: filters invalid timestamps. No zone validation (no alertZones prop).                                                                          |
+| `src/indicators/PresenceIndicator.tsx` | Silent: coerces non-boolean `online` to `false`. No `onError`.                                                                                      |
+| `src/index.ts`                         | Exports `ComponentError` type.                                                                                                                      |
 
 ### Test Coverage
 
-| Test File | Tests | Validation Tests |
-|---|---|---|
-| `tests/NeedleGauge.test.tsx` | 36 | throws on min===max, throws on min>max, zone opacity=1 |
-| `tests/ArcGauge.test.tsx` | 37 | throws on min===max, throws on min>max |
-| `tests/ProgressBar.test.tsx` | 29 | throws on min===max, throws on min>max |
-| `tests/PresenceIndicator.test.tsx` | 22 | (no validation-specific tests — boolean coercion is silent) |
-| **Total** | **124** | |
+| Test File                          | Tests   | Validation Tests                                            |
+| ---------------------------------- | ------- | ----------------------------------------------------------- |
+| `tests/NeedleGauge.test.tsx`       | 36      | throws on min===max, throws on min>max, zone opacity=1      |
+| `tests/ArcGauge.test.tsx`          | 37      | throws on min===max, throws on min>max                      |
+| `tests/ProgressBar.test.tsx`       | 29      | throws on min===max, throws on min>max                      |
+| `tests/PresenceIndicator.test.tsx` | 22      | (no validation-specific tests — boolean coercion is silent) |
+| **Total**                          | **124** |                                                             |

@@ -1,15 +1,15 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { PresenceIndicator } from '../indicators/PresenceIndicator';
-import { ProgressBar } from '../indicators/ProgressBar';
+import type { Meta, StoryObj } from "@storybook/react";
+import { PresenceIndicator } from "../indicators/PresenceIndicator";
+import { ProgressBar } from "../indicators/ProgressBar";
 
 const presenceMeta: Meta<typeof PresenceIndicator> = {
-  title: 'Indicators/PresenceIndicator',
+  title: "Indicators/PresenceIndicator",
   component: PresenceIndicator,
   argTypes: {
-    online: { control: 'boolean' },
-    size: { control: { type: 'range', min: 6, max: 32, step: 2 } },
-    onlineColor: { control: 'color' },
-    offlineColor: { control: 'color' },
+    online: { control: "boolean" },
+    size: { control: { type: "range", min: 6, max: 32, step: 2 } },
+    onlineColor: { control: "color" },
+    offlineColor: { control: "color" },
   },
 };
 
@@ -29,7 +29,7 @@ export const LargeOnline: PresenceStory = {
 };
 
 export const CustomColors: PresenceStory = {
-  args: { online: true, onlineColor: '#06b6d4', offlineColor: '#6b7280' },
+  args: { online: true, onlineColor: "#06b6d4", offlineColor: "#6b7280" },
 };
 
 // ProgressBar stories
@@ -57,9 +57,9 @@ export const ProgressWithAlertZones: StoryObj<typeof ProgressBar> = {
     showLabel: true,
     formatValue: (v: number) => `${v}%`,
     alertZones: [
-      { min: 0, max: 60, color: '#22c55e' },
-      { min: 60, max: 80, color: '#f59e0b' },
-      { min: 80, max: 100, color: '#ef4444' },
+      { min: 0, max: 60, color: "#22c55e" },
+      { min: 60, max: 80, color: "#f59e0b" },
+      { min: 80, max: 100, color: "#ef4444" },
     ],
   },
 };
@@ -72,7 +72,7 @@ export const VerticalProgress: StoryObj<typeof ProgressBar> = {
   ),
   args: {
     value: 45,
-    orientation: 'vertical',
+    orientation: "vertical",
     showLabel: false,
   },
 };

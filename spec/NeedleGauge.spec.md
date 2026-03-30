@@ -8,9 +8,9 @@ Requirements: `requirements/NeedleGauge.md`
 ## Full TypeScript Signature
 
 ```typescript
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import type { ZoneTransition } from '../utils/useZoneTransition';
-import type { ComponentError } from '../utils/validation';
+import type { AlertZone, FontStyle, BackgroundStyle } from "../utils/types";
+import type { ZoneTransition } from "../utils/useZoneTransition";
+import type { ComponentError } from "../utils/validation";
 
 interface NeedleGaugeStyles {
   value?: FontStyle;
@@ -19,27 +19,26 @@ interface NeedleGaugeStyles {
   minMax?: FontStyle;
   lastUpdated?: FontStyle;
   background?: BackgroundStyle;
-  arcThickness?: number;    // default: 14
+  arcThickness?: number; // default: 14
   needleThickness?: number; // default: 2.5
-  arcAngle?: number;        // 30–300, default: 180
+  arcAngle?: number; // 30–300, default: 180
   width?: number;
   height?: number;
 }
 
 interface NeedleGaugeProps {
-  value: number;
-  min?: number;              // default: 0
-  max?: number;              // default: 100
+  data: RelayDataPoint; // result from useRelayLatest(); data.value provides the numeric value, data.timestamp provides the last updated time
+  min?: number; // default: 0
+  max?: number; // default: 100
   formatValue?: (value: number) => string;
   alertZones?: AlertZone[];
   label?: string;
   unit?: string;
   styles?: NeedleGaugeStyles;
-  showZoneValues?: boolean;  // default: false
-  lastUpdated?: Date | number;
+  showZoneValues?: boolean; // default: false
   showLastUpdated?: boolean; // default: false
   formatTimestamp?: (ts: Date | number) => string;
-  showLoading?: boolean;     // default: true
+  showLoading?: boolean; // default: true
   onZoneChange?: (transition: ZoneTransition) => void;
   onError?: (error: ComponentError) => void;
 }
@@ -51,28 +50,28 @@ export function NeedleGauge(props: NeedleGaugeProps): JSX.Element;
 
 ## Internal Constants
 
-| Constant | Value | Source | Description |
-|---|---|---|---|
-| `GAUGE_REFERENCE` | `200` | `src/utils/scaler.ts` | Reference dimension for proportional scaling |
-| Default `arcThickness` | `14` | Inline default | Background and zone arc stroke width (reference px) |
-| Default `needleThickness` | `2.5` | Inline default | Needle line stroke width (reference px) |
-| Default `arcAngle` | `180` | `clampArcAngle(undefined)` | Sweep angle in degrees |
-| Arc angle min | `30` | `clampArcAngle` | Minimum allowed sweep |
-| Arc angle max | `300` | `clampArcAngle` | Maximum allowed sweep |
-| Background arc color | `#e5e7eb` | Inline | SVG stroke color for the background arc |
-| Default needle/value color | `#374151` | `getZoneColor` fallback | Used when value is not in any zone |
-| Min/max default color | `#9ca3af` | Inline | Default fill for min/max and zone boundary text |
-| Label/unit default color | `#6b7280` | Inline | Default fill for label and unit text |
-| Timestamp default color | `#9ca3af` | Inline | Default fill for lastUpdated text |
-| Default value fontSize | `22` | Inline | Reference px |
-| Default label fontSize | `12` | Inline | Reference px |
-| Default unit fontSize | `13` | Inline | Reference px |
-| Default minMax fontSize | `10` | Inline | Reference px |
-| Default timestamp fontSize | `9` | Inline | Reference px |
-| Default value fontWeight | `700` | Inline | Bold |
-| Default label/unit/minMax/ts fontWeight | `400` | Inline | Normal |
-| Minimum radius | `s(40)` | Inline | Scaled minimum radius to prevent degenerate arcs |
-| Padding base | `s(20)` | Inline | Base padding around the arc |
+| Constant                                | Value     | Source                     | Description                                         |
+| --------------------------------------- | --------- | -------------------------- | --------------------------------------------------- |
+| `GAUGE_REFERENCE`                       | `200`     | `src/utils/scaler.ts`      | Reference dimension for proportional scaling        |
+| Default `arcThickness`                  | `14`      | Inline default             | Background and zone arc stroke width (reference px) |
+| Default `needleThickness`               | `2.5`     | Inline default             | Needle line stroke width (reference px)             |
+| Default `arcAngle`                      | `180`     | `clampArcAngle(undefined)` | Sweep angle in degrees                              |
+| Arc angle min                           | `30`      | `clampArcAngle`            | Minimum allowed sweep                               |
+| Arc angle max                           | `300`     | `clampArcAngle`            | Maximum allowed sweep                               |
+| Background arc color                    | `#e5e7eb` | Inline                     | SVG stroke color for the background arc             |
+| Default needle/value color              | `#374151` | `getZoneColor` fallback    | Used when value is not in any zone                  |
+| Min/max default color                   | `#9ca3af` | Inline                     | Default fill for min/max and zone boundary text     |
+| Label/unit default color                | `#6b7280` | Inline                     | Default fill for label and unit text                |
+| Timestamp default color                 | `#9ca3af` | Inline                     | Default fill for lastUpdated text                   |
+| Default value fontSize                  | `22`      | Inline                     | Reference px                                        |
+| Default label fontSize                  | `12`      | Inline                     | Reference px                                        |
+| Default unit fontSize                   | `13`      | Inline                     | Reference px                                        |
+| Default minMax fontSize                 | `10`      | Inline                     | Reference px                                        |
+| Default timestamp fontSize              | `9`       | Inline                     | Reference px                                        |
+| Default value fontWeight                | `700`     | Inline                     | Bold                                                |
+| Default label/unit/minMax/ts fontWeight | `400`     | Inline                     | Normal                                              |
+| Minimum radius                          | `s(40)`   | Inline                     | Scaled minimum radius to prevent degenerate arcs    |
+| Padding base                            | `s(20)`   | Inline                     | Base padding around the arc                         |
 
 ---
 
@@ -111,8 +110,8 @@ const halfSweep = sweepRad / 2;
 The arc is symmetric around the 12 o'clock direction (SVG angle `-PI/2`).
 
 ```typescript
-const startSvgAngle = -Math.PI / 2 - halfSweep;  // left endpoint (min)
-const endSvgAngle   = -Math.PI / 2 + halfSweep;   // right endpoint (max)
+const startSvgAngle = -Math.PI / 2 - halfSweep; // left endpoint (min)
+const endSvgAngle = -Math.PI / 2 + halfSweep; // right endpoint (max)
 
 const x1 = cx + r * Math.cos(startSvgAngle);
 const y1 = cy + r * Math.sin(startSvgAngle);
@@ -137,9 +136,8 @@ const totalLen = arcLength(radius, sweepDegrees);
 ### Arc Bottom Fraction (for > 180 degree arcs)
 
 ```typescript
-const arcBottomFraction = sweepDegrees <= 180
-  ? 0
-  : Math.sin(halfSweep - Math.PI / 2);
+const arcBottomFraction =
+  sweepDegrees <= 180 ? 0 : Math.sin(halfSweep - Math.PI / 2);
 ```
 
 This computes how far below `cy` the arc's lowest point extends, as a fraction of the radius. Used to allocate vertical space.
@@ -150,8 +148,8 @@ This computes how far below `cy` the arc's lowest point extends, as a fraction o
 const textSpace = sweepDegrees <= 180 ? s(60) : s(60);
 const totalVertical = padding * 2 + textSpace;
 const maxRadius = Math.min(
-  (width - padding * 2) / 2,                        // horizontal constraint
-  (height - totalVertical) / (1 + arcBottomFraction) // vertical constraint
+  (width - padding * 2) / 2, // horizontal constraint
+  (height - totalVertical) / (1 + arcBottomFraction), // vertical constraint
 );
 const radius = Math.max(s(40), maxRadius);
 ```
@@ -212,7 +210,7 @@ Centered at `(cx, cy)`. Ensures the pivot is at least `s(4)` pixels and scales w
 ### Needle Color
 
 ```typescript
-const valueColor = getZoneColor(clampedValue, alertZones, '#374151');
+const valueColor = getZoneColor(clampedValue, alertZones, "#374151");
 // getZoneColor: iterates zones in order, returns zone.color for first zone where
 //   value >= zone.min && value <= zone.max
 // Returns '#374151' if no zone matches
@@ -278,7 +276,7 @@ The component renders the following SVG structure (in order, which determines pa
     <text x={cx} y={labelY} textAnchor="middle"
           fontSize={labelFontSize} fontFamily fontWeight fill />
 
-    <!-- 10. Timestamp text (conditional: showLastUpdated && lastUpdated != null) -->
+    <!-- 10. Timestamp text (conditional: showLastUpdated && data.timestamp != null) -->
     <text x={cx} y={tsY} textAnchor="middle"
           fontSize={tsFontSize} fontFamily fontWeight fill />
 
@@ -292,106 +290,108 @@ The component renders the following SVG structure (in order, which determines pa
 
 ### Background Arc `<path>`
 
-| Attribute | Value |
-|---|---|
-| `d` | `buildArcPath(cx, cy, radius, sweepDegrees).path` |
-| `fill` | `"none"` |
-| `stroke` | `"#e5e7eb"` |
-| `strokeWidth` | `s(styles.arcThickness ?? 14)` |
-| `strokeLinecap` | `"butt"` |
+| Attribute       | Value                                             |
+| --------------- | ------------------------------------------------- |
+| `d`             | `buildArcPath(cx, cy, radius, sweepDegrees).path` |
+| `fill`          | `"none"`                                          |
+| `stroke`        | `"#e5e7eb"`                                       |
+| `strokeWidth`   | `s(styles.arcThickness ?? 14)`                    |
+| `strokeLinecap` | `"butt"`                                          |
 
 ### Zone Arc `<path>` (per zone)
 
-| Attribute | Value |
-|---|---|
-| `d` | Same `arcPathD` as background |
-| `fill` | `"none"` |
-| `stroke` | `zone.color` |
-| `strokeWidth` | Same `arcThickness` |
-| `strokeDasharray` | `z.dasharray` (see Zone Dash Array Calculation) |
-| `strokeDashoffset` | `z.dashoffset` |
-| `opacity` | `1` |
+| Attribute          | Value                                           |
+| ------------------ | ----------------------------------------------- |
+| `d`                | Same `arcPathD` as background                   |
+| `fill`             | `"none"`                                        |
+| `stroke`           | `zone.color`                                    |
+| `strokeWidth`      | Same `arcThickness`                             |
+| `strokeDasharray`  | `z.dasharray` (see Zone Dash Array Calculation) |
+| `strokeDashoffset` | `z.dashoffset`                                  |
+| `opacity`          | `1`                                             |
 
 ### Needle `<line>`
 
-| Attribute | Value |
-|---|---|
-| `x1` | `cx` |
-| `y1` | `cy` |
-| `x2` | `cx + needleLen * Math.cos(angle)` |
-| `y2` | `cy + needleLen * Math.sin(angle)` |
-| `stroke` | `valueColor` (zone color or `#374151`) |
-| `strokeWidth` | `s(styles.needleThickness ?? 2.5)` |
-| `strokeLinecap` | `"butt"` |
+| Attribute       | Value                                  |
+| --------------- | -------------------------------------- |
+| `x1`            | `cx`                                   |
+| `y1`            | `cy`                                   |
+| `x2`            | `cx + needleLen * Math.cos(angle)`     |
+| `y2`            | `cy + needleLen * Math.sin(angle)`     |
+| `stroke`        | `valueColor` (zone color or `#374151`) |
+| `strokeWidth`   | `s(styles.needleThickness ?? 2.5)`     |
+| `strokeLinecap` | `"butt"`                               |
 
 ### Pivot `<circle>`
 
-| Attribute | Value |
-|---|---|
-| `cx` | `cx` |
-| `cy` | `cy` |
-| `r` | `Math.max(s(4), needleThickness * 2)` |
-| `fill` | `valueColor` |
+| Attribute | Value                                 |
+| --------- | ------------------------------------- |
+| `cx`      | `cx`                                  |
+| `cy`      | `cy`                                  |
+| `r`       | `Math.max(s(4), needleThickness * 2)` |
+| `fill`    | `valueColor`                          |
 
 ### Min/Max `<text>`
 
-| Attribute | Value |
-|---|---|
-| `x` | `endpoints.startX` (min) / `endpoints.endX` (max) |
-| `y` | `endpoints.startY` (min) / `endpoints.endY` (max) |
-| `textAnchor` | `"middle"` |
-| `fontSize` | `s(styles.minMax.fontSize ?? 10)` |
+| Attribute    | Value                                                                               |
+| ------------ | ----------------------------------------------------------------------------------- |
+| `x`          | `endpoints.startX` (min) / `endpoints.endX` (max)                                   |
+| `y`          | `endpoints.startY` (min) / `endpoints.endY` (max)                                   |
+| `textAnchor` | `"middle"`                                                                          |
+| `fontSize`   | `s(styles.minMax.fontSize ?? 10)`                                                   |
 | `fontFamily` | `styles.minMax.fontFamily ?? styles.label.fontFamily ?? 'var(--relay-font-family)'` |
-| `fontWeight` | `styles.minMax.fontWeight ?? 400` |
-| `fill` | `styles.minMax.color ?? '#9ca3af'` |
+| `fontWeight` | `styles.minMax.fontWeight ?? 400`                                                   |
+| `fill`       | `styles.minMax.color ?? '#9ca3af'`                                                  |
 
 ### Value `<text>`
 
-| Attribute | Value |
-|---|---|
-| `x` | `cx` |
-| `y` | `valueY` (see Text Positioning) |
-| `textAnchor` | `"middle"` |
-| `dominantBaseline` | `"central"` |
-| `fontSize` | `s(styles.value.fontSize ?? 22)` |
-| `fontFamily` | `styles.value.fontFamily ?? 'var(--relay-font-family)'` |
-| `fontWeight` | `styles.value.fontWeight ?? 700` |
-| `fill` | `styles.value.color ?? valueColor` |
+| Attribute          | Value                                                   |
+| ------------------ | ------------------------------------------------------- |
+| `x`                | `cx`                                                    |
+| `y`                | `valueY` (see Text Positioning)                         |
+| `textAnchor`       | `"middle"`                                              |
+| `dominantBaseline` | `"central"`                                             |
+| `fontSize`         | `s(styles.value.fontSize ?? 22)`                        |
+| `fontFamily`       | `styles.value.fontFamily ?? 'var(--relay-font-family)'` |
+| `fontWeight`       | `styles.value.fontWeight ?? 700`                        |
+| `fill`             | `styles.value.color ?? valueColor`                      |
 
 ### Unit `<tspan>` (inside value text)
 
-| Attribute | Value |
-|---|---|
-| `fontSize` | `s(styles.unit.fontSize ?? 13)` |
+| Attribute    | Value                                                  |
+| ------------ | ------------------------------------------------------ |
+| `fontSize`   | `s(styles.unit.fontSize ?? 13)`                        |
 | `fontFamily` | `styles.unit.fontFamily ?? 'var(--relay-font-family)'` |
-| `fontWeight` | `styles.unit.fontWeight ?? 400` |
-| `fill` | `styles.unit.color ?? '#6b7280'` |
+| `fontWeight` | `styles.unit.fontWeight ?? 400`                        |
+| `fill`       | `styles.unit.color ?? '#6b7280'`                       |
 
 Content: `' ' + unit` (space-prefixed).
 
 ### Label `<text>`
 
-| Attribute | Value |
-|---|---|
-| `x` | `cx` |
-| `y` | `labelY` (see Text Positioning) |
-| `textAnchor` | `"middle"` |
-| `fontSize` | `s(styles.label.fontSize ?? 12)` |
+| Attribute    | Value                                                   |
+| ------------ | ------------------------------------------------------- |
+| `x`          | `cx`                                                    |
+| `y`          | `labelY` (see Text Positioning)                         |
+| `textAnchor` | `"middle"`                                              |
+| `fontSize`   | `s(styles.label.fontSize ?? 12)`                        |
 | `fontFamily` | `styles.label.fontFamily ?? 'var(--relay-font-family)'` |
-| `fontWeight` | `styles.label.fontWeight ?? 400` |
-| `fill` | `styles.label.color ?? '#6b7280'` |
+| `fontWeight` | `styles.label.fontWeight ?? 400`                        |
+| `fill`       | `styles.label.color ?? '#6b7280'`                       |
 
 ### Timestamp `<text>`
 
-| Attribute | Value |
-|---|---|
-| `x` | `cx` |
-| `y` | `tsY` (see Text Positioning) |
-| `textAnchor` | `"middle"` |
-| `fontSize` | `s(styles.lastUpdated.fontSize ?? 9)` |
+`data` is the required prop providing value and timestamp. `data.value` is used as the component value and `data.timestamp` as the last updated timestamp. Recommended pattern: `<NeedleGauge data={useRelayLatest({...})} showLastUpdated />`
+
+| Attribute    | Value                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------------- |
+| `x`          | `cx`                                                                                     |
+| `y`          | `tsY` (see Text Positioning)                                                             |
+| `textAnchor` | `"middle"`                                                                               |
+| `fontSize`   | `s(styles.lastUpdated.fontSize ?? 9)`                                                    |
 | `fontFamily` | `styles.lastUpdated.fontFamily ?? styles.label.fontFamily ?? 'var(--relay-font-family)'` |
-| `fontWeight` | `styles.lastUpdated.fontWeight ?? 400` |
-| `fill` | `styles.lastUpdated.color ?? '#9ca3af'` |
+| `fontWeight` | `styles.lastUpdated.fontWeight ?? 400`                                                   |
+| `fill`       | `styles.lastUpdated.color ?? '#9ca3af'`                                                  |
 
 ---
 
@@ -402,15 +402,15 @@ Each zone is rendered by masking the full arc path with `strokeDasharray` and `s
 ```typescript
 function buildZoneDashes(zones, min, max, totalLength) {
   const range = max - min;
-  return zones.map(zone => {
+  return zones.map((zone) => {
     const startRatio = (Math.max(zone.min, min) - min) / range;
-    const endRatio   = (Math.min(zone.max, max) - min) / range;
-    const segLength  = (endRatio - startRatio) * totalLength;
-    const offset     = startRatio * totalLength;
+    const endRatio = (Math.min(zone.max, max) - min) / range;
+    const segLength = (endRatio - startRatio) * totalLength;
+    const offset = startRatio * totalLength;
     return {
-      dasharray:  `${segLength} ${totalLength}`,
+      dasharray: `${segLength} ${totalLength}`,
       dashoffset: -offset,
-      color:      zone.color,
+      color: zone.color,
     };
   });
 }
@@ -440,7 +440,15 @@ Labels are pushed outward from the arc by `arcThickness/2 + s(12)` so they sit j
 ### Zone Boundary Value Positions
 
 ```typescript
-const pos = getValuePosition(cx, cy, labelRadius, boundaryValue, min, max, sweepDegrees);
+const pos = getValuePosition(
+  cx,
+  cy,
+  labelRadius,
+  boundaryValue,
+  min,
+  max,
+  sweepDegrees,
+);
 // pos.x = cx + labelRadius * Math.cos(valueToAngle(boundaryValue, min, max, sweepDegrees))
 // pos.y = cy + labelRadius * Math.sin(valueToAngle(boundaryValue, min, max, sweepDegrees))
 ```
@@ -472,8 +480,10 @@ When the arc wraps below center, `arcBottomY` is the Y-coordinate of the arc's l
 
 ```typescript
 const tsFontSize = s(styles.lastUpdated.fontSize ?? 9);
-const tsY = (label ? labelY + labelFontSize * 0.5 : valueY + valueFontSize * 0.5)
-            + tsFontSize + s(4);
+const tsY =
+  (label ? labelY + labelFontSize * 0.5 : valueY + valueFontSize * 0.5) +
+  tsFontSize +
+  s(4);
 ```
 
 Always the bottommost text element. Positioned below label (if present) or below value.
@@ -484,9 +494,8 @@ Always the bottommost text element. Positioned below label (if present) or below
 
 ```typescript
 const minMaxFontSize = s(styles.minMax.fontSize ?? 10);
-const zoneValueExtra = showZoneValues && alertZones.length > 0
-  ? minMaxFontSize + s(4)
-  : 0;
+const zoneValueExtra =
+  showZoneValues && alertZones.length > 0 ? minMaxFontSize + s(4) : 0;
 const padding = s(20) + zoneValueExtra;
 ```
 
@@ -505,7 +514,7 @@ This component does **not** use D3 for arc paths. Arc paths are constructed with
 For the **needle**, **pivot circle**, and **value text fill**:
 
 ```typescript
-const valueColor = getZoneColor(clampedValue, alertZones, '#374151');
+const valueColor = getZoneColor(clampedValue, alertZones, "#374151");
 ```
 
 - `getZoneColor` iterates `alertZones` in order.
@@ -513,9 +522,11 @@ const valueColor = getZoneColor(clampedValue, alertZones, '#374151');
 - Returns `'#374151'` (dark gray) if no zone matches.
 
 For value text specifically:
+
 ```typescript
 fill={valueStyle?.color ?? valueColor}
 ```
+
 Explicit `styles.value.color` overrides zone-based coloring.
 
 ---
@@ -541,10 +552,10 @@ useZoneTransition(renderValue ?? min, alertZones, onZoneChange);
 ### Hard Validation (throws — called at top of component)
 
 ```typescript
-validateRange(min, max, 'NeedleGauge');
+validateRange(min, max, "NeedleGauge");
 // Throws if: min > max, or min === max
 
-validateAlertZones(alertZones, 'NeedleGauge');
+validateAlertZones(alertZones, "NeedleGauge");
 // Throws if: any zone missing min/max, non-finite min/max,
 //            zone.min > zone.max, or zones overlap (sorted by min, a.max > b.min)
 ```
@@ -555,7 +566,7 @@ These throw immediately, preventing render. The error message includes the compo
 
 ```typescript
 const lastValidRef = useRef<number | null>(null);
-const validatedValue = validateValue(value, 'NeedleGauge', onError);
+const validatedValue = validateValue(value, "NeedleGauge", onError);
 if (validatedValue !== null) {
   lastValidRef.current = validatedValue;
 }
@@ -563,11 +574,13 @@ const renderValue = lastValidRef.current;
 ```
 
 `validateValue`:
+
 - `null`/`undefined` → returns `null` (no error fired)
 - Finite number → returns the number
 - `NaN`, `Infinity`, `-Infinity`, non-number → fires `onError({ type: 'invalid_value', ... })`, returns `null`
 
 The `lastValidRef` pattern means:
+
 - First valid value: stored and rendered.
 - Subsequent invalid value: previous valid value continues to render, `onError` fires.
 - First value is invalid + `showLoading=true`: skeleton shown.
@@ -577,28 +590,28 @@ The `lastValidRef` pattern means:
 
 ## Edge Cases
 
-| Scenario | Behavior |
-|---|---|
-| `value = NaN` | `onError` fired, falls back to last valid value. If no prior valid value and `showLoading=true`, skeleton shown. |
-| `value = Infinity` | Same as NaN. |
-| `value = -Infinity` | Same as NaN. |
-| `value = null` | Returns `null` from validateValue (no onError). Skeleton or empty depending on `showLoading`. |
-| `value = undefined` | Same as null. |
-| `value < min` | Needle at min position, text shows actual value. |
-| `value > max` | Needle at max position, text shows actual value. |
-| `min > max` | Throws immediately. |
-| `min === max` | Throws immediately. |
-| `arcAngle = 0` | Clamped to 30. |
-| `arcAngle = 500` | Clamped to 300. |
-| `arcAngle = undefined` | Defaults to 180. |
-| `alertZones` overlap | Throws immediately. |
-| Zone with `min > max` | Throws immediately. |
-| Zone with `min = NaN` | Throws immediately. |
-| `showZoneValues = true`, no zones | No boundary labels rendered, no extra padding. |
-| `showLastUpdated = true`, `lastUpdated = undefined` | Timestamp not rendered. |
-| `showLastUpdated = false`, `lastUpdated` provided | Timestamp not rendered. |
-| Container resized to 0x0 | Scaler produces factor 0, all dimensions become 0. Component is effectively invisible. |
-| `formatValue` throws | Unhandled — error propagates. |
-| Multiple zones, value on boundary | First matching zone in array order wins (inclusive check `>=` and `<=`). |
-| `onZoneChange` on initial render | NOT fired. Only fires on subsequent zone transitions. |
-| `value` changes from valid to invalid and back | Needle snaps back to previously-stored valid value during invalid period, then updates to new valid value. |
+| Scenario                                          | Behavior                                                                                                         |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `value = NaN`                                     | `onError` fired, falls back to last valid value. If no prior valid value and `showLoading=true`, skeleton shown. |
+| `value = Infinity`                                | Same as NaN.                                                                                                     |
+| `value = -Infinity`                               | Same as NaN.                                                                                                     |
+| `value = null`                                    | Returns `null` from validateValue (no onError). Skeleton or empty depending on `showLoading`.                    |
+| `value = undefined`                               | Same as null.                                                                                                    |
+| `value < min`                                     | Needle at min position, text shows actual value.                                                                 |
+| `value > max`                                     | Needle at max position, text shows actual value.                                                                 |
+| `min > max`                                       | Throws immediately.                                                                                              |
+| `min === max`                                     | Throws immediately.                                                                                              |
+| `arcAngle = 0`                                    | Clamped to 30.                                                                                                   |
+| `arcAngle = 500`                                  | Clamped to 300.                                                                                                  |
+| `arcAngle = undefined`                            | Defaults to 180.                                                                                                 |
+| `alertZones` overlap                              | Throws immediately.                                                                                              |
+| Zone with `min > max`                             | Throws immediately.                                                                                              |
+| Zone with `min = NaN`                             | Throws immediately.                                                                                              |
+| `showZoneValues = true`, no zones                 | No boundary labels rendered, no extra padding.                                                                   |
+| `showLastUpdated = true`, `data.timestamp = null` | Timestamp not shown (no timestamp available).                                                                    |
+| `showLastUpdated = false`                         | Timestamp not rendered regardless of `data.timestamp`.                                                           |
+| Container resized to 0x0                          | Scaler produces factor 0, all dimensions become 0. Component is effectively invisible.                           |
+| `formatValue` throws                              | Unhandled — error propagates.                                                                                    |
+| Multiple zones, value on boundary                 | First matching zone in array order wins (inclusive check `>=` and `<=`).                                         |
+| `onZoneChange` on initial render                  | NOT fired. Only fires on subsequent zone transitions.                                                            |
+| `value` changes from valid to invalid and back    | Needle snaps back to previously-stored valid value during invalid period, then updates to new valid value.       |

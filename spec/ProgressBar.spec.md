@@ -6,36 +6,35 @@ Requirements: `requirements/ProgressBar.md`
 ## Component Signature
 
 ```typescript
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import type { ComponentError } from '../utils/validation';
-import type { ZoneTransition } from '../utils/useZoneTransition';
+import type { AlertZone, FontStyle, BackgroundStyle } from "../utils/types";
+import type { ComponentError } from "../utils/validation";
+import type { ZoneTransition } from "../utils/useZoneTransition";
 
 export interface ProgressBarStyles {
   label_font_file?: FontStyle;
   lastUpdated?: FontStyle;
-  zoneValue?: FontStyle;                               // zone boundary + min/max label styling
+  zoneValue?: FontStyle; // zone boundary + min/max label styling
   background?: BackgroundStyle;
   width?: string | number;
   height?: string | number;
 }
 
 export interface ProgressBarProps {
-  value: number;
-  min?: number;                                        // default: 0
-  max?: number;                                        // default: 100
-  orientation?: 'horizontal' | 'vertical';             // default: 'horizontal'
-  showLabel?: boolean;                                 // default: true
-  formatValue?: (value: number) => string;             // default: defaultFormatValue
-  alertZones?: AlertZone[];                            // default: []
-  showAlertZones?: boolean;                            // default: true when zones exist
-  showZoneLegend?: boolean;                            // default: false
-  showZoneValues?: boolean;                            // default: false
-  showMinMax?: boolean;                                // default: false
+  data: RelayDataPoint; // result from useRelayLatest(); data.value provides the numeric value, data.timestamp provides the last updated time
+  min?: number; // default: 0
+  max?: number; // default: 100
+  orientation?: "horizontal" | "vertical"; // default: 'horizontal'
+  showLabel?: boolean; // default: true
+  formatValue?: (value: number) => string; // default: defaultFormatValue
+  alertZones?: AlertZone[]; // default: []
+  showAlertZones?: boolean; // default: true when zones exist
+  showZoneLegend?: boolean; // default: false
+  showZoneValues?: boolean; // default: false
+  showMinMax?: boolean; // default: false
   styles?: ProgressBarStyles;
-  lastUpdated?: Date | number;
-  showLastUpdated?: boolean;                           // default: false
-  formatTimestamp?: (ts: Date | number) => string;     // default: defaultFormatTimestamp
-  showLoading?: boolean;                               // default: true
+  showLastUpdated?: boolean; // default: false
+  formatTimestamp?: (ts: Date | number) => string; // default: defaultFormatTimestamp
+  showLoading?: boolean; // default: true
   onZoneChange?: (transition: ZoneTransition) => void;
   onError?: (error: ComponentError) => void;
 }
@@ -117,7 +116,11 @@ export interface ProgressBarProps {
   </div>
 
   <!-- Last updated timestamp (outside the bar container) -->
-  {showLastUpdated && lastUpdated != null && (
+  <!-- data prop: The required prop providing value and timestamp.
+       data.value is used as the component value and data.timestamp as the last
+       updated timestamp. Recommended pattern:
+       <ProgressBar data={useRelayLatest({...})} showLastUpdated /> -->
+  {showLastUpdated && data.timestamp != null && (
     <div style="
       marginTop: 4;
       fontSize: {tsStyle?.fontSize ?? 11};
@@ -126,7 +129,7 @@ export interface ProgressBarProps {
       color: {tsStyle?.color ?? '#9ca3af'};
       textAlign: center;
     ">
-      {formatTimestamp(lastUpdated)}
+      {formatTimestamp(data.timestamp)}
     </div>
   )}
 </>
@@ -135,7 +138,8 @@ export interface ProgressBarProps {
 ### Skeleton State (`showLoading = true` and `renderValue == null`)
 
 ```html
-<div ref={containerRef}
+<div
+  ref="{containerRef}"
   style="
     width: {containerWidthCss};
     maxWidth: 100%;
@@ -147,19 +151,20 @@ export interface ProgressBarProps {
     backgroundSize: 200% 100%;
     animation: relay-skeleton-shimmer 1.5s ease-in-out infinite;
     borderRadius: var(--relay-progress-border-radius, 4px);
-  " />
+  "
+/>
 ```
 
 ## Z-Index Layering Strategy
 
 Four layers inside the bar container, all using `position: absolute` (except the label which uses `position: relative`):
 
-| Layer | z-index | Element | Purpose |
-|---|---|---|---|
-| Zone bands | `0` | `<div key="bg-{i}">` | Transparent colored background bands at 15% opacity |
-| Fill bar | `1` | `<div>` | Solid opaque fill; covers zone bands underneath |
-| Label | `3` | `<span>` | Value text; `position: relative` creates implicit stacking context |
-| Tooltip hit areas | `4` | `<div key="tip-{i}">` | Invisible overlays with `title` attribute for native browser tooltips |
+| Layer             | z-index | Element               | Purpose                                                               |
+| ----------------- | ------- | --------------------- | --------------------------------------------------------------------- |
+| Zone bands        | `0`     | `<div key="bg-{i}">`  | Transparent colored background bands at 15% opacity                   |
+| Fill bar          | `1`     | `<div>`               | Solid opaque fill; covers zone bands underneath                       |
+| Label             | `3`     | `<span>`              | Value text; `position: relative` creates implicit stacking context    |
+| Tooltip hit areas | `4`     | `<div key="tip-{i}">` | Invisible overlays with `title` attribute for native browser tooltips |
 
 The container has `overflow: hidden` so nothing bleeds outside the rounded corners. The label uses `position: relative` (not absolute) combined with `width: 100%` and `textAlign: center` inside the flex container, which vertically centers it via `alignItems: center` on the parent. `pointerEvents: none` on the label ensures mouse events pass through to the tooltip hit areas.
 
@@ -170,7 +175,7 @@ The container has `overflow: hidden` so nothing bleeds outside the rounded corne
 ```typescript
 const range = max - min;
 const zoneStart = ((Math.max(zone.min, min) - min) / range) * 100;
-const zoneEnd   = ((Math.min(zone.max, max) - min) / range) * 100;
+const zoneEnd = ((Math.min(zone.max, max) - min) / range) * 100;
 const zoneWidth = zoneEnd - zoneStart;
 ```
 
@@ -234,14 +239,22 @@ height: {percentage}%;
 ### Fill Color Resolution
 
 ```typescript
-function getZoneColor(value: number, zones: AlertZone[], fallback: string): string {
+function getZoneColor(
+  value: number,
+  zones: AlertZone[],
+  fallback: string,
+): string {
   for (const zone of zones) {
     if (value >= zone.min && value <= zone.max) return zone.color;
   }
   return fallback;
 }
 
-const fillColor = getZoneColor(clampedValue, alertZones, 'var(--relay-progress-fill, #3b82f6)');
+const fillColor = getZoneColor(
+  clampedValue,
+  alertZones,
+  "var(--relay-progress-fill, #3b82f6)",
+);
 ```
 
 The clamped value is used for color lookup, not the raw value. Zones are checked in array order; the first match wins.
@@ -249,10 +262,11 @@ The clamped value is used for color lookup, not the raw value. Zones are checked
 ## Label Color Transition Logic
 
 ```typescript
-color: labelFont?.color ?? (percentage > 50 ? '#fff' : 'currentColor')
+color: labelFont?.color ?? (percentage > 50 ? "#fff" : "currentColor");
 ```
 
 Priority:
+
 1. `styles.label_font_file.color` -- explicit user override, always used if present.
 2. `percentage > 50` -- when the fill covers more than half the bar, white text ensures readability against the fill color.
 3. `currentColor` -- inherits from the container's text color when the fill is small.
@@ -276,11 +290,11 @@ Triggered when `showLoading = true` AND `renderValue == null` (no valid value ha
 Called synchronously at the top of the component body, before any hooks:
 
 ```typescript
-validateRange(min, max, 'ProgressBar');
+validateRange(min, max, "ProgressBar");
 // Throws: "ProgressBar: min ({min}) must be less than or equal to max ({max})."
 // Throws: "ProgressBar: min and max cannot be equal (both are {min}). Range must be non-zero."
 
-validateAlertZones(alertZones, 'ProgressBar');
+validateAlertZones(alertZones, "ProgressBar");
 // Throws on: missing min/max, non-finite min/max, inverted min/max, overlapping zones
 ```
 
@@ -288,7 +302,7 @@ validateAlertZones(alertZones, 'ProgressBar');
 
 ```typescript
 const lastValidRef = useRef<number | null>(null);
-const validatedValue = validateValue(value, 'ProgressBar', onError);
+const validatedValue = validateValue(value, "ProgressBar", onError);
 if (validatedValue !== null) {
   lastValidRef.current = validatedValue;
 }
@@ -296,6 +310,7 @@ const renderValue = lastValidRef.current;
 ```
 
 `validateValue` returns the number if `typeof value === 'number' && Number.isFinite(value)`, otherwise returns `null` and fires `onError` with:
+
 ```typescript
 {
   type: 'invalid_value',
@@ -306,6 +321,7 @@ const renderValue = lastValidRef.current;
 ```
 
 After soft validation, `renderValue` is either:
+
 - The latest valid number (stored in ref across renders)
 - `null` if no valid value has ever been received
 
@@ -332,12 +348,14 @@ const resolvedFontFamily = labelFont?.fontFamily
 ```
 
 `resolveFontFamily` (from `utils/fonts.ts`):
+
 1. If the value is falsy, return it unchanged.
 2. If the value does NOT end in `.otf`, `.ttf`, `.woff`, `.woff2` and does NOT start with `data:font/`, return it as-is (normal CSS font-family).
 3. If already in the cache (`loadedFonts` Map), return the cached generated family name.
 4. Otherwise: generate `relay-custom-font-{counter}`, inject `@font-face` into `document.head`, cache, and return the generated name.
 
 The label's `fontFamily` resolution chain:
+
 ```
 resolvedFontFamily ?? labelFont?.fontFamily ?? 'var(--relay-font-family)'
 ```
@@ -351,6 +369,7 @@ useZoneTransition(renderValue ?? min, alertZones, onZoneChange);
 ```
 
 The hook:
+
 1. On first render: identifies the current zone and stores it as baseline. Does NOT fire `onZoneChange`.
 2. On subsequent renders: compares current zone with previous by `min`, `max`, and `color`.
 3. If zone changed (including entering/leaving a zone from/to null), fires `onZoneChange({ previousZone, currentZone, value })`.
@@ -359,12 +378,14 @@ The hook:
 ## Container Dimensions
 
 ```typescript
-const containerWidthCss  = toCss(styles?.width)  ?? '100%';
-const containerHeightCss = toCss(styles?.height)  ?? (isHorizontal ? 'var(--relay-progress-height, 24px)' : '100%');
+const containerWidthCss = toCss(styles?.width) ?? "100%";
+const containerHeightCss =
+  toCss(styles?.height) ??
+  (isHorizontal ? "var(--relay-progress-height, 24px)" : "100%");
 
 function toCss(val: string | number | undefined): string | undefined {
   if (val === undefined) return undefined;
-  return typeof val === 'number' ? `${val}px` : val;
+  return typeof val === "number" ? `${val}px` : val;
 }
 ```
 
@@ -405,6 +426,7 @@ Zone background bands and tooltip hit areas are not rendered (`displayZones = fa
 ### First Render with `null`/`undefined` Value
 
 If `value` is null/undefined:
+
 - `validateValue` returns `null`, `onError` is NOT fired (null/undefined is treated as "no data", not as an error).
 - `renderValue` is null.
 - If `showLoading = true`: skeleton shimmer renders.
@@ -413,6 +435,7 @@ If `value` is null/undefined:
 ## Zone Legend
 
 When `showZoneLegend` is true and `alertZones` has entries:
+
 - Renders a flex row of colored swatches + zone label text below the bar
 - Only zones with a `label` property are shown
 - Swatch: 10x10px `<span>` with `borderRadius: 2px`, `backgroundColor: zone.color`
@@ -422,6 +445,7 @@ When `showZoneLegend` is true and `alertZones` has entries:
 ## Zone Boundary Values
 
 When `showZoneValues` is true and `alertZones` has entries:
+
 - Uses `getZoneBoundaries(alertZones, min, max)` from `src/gauges/shared.ts` to extract unique boundary values between adjacent zones (excluding min/max)
 - Each boundary renders as a `<span>` with `data-zone-value={bv}` attribute
 - **Color**: defaults to the zone color of the zone whose `min` matches the boundary value. Falls back to the zone whose `max` matches. When `styles.zoneValue.color` is set, it overrides all boundary colors uniformly.
@@ -432,6 +456,7 @@ When `showZoneValues` is true and `alertZones` has entries:
 ## Min/Max Labels
 
 When `showMinMax` is true:
+
 - Renders min and max values at the ends of the bar using `formatValue`
 - Labels have `data-minmax="min"` / `data-minmax="max"` attributes
 - Uses `styles.zoneValue` font styling (shared with zone boundary values)
@@ -440,12 +465,12 @@ When `showMinMax` is true:
 
 ## Dependencies
 
-| Import | Source | Usage |
-|---|---|---|
-| `useRef` | `react` | `lastValidRef` for value fallback, `containerRef` for the track element |
-| `AlertZone`, `FontStyle`, `BackgroundStyle` | `../utils/types` | Type definitions |
-| `defaultFormatValue`, `defaultFormatTimestamp` | `../utils/formatters` | Default formatting functions |
-| `resolveFontFamily` | `../utils/fonts` | Font file auto-loading |
-| `useZoneTransition`, `ZoneTransition` | `../utils/useZoneTransition` | Alert zone change detection |
-| `validateRange`, `validateAlertZones`, `validateValue`, `ComponentError` | `../utils/validation` | Hard and soft validation |
-| `getZoneBoundaries` | `../gauges/shared` | Extract unique zone boundary values for `showZoneValues` |
+| Import                                                                   | Source                       | Usage                                                                   |
+| ------------------------------------------------------------------------ | ---------------------------- | ----------------------------------------------------------------------- |
+| `useRef`                                                                 | `react`                      | `lastValidRef` for value fallback, `containerRef` for the track element |
+| `AlertZone`, `FontStyle`, `BackgroundStyle`                              | `../utils/types`             | Type definitions                                                        |
+| `defaultFormatValue`, `defaultFormatTimestamp`                           | `../utils/formatters`        | Default formatting functions                                            |
+| `resolveFontFamily`                                                      | `../utils/fonts`             | Font file auto-loading                                                  |
+| `useZoneTransition`, `ZoneTransition`                                    | `../utils/useZoneTransition` | Alert zone change detection                                             |
+| `validateRange`, `validateAlertZones`, `validateValue`, `ComponentError` | `../utils/validation`        | Hard and soft validation                                                |
+| `getZoneBoundaries`                                                      | `../gauges/shared`           | Extract unique zone boundary values for `showZoneValues`                |

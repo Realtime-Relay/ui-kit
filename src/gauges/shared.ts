@@ -1,4 +1,4 @@
-import type { AlertZone } from '../utils/types';
+import type { AlertZone } from "../utils/types";
 
 /** Clamp value between min and max. */
 export function clamp(value: number, min: number, max: number): number {
@@ -12,7 +12,11 @@ export function clampArcAngle(degrees: number | undefined): number {
 }
 
 /** Get the color for a value based on alert zones, or return default. */
-export function getZoneColor(value: number, zones: AlertZone[], defaultColor: string): string {
+export function getZoneColor(
+  value: number,
+  zones: AlertZone[],
+  defaultColor: string,
+): string {
   for (const zone of zones) {
     if (value >= zone.min && value <= zone.max) return zone.color;
   }
@@ -77,7 +81,7 @@ export function buildArcPath(
   cx: number,
   cy: number,
   r: number,
-  sweepDegrees: number
+  sweepDegrees: number,
 ): { path: string; startAngleRad: number; endAngleRad: number } {
   const sweepRad = (sweepDegrees * Math.PI) / 180;
   const halfSweep = sweepRad / 2;
@@ -122,7 +126,7 @@ export function semiCircleLength(r: number): number {
 export function ratioToDash(
   startRatio: number,
   endRatio: number,
-  totalLength: number
+  totalLength: number,
 ): { dasharray: string; dashoffset: number } {
   const segLength = (endRatio - startRatio) * totalLength;
   const offset = startRatio * totalLength;
@@ -136,7 +140,7 @@ export function buildZoneDashes(
   zones: AlertZone[],
   min: number,
   max: number,
-  totalLength: number
+  totalLength: number,
 ): { dasharray: string; dashoffset: number; color: string }[] {
   const range = max - min;
   if (range <= 0) return [];
@@ -144,7 +148,11 @@ export function buildZoneDashes(
   return zones.map((zone) => {
     const startRatio = (Math.max(zone.min, min) - min) / range;
     const endRatio = (Math.min(zone.max, max) - min) / range;
-    const { dasharray, dashoffset } = ratioToDash(startRatio, endRatio, totalLength);
+    const { dasharray, dashoffset } = ratioToDash(
+      startRatio,
+      endRatio,
+      totalLength,
+    );
     return { dasharray, dashoffset, color: zone.color };
   });
 }
@@ -153,7 +161,7 @@ export function buildValueDash(
   value: number,
   min: number,
   max: number,
-  totalLength: number
+  totalLength: number,
 ): { dasharray: string; dashoffset: number } {
   const range = max - min;
   if (range <= 0) return ratioToDash(0, 0, totalLength);
@@ -171,7 +179,7 @@ export function valueToAngle(
   value: number,
   min: number,
   max: number,
-  sweepDegrees: number = 180
+  sweepDegrees: number = 180,
 ): number {
   const range = max - min;
   if (range <= 0) return -Math.PI / 2; // straight up
@@ -190,7 +198,7 @@ export function getArcEndpoints(
   cx: number,
   cy: number,
   r: number,
-  sweepDegrees: number
+  sweepDegrees: number,
 ): { startX: number; startY: number; endX: number; endY: number } {
   const sweepRad = (sweepDegrees * Math.PI) / 180;
   const halfSweep = sweepRad / 2;
@@ -216,7 +224,7 @@ export function getValuePosition(
   value: number,
   min: number,
   max: number,
-  sweepDegrees: number
+  sweepDegrees: number,
 ): { x: number; y: number } {
   const angle = valueToAngle(value, min, max, sweepDegrees);
   return {
@@ -230,7 +238,11 @@ export function getValuePosition(
  * E.g., zones [0-40, 40-70, 70-100] → [40, 70]
  * Excludes min and max since those are already shown.
  */
-export function getZoneBoundaries(zones: AlertZone[], min: number, max: number): number[] {
+export function getZoneBoundaries(
+  zones: AlertZone[],
+  min: number,
+  max: number,
+): number[] {
   const boundaries = new Set<number>();
   for (const zone of zones) {
     if (zone.min > min && zone.min < max) boundaries.add(zone.min);

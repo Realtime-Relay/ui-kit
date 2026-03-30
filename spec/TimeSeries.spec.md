@@ -28,8 +28,14 @@ interface TimeSeriesProps {
   title?: string;
   formatValue?: (value: number) => string;
   renderTooltip?: (point: DataPoint) => React.ReactNode;
-  onHover?: (point: { metric: string; value: number; timestamp: number } | null, event: MouseEvent) => void;
-  onRelease?: (point: { metric: string; value: number; timestamp: number } | null, event: MouseEvent) => void;
+  onHover?: (
+    point: { metric: string; value: number; timestamp: number } | null,
+    event: MouseEvent,
+  ) => void;
+  onRelease?: (
+    point: { metric: string; value: number; timestamp: number } | null,
+    event: MouseEvent,
+  ) => void;
   showGrid?: boolean;
   gridColor?: string;
   gridThickness?: number;
@@ -38,7 +44,7 @@ interface TimeSeriesProps {
   areaColor?: string;
   alertZones?: AlertZone[];
   showLegend?: boolean;
-  legendPosition?: 'top' | 'bottom' | 'left' | 'right';
+  legendPosition?: "top" | "bottom" | "left" | "right";
   showLoading?: boolean;
   downsample?: DownsampleConfig;
   timeWindow?: number;
@@ -51,10 +57,17 @@ interface TimeSeriesProps {
   annotations?: Annotation[];
   formatLegend?: (device: string, metric: string) => string;
   annotationMode?: boolean;
-  onAnnotate?: (id: number, timestamp: number, type: 'click' | 'start_drag' | 'end_drag') => void;
+  onAnnotate?: (
+    id: number,
+    timestamp: number,
+    type: "click" | "start_drag" | "end_drag",
+  ) => void;
   annotationColor?: string;
   zoomColor?: string;
-  onAnnotationHover?: (hover: boolean, annotation: Annotation) => React.ReactNode | void;
+  onAnnotationHover?: (
+    hover: boolean,
+    annotation: Annotation,
+  ) => React.ReactNode | void;
   onZoneChange?: (transition: TimeSeriesZoneTransition) => void;
   formatTimestamp?: (timestamp: number) => string;
   onError?: (error: ComponentError) => void;
@@ -87,12 +100,14 @@ Type guard: `isRangeAnnotation(a)` checks for `'end' in a`.
 ## Rendering
 
 ### Layout Structure
+
 - Outer: `ResponsiveContainer` (width: 100%, observes resize)
 - Flex container: direction depends on legend position (row for left/right, column for top/bottom)
 - Inner: `<svg>` with `style={{ userSelect: 'none' }}` and `<g transform>` for margin offset
 - Tooltip: absolutely positioned `<div>` outside SVG, in the `position: relative` wrapper
 
 ### Rendering Order (SVG stacking, bottom to top)
+
 1. Grid lines (dashed horizontal lines)
 2. Alert zone rects (10% opacity)
 3. **Annotation visuals** (dashed lines, shaded bands) — `pointerEvents: none`
@@ -103,24 +118,28 @@ Type guard: `isRangeAnnotation(a)` checks for `'end' in a`.
 8. **Invisible overlay rect** (`ref={overlayRef}`) (captures all mouse events: mouseDown, mouseMove, mouseUp, mouseLeave)
 
 ### Proportional Scaling
+
 - Reference: 500px width (`CHART_REFERENCE`)
 - `createScaler(width, height, CHART_REFERENCE, 'width')` — **capped at 1x**: `Math.min(rawS(px), px)`
 - Never upscales beyond reference values; only scales down for smaller containers
 - Applied to: fonts, margins, padding, tooltip offset, legend spacing
 
 ### ClipPath
+
 - Unique per instance via `useId().replace(/:/g, '_')`
 - Prevents line/area overflow beyond chart bounds
 
 ## X-Domain Resolution
 
 Priority order (first match wins):
+
 1. `zoomDomain` (set by brush interaction)
 2. `start` + `end` props (fixed range)
 3. `timeWindow` — domain: `[now - timeWindow, now]`
 4. Data extent — `d3.extent(allTimestamps)`
 
 ### Autoscroll
+
 - Active when: `timeWindow` is set AND `autoScroll !== false` AND no `start/end` AND no `zoomDomain`
 - `effectiveNow` is computed inline during render (no rAF loop): `Math.min(Date.now(), latestDataTs + 1000)`
 - This avoids double-render jitter — data flush is the only render trigger; the x-axis right edge advances as a side effect of data changes
@@ -147,6 +166,7 @@ Priority order (first match wins):
 5. Colors: cycle through D3 `schemeCategory10` palette across all series
 
 ### Legend Labels
+
 - Single device (1 key in `data`): `metric.label ?? metric.key`
 - Multiple devices: `formatLegend?.(device, metric) ?? \`[${device}]: ${metric}\``
 
@@ -155,6 +175,7 @@ Priority order (first match wins):
 All mouse events handled on a single invisible overlay `<rect>` covering the chart area.
 
 ### handleMouseDown
+
 ```
 if annotationMode:
   record brushStart pixel, set isDragging, allocate new annotation ID
@@ -163,6 +184,7 @@ else if zoomEnabled:
 ```
 
 ### handleMouseMove
+
 ```
 if isDragging && (annotationMode || zoomEnabled):
   update brushEnd (clamped to [0, chartWidth])
@@ -188,6 +210,7 @@ if onAnnotationHover provided:
 ```
 
 ### handleMouseUp
+
 ```
 if annotationMode && isDragging:
   if drag > 10px → fire onAnnotate(id, clampedTimestamp, 'end_drag')
@@ -199,12 +222,14 @@ else if zoomEnabled && isDragging:
 ```
 
 ### handleMouseLeave
+
 - If a drag is active (isDragging), the drag is **NOT** cancelled — only tooltip and annotation hover state are cleared
 - If no drag is active: clear isDragging, brushStart, brushEnd, tooltipData
 - Clear annotation hover state (fire `onAnnotationHover(false, ...)` if active)
 - Fire `onRelease` callback
 
 ### Viewport Clamping (Annotation Mode)
+
 ```typescript
 const clampTs = (px: number) => {
   const clamped = Math.max(0, Math.min(px, chartWidth));
@@ -214,30 +239,37 @@ const clampTs = (px: number) => {
 ```
 
 ### Cursor States
-| Mode | Cursor |
-|---|---|
-| `annotationMode=true` | `copy` |
-| `zoomEnabled=true` | `crosshair` |
-| Both false | default |
+
+| Mode                  | Cursor      |
+| --------------------- | ----------- |
+| `annotationMode=true` | `copy`      |
+| `zoomEnabled=true`    | `crosshair` |
+| Both false            | default     |
 
 ## Brush / Preview Rendering
 
 Rendered inside SVG after data lines, before the overlay rect.
 
 ### Zoom Brush
+
 When `brushStart != null && brushEnd != null && !annotationMode`:
+
 - `<rect>` from min to max of brush positions
 - Fill: `zoomColor` at `opacity={0.15}`
 - Stroke: `zoomColor` at `strokeWidth={1}`
 
 ### Window-Level Drag Handling
+
 When a drag starts (`mouseDown`), `mousemove` and `mouseup` listeners are attached to `window` so the zoom selection continues even when the cursor leaves the chart area.
+
 - `overlayRef` is used to map window-level mouse coordinates back to chart-relative positions via `getBoundingClientRect()`
 - On `mouseLeave` during an active drag, the drag is NOT cancelled — only tooltip and annotation hover are cleared
 - The window `mousemove` and `mouseup` listeners clean up automatically on mouseup or effect cleanup
 
 ### Annotation Preview
+
 When `brushStart != null && brushEnd != null && annotationMode`:
+
 - Drag < 10px: vertical dashed `<line>` at brushStart using `annotationColor`
 - Drag >= 10px: `<rect>` with `annotationColor` fill at `opacity={0.2}` + solid stroke
 
@@ -273,16 +305,17 @@ Preview disappears on mouseUp (brush state cleared).
 ## Refs
 
 ### Drag / Window Listener Refs
+
 ```typescript
-const overlayRef = useRef<SVGRectElement>(null);                    // reference to the invisible overlay rect for coordinate mapping during window-level drag
+const overlayRef = useRef<SVGRectElement>(null); // reference to the invisible overlay rect for coordinate mapping during window-level drag
 const windowMoveRef = useRef<((e: MouseEvent) => void) | null>(null); // window mousemove handler during drag
-const windowUpRef = useRef<((e: MouseEvent) => void) | null>(null);   // window mouseup handler during drag
+const windowUpRef = useRef<((e: MouseEvent) => void) | null>(null); // window mouseup handler during drag
 ```
 
 ### Annotation ID Management
 
 ```typescript
-const annotationIdRef = useRef(0);       // global counter
+const annotationIdRef = useRef(0); // global counter
 const currentAnnotationIdRef = useRef(0); // current interaction's ID
 const annotationDragFired = useRef(false); // whether start_drag was emitted
 ```
@@ -295,9 +328,11 @@ const annotationDragFired = useRef(false); // whether start_drag was emitted
 ## Data Sorting
 
 All visible data for rendering is sorted by timestamp before path generation:
+
 ```typescript
 return [...filtered].sort((a, b) => a.timestamp - b.timestamp);
 ```
+
 Prevents visual jumps from out-of-order SDK data.
 
 ## Per-Series Zone Transition Tracking
@@ -305,13 +340,16 @@ Prevents visual jumps from out-of-order SDK data.
 Unlike gauges and stat cards which use the shared `useZoneTransition` hook (single value), TimeSeries implements **custom per-series zone tracking** because it has multiple device×metric combinations that can each independently cross zone boundaries.
 
 ### State
+
 ```typescript
 const prevZonesRef = useRef<Map<string, AlertZone | null>>(new Map());
 ```
+
 - Key: series ID (`"device:metric"`)
 - Value: the `AlertZone` the series was last in, or `null` if outside all zones
 
 ### Logic (runs in `useEffect` on every render when `onZoneChange` and `alertZones` are provided)
+
 ```
 for each series in allSeries:
   get latest data point from validDataMap[series.device]
@@ -330,41 +368,47 @@ for each series in allSeries:
 ```
 
 ### Effect Dependencies
+
 ```typescript
-[validDataMap, allSeries, alertZones, onZoneChange]
+[validDataMap, allSeries, alertZones, onZoneChange];
 ```
 
 ### Zone Comparison
+
 Zones are compared by identity (min, max, color), not by object reference:
+
 ```typescript
 const changed =
   (prev === null) !== (currentZone === null) ||
-  (prev !== null && currentZone !== null && (
-    prev.min !== currentZone.min ||
-    prev.max !== currentZone.max ||
-    prev.color !== currentZone.color
-  ));
+  (prev !== null &&
+    currentZone !== null &&
+    (prev.min !== currentZone.min ||
+      prev.max !== currentZone.max ||
+      prev.color !== currentZone.color));
 ```
 
 ### Edge Cases
-| Scenario | Behavior |
-|---|---|
-| No `alertZones` | No tracking, effect returns early |
-| No `onZoneChange` | No tracking, effect returns early |
+
+| Scenario                | Behavior                                                       |
+| ----------------------- | -------------------------------------------------------------- |
+| No `alertZones`         | No tracking, effect returns early                              |
+| No `onZoneChange`       | No tracking, effect returns early                              |
 | Value outside all zones | `currentZone = null`, transition fires if previously in a zone |
-| Value is NaN/Infinity | Skipped (no transition fired) |
-| Empty device data | Skipped (no latest point) |
-| New series appears | Initialized without firing callback |
-| Series removed | Stale entry stays in ref (harmless, no callback) |
+| Value is NaN/Infinity   | Skipped (no transition fired)                                  |
+| Empty device data       | Skipped (no latest point)                                      |
+| New series appears      | Initialized without firing callback                            |
+| Series removed          | Stale entry stays in ref (harmless, no callback)               |
 
 ## Tooltip Timestamp Formatting
 
 ### Prop
+
 ```typescript
 formatTimestamp?: (timestamp: number) => string;
 ```
 
 ### Flow
+
 1. `formatTimestamp` is passed from `TimeSeriesProps` to the shared `<Tooltip>` component as `formatTimestamp`
 2. Inside `Tooltip`, if `formatTimestamp` is provided:
    ```typescript
@@ -378,13 +422,14 @@ formatTimestamp?: (timestamp: number) => string;
 5. When `renderTooltip` is provided, `formatTimestamp` is **not used** — `renderTooltip` replaces the entire tooltip
 
 ### Tooltip Component Props (updated)
+
 ```typescript
 interface TooltipProps {
   data: TooltipData | null;
   containerWidth: number;
   containerHeight: number;
   formatValue?: (value: number) => string;
-  formatTimestamp?: (timestamp: number) => string;  // NEW
+  formatTimestamp?: (timestamp: number) => string; // NEW
   renderTooltip?: (point: DataPoint) => ReactNode;
   style?: FontStyle;
   s?: (px: number) => number;
@@ -396,11 +441,16 @@ interface TooltipProps {
 Per-device downsampling is cached to prevent line jumping when new data arrives via stream flush.
 
 ### Cache Structure
+
 ```typescript
-const downsampleCache = useRef<Record<string, { data: DataPoint[]; srcLen: number; lastTs: number }>>();
+const downsampleCache =
+  useRef<
+    Record<string, { data: DataPoint[]; srcLen: number; lastTs: number }>
+  >();
 ```
 
 ### Cache Logic
+
 ```
 for each device:
   if no cache OR data grew >5% OR data shrank:
@@ -417,11 +467,11 @@ for each device:
 
 ## Empty Data Handling
 
-| Scenario | Behavior |
-|---|---|
-| `data = {}` | `<ChartSkeleton>` if `showLoading=true`, else null |
-| All arrays empty | `<ChartSkeleton>` if `showLoading=true`, else null |
-| Mix of empty and populated | Only populated devices rendered |
+| Scenario                   | Behavior                                           |
+| -------------------------- | -------------------------------------------------- |
+| `data = {}`                | `<ChartSkeleton>` if `showLoading=true`, else null |
+| All arrays empty           | `<ChartSkeleton>` if `showLoading=true`, else null |
+| Mix of empty and populated | Only populated devices rendered                    |
 
 ## Validation
 
@@ -432,6 +482,7 @@ for each device:
   ```
 
 ## Dependencies
+
 - `d3`: `scaleTime`, `scaleLinear`, `line`, `area`, `extent`, `bisector`, `pointer`, `timeFormat`
 - `ResponsiveContainer` for resize observation
 - `Legend` for legend rendering
@@ -445,6 +496,7 @@ for each device:
 ## Test Coverage
 
 ### Unit Tests (76 tests)
+
 - Empty/loading states (3)
 - SVG structure (3)
 - Multi-device rendering and legend format (4)
@@ -472,6 +524,7 @@ for each device:
 - formatTimestamp: renders with prop, no crash on hover with custom formatter (2)
 
 ### E2E Tests (73 tests)
+
 - Page load and section visibility (7)
 - SVG structure and line counts (4)
 - Multi-device legend format and formatLegend (4)

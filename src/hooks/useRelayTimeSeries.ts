@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import type { DataPoint, TimeRange } from '../utils/types';
-import { useRelayApp } from '../context/RelayProvider';
-import { normalizeRealtimePoint } from '../utils/data';
+import { useState, useEffect, useRef } from "react";
+import type { DataPoint, TimeRange } from "../utils/types";
+import { useRelayApp } from "../context/RelayProvider";
+import { normalizeRealtimePoint } from "../utils/data";
 
 export interface UseRelayTimeSeriesOptions {
   deviceIdent: string;
   metrics: string[];
   timeRange: TimeRange;
   /** 'historical' fetches history only. 'realtime' subscribes to stream only. 'both' fetches history then streams. Default: 'historical'. */
-  mode?: 'realtime' | 'historical' | 'both';
+  mode?: "realtime" | "historical" | "both";
   maxPoints?: number;
 }
 
@@ -21,7 +21,8 @@ export interface UseRelayTimeSeriesResult {
 /** Convert a TimeRange start/end value to a UTC ISO string. */
 function toUTCISO(value: Date | string): string {
   if (value instanceof Date) return value.toISOString();
-  if (value.includes('T') && (value.endsWith('Z') || value.includes('+'))) return value;
+  if (value.includes("T") && (value.endsWith("Z") || value.includes("+")))
+    return value;
   const date = new Date(value);
   if (isNaN(date.getTime())) return value;
   return date.toISOString();
@@ -31,7 +32,7 @@ export function useRelayTimeSeries({
   deviceIdent,
   metrics,
   timeRange,
-  mode = 'historical',
+  mode = "historical",
   maxPoints = 10000,
 }: UseRelayTimeSeriesOptions): UseRelayTimeSeriesResult {
   const app = useRelayApp();
@@ -39,13 +40,13 @@ export function useRelayTimeSeries({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const realtimeBuffer = useRef<DataPoint[]>([]);
-  const historyLoaded = useRef(mode !== 'both'); // only gate stream flush in 'both' mode
+  const historyLoaded = useRef(mode !== "both"); // only gate stream flush in 'both' mode
 
   const startUTC = toUTCISO(timeRange.start);
   const endUTC = toUTCISO(timeRange.end);
 
   // Historical / both mode: fetch history
-  const fetchHistory = mode === 'historical' || mode === 'both';
+  const fetchHistory = mode === "historical" || mode === "both";
   useEffect(() => {
     if (!app || !fetchHistory) return;
     let cancelled = false;
@@ -55,7 +56,7 @@ export function useRelayTimeSeries({
 
     async function fetchHistory() {
       try {
-        console.log('[RelayX history] fetching', {
+        console.log("[RelayX history] fetching", {
           device_ident: deviceIdent,
           fields: metrics,
           start: startUTC,
@@ -102,14 +103,14 @@ export function useRelayTimeSeries({
             }
           }
 
-          console.log('[RelayX history] received', points.length, 'points');
+          console.log("[RelayX history] received", points.length, "points");
           historyLoaded.current = true;
           setData(points);
           setIsLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
-          console.error('[RelayX history] error', err);
+          console.error("[RelayX history] error", err);
           setError(err instanceof Error ? err : new Error(String(err)));
           setIsLoading(false);
         }
@@ -117,22 +118,24 @@ export function useRelayTimeSeries({
     }
 
     fetchHistory();
-    return () => { cancelled = true; };
-  }, [app, deviceIdent, metrics.join(','), startUTC, endUTC, fetchHistory]);
+    return () => {
+      cancelled = true;
+    };
+  }, [app, deviceIdent, metrics.join(","), startUTC, endUTC, fetchHistory]);
 
   // Realtime / both mode: subscribe to stream
-  const startStream = mode === 'realtime' || mode === 'both';
+  const startStream = mode === "realtime" || mode === "both";
   useEffect(() => {
     if (!app || !startStream) return;
     let cancelled = false;
-    if (mode === 'realtime') setIsLoading(false);
+    if (mode === "realtime") setIsLoading(false);
 
     app!.telemetry.stream({
       device_ident: deviceIdent,
       metric: metrics,
       callback: (msg) => {
         if (cancelled) return;
-        console.log('[RelayX stream]', msg.metric, msg.data);
+        console.log("[RelayX stream]", msg.metric, msg.data);
         const point = normalizeRealtimePoint(msg);
         realtimeBuffer.current.push(point);
       },
@@ -178,9 +181,10 @@ export function useRelayTimeSeries({
           }
         }
 
-        const combined = prev.length + merged.length > maxPoints
-          ? [...prev, ...merged].slice(-maxPoints)
-          : [...prev, ...merged];
+        const combined =
+          prev.length + merged.length > maxPoints
+            ? [...prev, ...merged].slice(-maxPoints)
+            : [...prev, ...merged];
         return combined;
       });
     }, 16);
@@ -188,9 +192,11 @@ export function useRelayTimeSeries({
     return () => {
       cancelled = true;
       clearInterval(interval);
-      app.telemetry.off({ device_ident: deviceIdent, metric: metrics }).catch(() => {});
+      app.telemetry
+        .off({ device_ident: deviceIdent, metric: metrics })
+        .catch(() => {});
     };
-  }, [app, deviceIdent, metrics.join(','), maxPoints, startStream]);
+  }, [app, deviceIdent, metrics.join(","), maxPoints, startStream]);
 
   return { data, isLoading, error };
 }

@@ -12,30 +12,31 @@ StatCard is designed to be embedded in dashboard grid layouts where each cell re
 
 ### Data Props
 
-| Prop | Type | Default | Required | Description |
-|---|---|---|---|---|
-| `value` | `any` | — | Yes | The value to display. Accepts any JavaScript type. When `null` or `undefined`, the component enters its null-value handling flow (loading skeleton or last-valid retention). See **Value Handling** below for the full formatting chain per type. |
-| `numericValue` | `number` | — | No | Explicit numeric value used for alert zone evaluation. When provided, this value is checked against `alertZones` instead of `value`. This allows displaying a formatted string as `value` (e.g., `"23.5 C"`) while still triggering zone-based coloring from the raw number. If omitted, the component falls back to `value` itself only when `value` is of type `number`. If `value` is non-numeric and `numericValue` is not provided, alert zones are ignored entirely. |
-| `label` | `string` | — | No | Label text rendered above the value. Typically the metric name (e.g., "Temperature", "CPU Usage"). Omit to hide the label row. |
-| `formatValue` | `(value: any) => string` | — | No | Custom formatter callback. Receives the current `renderValue` (never null/undefined) and must return a display string. When provided, it completely replaces the default formatting chain. When omitted, the component uses `defaultDisplayFormat` (see **Value Handling**). |
+| Prop           | Type                     | Default | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------- | ------------------------ | ------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `value`        | `any`                    | —       | Yes      | The value to display. Accepts any JavaScript type. When `null` or `undefined`, the component enters its null-value handling flow (loading skeleton or last-valid retention). See **Value Handling** below for the full formatting chain per type.                                                                                                                                                                                                                          |
+| `numericValue` | `number`                 | —       | No       | Explicit numeric value used for alert zone evaluation. When provided, this value is checked against `alertZones` instead of `value`. This allows displaying a formatted string as `value` (e.g., `"23.5 C"`) while still triggering zone-based coloring from the raw number. If omitted, the component falls back to `value` itself only when `value` is of type `number`. If `value` is non-numeric and `numericValue` is not provided, alert zones are ignored entirely. |
+| `label`        | `string`                 | —       | No       | Label text rendered above the value. Typically the metric name (e.g., "Temperature", "CPU Usage"). Omit to hide the label row.                                                                                                                                                                                                                                                                                                                                             |
+| `formatValue`  | `(value: any) => string` | —       | No       | Custom formatter callback. Receives the current `renderValue` (never null/undefined) and must return a display string. When provided, it completely replaces the default formatting chain. When omitted, the component uses `defaultDisplayFormat` (see **Value Handling**).                                                                                                                                                                                               |
 
 ### Timestamp Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `lastUpdated` | `Date \| number` | — | Timestamp of the most recent data update. Accepts a `Date` object or a Unix epoch number (milliseconds). |
-| `showLastUpdated` | `boolean` | `false` | Controls visibility of the timestamp row. When `false` (default), the timestamp is not rendered even if `lastUpdated` is provided. Both `showLastUpdated === true` AND `lastUpdated != null` must be satisfied for the timestamp to appear. |
-| `formatTimestamp` | `(ts: Date \| number) => string` | `defaultFormatTimestamp` | Custom timestamp formatter. Default output format: `dd MMM yyyy HH:MM:SS.sss +TZ` (e.g., `"26 Mar 2026 22:39:40.123 +05:30"`). The default converts epoch numbers to `Date` internally before formatting. |
-| `lastUpdatedMargin` | `number` | `8` | Margin above the timestamp row in reference pixels. This value is scaled proportionally with the container (e.g., at 150px container width, `8` becomes `4`). |
+| Prop                | Type                             | Default                  | Description                                                                                                                                                                                                                                 |
+| ------------------- | -------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lastUpdated`       | `Date \| number`                 | —                        | Timestamp of the most recent data update. Accepts a `Date` object or a Unix epoch number (milliseconds).                                                                                                                                    |
+| `showLastUpdated`   | `boolean`                        | `false`                  | Controls visibility of the timestamp row. When `false` (default), the timestamp is not rendered even if `lastUpdated` is provided. Both `showLastUpdated === true` AND `lastUpdated != null` must be satisfied for the timestamp to appear. |
+| `formatTimestamp`   | `(ts: Date \| number) => string` | `defaultFormatTimestamp` | Custom timestamp formatter. Default output format: `dd MMM yyyy HH:MM:SS.sss +TZ` (e.g., `"26 Mar 2026 22:39:40.123 +05:30"`). The default converts epoch numbers to `Date` internally before formatting.                                   |
+| `lastUpdatedMargin` | `number`                         | `8`                      | Margin above the timestamp row in reference pixels. This value is scaled proportionally with the container (e.g., at 150px container width, `8` becomes `4`).                                                                               |
 
 ### Alert Zone Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `alertZones` | `AlertZone[]` | `[]` | Array of alert zone definitions. Each zone has `min` (number), `max` (number), `color` (string), and optional `label` (string). Zones are validated on every render: missing `min`/`max`, non-finite bounds, inverted ranges (`min > max`), and overlapping zones all throw hard errors. Touching zones (where `a.max === b.min`) are allowed. |
-| `onZoneChange` | `(transition: ZoneTransition) => void` | — | Callback fired when the evaluated numeric value crosses from one zone to another (or enters/exits a zone). The `ZoneTransition` object contains `{ previousZone: AlertZone \| null, currentZone: AlertZone \| null, value: number }`. On first render, the zone is initialized silently without firing the callback. Subsequent zone changes fire the callback. Zone identity is compared by `min`, `max`, and `color` fields (not by reference). Only fires when `zoneNumeric` is non-null; if `onZoneChange` is provided but no numeric value is available, the callback is disabled. |
+| Prop           | Type                                   | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | -------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alertZones`   | `AlertZone[]`                          | `[]`    | Array of alert zone definitions. Each zone has `min` (number), `max` (number), `color` (string), and optional `label` (string). Zones are validated on every render: missing `min`/`max`, non-finite bounds, inverted ranges (`min > max`), and overlapping zones all throw hard errors. Touching zones (where `a.max === b.min`) are allowed.                                                                                                                                                                                                                                          |
+| `onZoneChange` | `(transition: ZoneTransition) => void` | —       | Callback fired when the evaluated numeric value crosses from one zone to another (or enters/exits a zone). The `ZoneTransition` object contains `{ previousZone: AlertZone \| null, currentZone: AlertZone \| null, value: number }`. On first render, the zone is initialized silently without firing the callback. Subsequent zone changes fire the callback. Zone identity is compared by `min`, `max`, and `color` fields (not by reference). Only fires when `zoneNumeric` is non-null; if `onZoneChange` is provided but no numeric value is available, the callback is disabled. |
 
 **Zone color propagation:** When the evaluated numeric value falls within a zone, `zone.color` is applied to:
+
 - Value text color
 - Label text color
 - Timestamp text color
@@ -44,29 +45,29 @@ StatCard is designed to be embedded in dashboard grid layouts where each cell re
 
 ### Styling Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `styles.value` | `FontStyle` | — | Styling for the value text. `FontStyle` includes `fontFamily`, `fontSize` (number, px), `fontWeight` (number or string), `color` (CSS color string), and `fontFile` (URL to .otf/.ttf/.woff/.woff2 for auto `@font-face` injection). When `fontSize` is provided, it is used as-is (not scaled). When omitted, the default `s(32)` (32px at reference) is used and scales proportionally. |
-| `styles.label` | `FontStyle` | — | Styling for the label text. Same `FontStyle` fields. Default font size when omitted: `s(13)`. Default font weight: `400`. Default color: `#6b7280` (gray). |
-| `styles.lastUpdated` | `FontStyle` | — | Styling for the timestamp text. Default font size when omitted: `s(11)`. Default font weight: `400`. Default color: `#9ca3af` (light gray). |
-| `styles.background` | `BackgroundStyle` | — | Background styling. `BackgroundStyle` has a single `color` field. Default: `transparent`. |
-| `styles.width` | `string \| number` | `'100%'` | Explicit width. Numbers are converted to `px` strings (e.g., `300` becomes `"300px"`). Strings are passed through as-is (e.g., `"50%"`, `"20rem"`). Default: `'100%'` (fills parent). |
-| `styles.height` | `string \| number` | `'100%'` | Explicit height. Same conversion rules as `width`. Default: `'100%'`. |
+| Prop                 | Type               | Default  | Description                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | ------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `styles.value`       | `FontStyle`        | —        | Styling for the value text. `FontStyle` includes `fontFamily`, `fontSize` (number, px), `fontWeight` (number or string), `color` (CSS color string), and `fontFile` (URL to .otf/.ttf/.woff/.woff2 for auto `@font-face` injection). When `fontSize` is provided, it is used as-is (not scaled). When omitted, the default `s(32)` (32px at reference) is used and scales proportionally. |
+| `styles.label`       | `FontStyle`        | —        | Styling for the label text. Same `FontStyle` fields. Default font size when omitted: `s(13)`. Default font weight: `400`. Default color: `#6b7280` (gray).                                                                                                                                                                                                                                |
+| `styles.lastUpdated` | `FontStyle`        | —        | Styling for the timestamp text. Default font size when omitted: `s(11)`. Default font weight: `400`. Default color: `#9ca3af` (light gray).                                                                                                                                                                                                                                               |
+| `styles.background`  | `BackgroundStyle`  | —        | Background styling. `BackgroundStyle` has a single `color` field. Default: `transparent`.                                                                                                                                                                                                                                                                                                 |
+| `styles.width`       | `string \| number` | `'100%'` | Explicit width. Numbers are converted to `px` strings (e.g., `300` becomes `"300px"`). Strings are passed through as-is (e.g., `"50%"`, `"20rem"`). Default: `'100%'` (fills parent).                                                                                                                                                                                                     |
+| `styles.height`      | `string \| number` | `'100%'` | Explicit height. Same conversion rules as `width`. Default: `'100%'`.                                                                                                                                                                                                                                                                                                                     |
 
 ### Border Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `borderRadius` | `number \| 'rounded' \| 'sharp'` | `'rounded'` | Corner radius mode. `'rounded'`: uses CSS variable `var(--relay-border-radius, 8px)`. `'sharp'`: `0` (no rounding). `number`: explicit pixel value (e.g., `12` becomes `"12px"`). When omitted/undefined, defaults to `'rounded'` behavior. |
-| `borderColor` | `string` | — | Border color. When provided (alone or with `borderThickness`), a CSS border is rendered. Default border color when `borderThickness` is set but `borderColor` is omitted: `var(--relay-border-color, #e0e0e0)`. |
-| `borderThickness` | `number` | — | Border width in pixels. Default when `borderColor` is set but `borderThickness` is omitted: `1`. The border is only rendered when at least one of `borderColor` or `borderThickness` is provided. |
+| Prop              | Type                             | Default     | Description                                                                                                                                                                                                                                 |
+| ----------------- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `borderRadius`    | `number \| 'rounded' \| 'sharp'` | `'rounded'` | Corner radius mode. `'rounded'`: uses CSS variable `var(--relay-border-radius, 8px)`. `'sharp'`: `0` (no rounding). `number`: explicit pixel value (e.g., `12` becomes `"12px"`). When omitted/undefined, defaults to `'rounded'` behavior. |
+| `borderColor`     | `string`                         | —           | Border color. When provided (alone or with `borderThickness`), a CSS border is rendered. Default border color when `borderThickness` is set but `borderColor` is omitted: `var(--relay-border-color, #e0e0e0)`.                             |
+| `borderThickness` | `number`                         | —           | Border width in pixels. Default when `borderColor` is set but `borderThickness` is omitted: `1`. The border is only rendered when at least one of `borderColor` or `borderThickness` is provided.                                           |
 
 ### Loading and Error Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `showLoading` | `boolean` | `true` | When `true` and the resolved `renderValue` is `null` (i.e., no value has ever been provided), a skeleton shimmer placeholder is rendered. When `false`, null values are silently handled (last valid value retained, `onError` still fires). |
-| `onError` | `(error: ComponentError) => void` | — | Called whenever `value` is `null` or `undefined`. The `ComponentError` object has `{ type: 'invalid_value', message: string, rawValue: unknown, component: 'StatCard' }`. The last valid value is retained in a ref and continues to display. `onError` fires on every render where value is null/undefined (not just the first time). |
+| Prop          | Type                              | Default | Description                                                                                                                                                                                                                                                                                                                            |
+| ------------- | --------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `showLoading` | `boolean`                         | `true`  | When `true` and the resolved `renderValue` is `null` (i.e., no value has ever been provided), a skeleton shimmer placeholder is rendered. When `false`, null values are silently handled (last valid value retained, `onError` still fires).                                                                                           |
+| `onError`     | `(error: ComponentError) => void` | —       | Called whenever `value` is `null` or `undefined`. The `ComponentError` object has `{ type: 'invalid_value', message: string, rawValue: unknown, component: 'StatCard' }`. The last valid value is retained in a ref and continues to display. `onError` fires on every render where value is null/undefined (not just the first time). |
 
 ---
 
@@ -79,6 +80,7 @@ StatCard accepts `value` of any JavaScript type. The value passes through a form
 ### Null/Undefined Detection
 
 Before formatting, the component checks if `value` is `null` or `undefined`:
+
 1. If non-null/non-undefined, store in `lastValidRef.current` (the "last valid value").
 2. If null/undefined, fire `onError` with the appropriate message, and set `renderValue` to `lastValidRef.current`.
 3. `renderValue` is used for all subsequent formatting and display.
@@ -103,9 +105,11 @@ renderValue → defaultDisplayFormat(renderValue)   [if formatValue prop NOT pro
 ### Numeric Detection for Zones
 
 The component determines the numeric value for zone evaluation:
+
 ```
 zoneNumeric = numericValue ?? (typeof renderValue === 'number' ? renderValue : null)
 ```
+
 If `zoneNumeric` is `null`, all zone evaluation is skipped.
 
 ---
@@ -123,11 +127,13 @@ If `zoneNumeric` is `null`, all zone evaluation is skipped.
 ## Border Configuration
 
 The `resolveBorderRadius` function converts the `borderRadius` prop to a CSS string:
+
 - `'sharp'` returns `'0'`
 - `'rounded'` (or `undefined`) returns `'var(--relay-border-radius, 8px)'`
 - A number `n` returns `'${n}px'`
 
 The border itself (outline) is only rendered when `borderColor` or `borderThickness` is truthy. The CSS `border` shorthand is constructed as:
+
 ```
 `${borderThickness ?? 1}px solid ${borderColor ?? 'var(--relay-border-color, #e0e0e0)'}`
 ```
@@ -137,6 +143,7 @@ The border itself (outline) is only rendered when `borderColor` or `borderThickn
 ## Loading Skeleton Behavior and Animation
 
 When `showLoading === true` AND `renderValue === null` (no value has ever been provided):
+
 - The entire card is replaced by a skeleton shimmer div.
 - The skeleton div respects `styles.width`, `styles.height`, and `borderRadius`.
 - Background: a horizontal linear gradient using CSS variables:
@@ -168,6 +175,7 @@ Once a valid value arrives, the skeleton is replaced by the normal card content 
 ## Last Updated Display Rules
 
 The timestamp row renders only when ALL of these conditions are true:
+
 1. `showLastUpdated === true`
 2. `lastUpdated != null` (not null and not undefined; uses loose equality `!=` so both are excluded)
 
@@ -178,16 +186,19 @@ When rendered, the display string is `formatTimestamp(lastUpdated)`. The default
 ## Error Handling
 
 ### Null/Undefined Values
+
 - `onError` fires on every render where `value` is `null` or `undefined`.
 - The error object: `{ type: 'invalid_value', message: 'StatCard: value is null.' | 'StatCard: value is undefined.', rawValue: null | undefined, component: 'StatCard' }`.
 - The last valid value (stored in `lastValidRef`) continues to display.
 - If no valid value has ever been received, `renderValue` remains `null`, which triggers the loading skeleton (if `showLoading` is true) or displays an empty string.
 
 ### Alert Zone Validation Errors
+
 - `validateAlertZones` throws a descriptive `Error` on invalid zone configuration. This is a hard error (not caught internally) and will propagate to the nearest React error boundary.
 - Validation checks: missing `min`/`max`, non-finite bounds, inverted ranges (`min > max`), overlapping zones (sorted by `min`, checked pairwise where `a.max > b.min`).
 
 ### Font File Resolution
+
 - If `fontFile` is an invalid URL or the file fails to load, the `@font-face` declaration is injected but the browser falls back to the next font in the stack. No error is surfaced to the component.
 
 ---

@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect } from 'react';
-import { createScaler, CHART_REFERENCE } from '../utils/scaler';
+import { useRef, useState, useEffect } from "react";
+import { createScaler, CHART_REFERENCE } from "../utils/scaler";
 
 export interface PresenceIndicatorProps {
   online: boolean;
@@ -30,13 +30,13 @@ export function PresenceIndicator({
     return () => ro.disconnect();
   }, []);
 
-  const s = createScaler(measuredWidth, 0, CHART_REFERENCE, 'width');
+  const s = createScaler(measuredWidth, 0, CHART_REFERENCE, "width");
 
-  const isOnline = typeof online === 'boolean' ? online : false;
+  const isOnline = typeof online === "boolean" ? online : false;
 
   const color = isOnline
-    ? (onlineColor ?? 'var(--relay-presence-online, #22c55e)')
-    : (offlineColor ?? 'var(--relay-presence-offline, #ef4444)');
+    ? (onlineColor ?? "var(--relay-presence-online, #22c55e)")
+    : (offlineColor ?? "var(--relay-presence-offline, #ef4444)");
 
   const dotSize = size ?? 12;
 
@@ -44,15 +44,15 @@ export function PresenceIndicator({
     <span
       ref={containerRef}
       role="status"
-      aria-label={isOnline ? 'Online' : 'Offline'}
+      aria-label={isOnline ? "Online" : "Offline"}
       style={{
-        display: 'inline-block',
+        display: "inline-block",
         width: dotSize,
         height: dotSize,
-        borderRadius: '50%',
+        borderRadius: "50%",
         backgroundColor: color,
         boxShadow: isOnline ? `0 0 0 ${s(3)}px ${color}33` : undefined,
-        transition: 'background-color 200ms ease, box-shadow 200ms ease',
+        transition: "background-color 200ms ease, box-shadow 200ms ease",
         flexShrink: 0,
       }}
     />

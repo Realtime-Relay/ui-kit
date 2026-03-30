@@ -1,9 +1,9 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { NeedleGauge } from '../gauges/NeedleGauge';
-import { ArcGauge } from '../gauges/ArcGauge';
+import type { Meta, StoryObj } from "@storybook/react";
+import { NeedleGauge } from "../gauges/NeedleGauge";
+import { ArcGauge } from "../gauges/ArcGauge";
 
 const needleMeta: Meta<typeof NeedleGauge> = {
-  title: 'Gauges/NeedleGauge',
+  title: "Gauges/NeedleGauge",
   component: NeedleGauge,
   decorators: [
     (Story) => (
@@ -13,7 +13,7 @@ const needleMeta: Meta<typeof NeedleGauge> = {
     ),
   ],
   argTypes: {
-    value: { control: { type: 'range', min: 0, max: 100, step: 1 } },
+    value: { control: { type: "range", min: 0, max: 100, step: 1 } },
   },
 };
 
@@ -23,20 +23,20 @@ type NeedleStory = StoryObj<typeof NeedleGauge>;
 export const NeedleDefault: NeedleStory = {
   args: {
     value: 65,
-    label: 'CPU Usage',
-    unit: '%',
+    label: "CPU Usage",
+    unit: "%",
   },
 };
 
 export const NeedleWithAlertZones: NeedleStory = {
   args: {
     value: 82,
-    label: 'Temperature',
-    unit: '°C',
+    label: "Temperature",
+    unit: "°C",
     alertZones: [
-      { min: 0, max: 60, color: '#22c55e' },
-      { min: 60, max: 80, color: '#f59e0b' },
-      { min: 80, max: 100, color: '#ef4444' },
+      { min: 0, max: 60, color: "#22c55e" },
+      { min: 60, max: 80, color: "#f59e0b" },
+      { min: 80, max: 100, color: "#ef4444" },
     ],
   },
 };
@@ -51,8 +51,8 @@ export const ArcDefault: StoryObj<typeof ArcGauge> = {
   ),
   args: {
     value: 72,
-    label: 'Memory',
-    unit: '%',
+    label: "Memory",
+    unit: "%",
   },
 };
 
@@ -64,14 +64,14 @@ export const ArcWithAlertZones: StoryObj<typeof ArcGauge> = {
   ),
   args: {
     value: 45,
-    label: 'Pressure',
-    unit: 'PSI',
+    label: "Pressure",
+    unit: "PSI",
     min: 0,
     max: 60,
     alertZones: [
-      { min: 0, max: 20, color: '#ef4444' },
-      { min: 20, max: 40, color: '#f59e0b' },
-      { min: 40, max: 60, color: '#22c55e' },
+      { min: 0, max: 20, color: "#ef4444" },
+      { min: 20, max: 40, color: "#f59e0b" },
+      { min: 40, max: 60, color: "#22c55e" },
     ],
   },
 };

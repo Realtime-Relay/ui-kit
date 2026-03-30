@@ -1,5 +1,5 @@
-import type { Preview } from '@storybook/react';
-import '../src/theme/variables.css';
+import type { Preview } from "@storybook/react";
+import "../src/theme/variables.css";
 
 const preview: Preview = {
   parameters: {
@@ -9,7 +9,7 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
-    layout: 'centered',
+    layout: "centered",
   },
 };
 

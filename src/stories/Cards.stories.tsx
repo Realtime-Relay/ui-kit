@@ -1,10 +1,10 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import { StatCard } from '../cards/StatCard';
-import { StatCardWithGraph } from '../cards/StatCardWithGraph';
-import { generateSparklineData } from './mockData';
+import type { Meta, StoryObj } from "@storybook/react";
+import { StatCard } from "../cards/StatCard";
+import { StatCardWithGraph } from "../cards/StatCardWithGraph";
+import { generateSparklineData } from "./mockData";
 
 const meta: Meta<typeof StatCard> = {
-  title: 'Cards/StatCard',
+  title: "Cards/StatCard",
   component: StatCard,
   decorators: [
     (Story) => (
@@ -21,7 +21,7 @@ type Story = StoryObj<typeof StatCard>;
 export const Default: Story = {
   args: {
     value: 23.5,
-    label: 'Temperature',
+    label: "Temperature",
     formatValue: (v: number) => `${v.toFixed(1)}°C`,
   },
 };
@@ -29,22 +29,22 @@ export const Default: Story = {
 export const WithBorder: Story = {
   args: {
     value: 1024,
-    label: 'Pressure',
+    label: "Pressure",
     formatValue: (v: number) => `${v} hPa`,
-    borderColor: '#e0e0e0',
+    borderColor: "#e0e0e0",
     borderThickness: 1,
-    borderRadius: 'rounded',
+    borderRadius: "rounded",
   },
 };
 
 export const WithTimestamp: Story = {
   args: {
     value: 67,
-    label: 'Humidity',
+    label: "Humidity",
     formatValue: (v: number) => `${v}%`,
     lastUpdated: Date.now(),
     showLastUpdated: true,
-    borderColor: '#e0e0e0',
+    borderColor: "#e0e0e0",
     borderThickness: 1,
   },
 };
@@ -52,11 +52,11 @@ export const WithTimestamp: Story = {
 export const CustomStyled: Story = {
   args: {
     value: 42,
-    label: 'RPM',
+    label: "RPM",
     styles: {
-      value: { fontSize: 40, fontWeight: 800, color: '#3b82f6' },
-      label: { fontSize: 14, color: '#64748b' },
-      background: { color: '#f1f5f9' },
+      value: { fontSize: 40, fontWeight: 800, color: "#3b82f6" },
+      label: { fontSize: 14, color: "#64748b" },
+      background: { color: "#f1f5f9" },
     },
     borderRadius: 12,
   },
@@ -70,13 +70,13 @@ export const WithSparkline: StoryObj<typeof StatCardWithGraph> = {
   ),
   args: {
     value: 23.5,
-    label: 'Temperature',
+    label: "Temperature",
     formatValue: (v: number) => `${v.toFixed(1)}°C`,
     sparklineData: generateSparklineData(30),
-    sparklineMetric: 'value',
-    graphLineColor: '#3b82f6',
-    borderColor: '#e0e0e0',
+    sparklineMetric: "value",
+    graphLineColor: "#3b82f6",
+    borderColor: "#e0e0e0",
     borderThickness: 1,
-    borderRadius: 'rounded',
+    borderRadius: "rounded",
   },
 };

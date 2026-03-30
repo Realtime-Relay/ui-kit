@@ -1,13 +1,42 @@
-import { useState, useCallback, useMemo, useRef, useEffect, useId, memo } from 'react';
-import { scaleTime, scaleLinear, line, area, extent, bisector, pointer, timeFormat } from 'd3';
-import type { DataPoint, MetricConfig, AlertZone, Annotation, FontStyle, BackgroundStyle, DownsampleConfig } from '../utils/types';
-import { resolveMetrics } from '../utils/metrics';
-import { useResolvedStyles } from '../utils/useResolvedStyles';
-import { getMetricColor } from '../theme/palette';
-import { applyDownsample } from '../utils/downsample';
-import { defaultFormatValue } from '../utils/formatters';
-import { createScaler, CHART_REFERENCE } from '../utils/scaler';
-import { isValidTimestamp, validateAlertZones, type ComponentError } from '../utils/validation';
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+  useId,
+  memo,
+} from "react";
+import {
+  scaleTime,
+  scaleLinear,
+  line,
+  area,
+  extent,
+  bisector,
+  pointer,
+  timeFormat,
+} from "d3";
+import type {
+  DataPoint,
+  MetricConfig,
+  AlertZone,
+  Annotation,
+  FontStyle,
+  BackgroundStyle,
+  DownsampleConfig,
+} from "../utils/types";
+import { resolveMetrics } from "../utils/metrics";
+import { useResolvedStyles } from "../utils/useResolvedStyles";
+import { getMetricColor } from "../theme/palette";
+import { applyDownsample } from "../utils/downsample";
+import { defaultFormatValue } from "../utils/formatters";
+import { createScaler, CHART_REFERENCE } from "../utils/scaler";
+import {
+  isValidTimestamp,
+  validateAlertZones,
+  type ComponentError,
+} from "../utils/validation";
 // useZoneTransition not used — TimeSeries has custom per-series zone tracking
 import {
   ResponsiveContainer,
@@ -20,7 +49,7 @@ import {
   XAxis,
   YAxis,
   ChartSkeleton,
-} from './shared';
+} from "./shared";
 
 export interface TimeSeriesZoneTransition {
   device: string;
@@ -46,11 +75,11 @@ export interface TimeSeriesProps {
   renderTooltip?: (point: DataPoint) => React.ReactNode;
   onHover?: (
     point: { metric: string; value: number; timestamp: number } | null,
-    event: MouseEvent
+    event: MouseEvent,
   ) => void;
   onRelease?: (
     point: { metric: string; value: number; timestamp: number } | null,
-    event: MouseEvent
+    event: MouseEvent,
   ) => void;
   showGrid?: boolean;
   gridColor?: string;
@@ -60,7 +89,7 @@ export interface TimeSeriesProps {
   areaColor?: string;
   alertZones?: AlertZone[];
   showLegend?: boolean;
-  legendPosition?: 'top' | 'bottom' | 'left' | 'right';
+  legendPosition?: "top" | "bottom" | "left" | "right";
   showLoading?: boolean;
   downsample?: DownsampleConfig;
   /** Time window in milliseconds. Only data within [now - timeWindow, now] is shown. Enables autoscroll. */
@@ -84,13 +113,20 @@ export interface TimeSeriesProps {
   /** Enable annotation mode. Click = point annotation, drag = range annotation. Disables zoom while active. */
   annotationMode?: boolean;
   /** Called during annotation interactions. `id` auto-increments and is shared between start_drag and end_drag of the same annotation. */
-  onAnnotate?: (id: number, timestamp: number, type: 'click' | 'start_drag' | 'end_drag') => void;
+  onAnnotate?: (
+    id: number,
+    timestamp: number,
+    type: "click" | "start_drag" | "end_drag",
+  ) => void;
   /** Preview color for annotation-in-progress. Default: '#f59e0b' (amber). */
   annotationColor?: string;
   /** Color for the zoom brush selection rectangle (stroke). Default: '#3b82f6'. */
   zoomColor?: string;
   /** Called when the mouse enters/leaves an annotation. Return a ReactNode to show a custom tooltip. */
-  onAnnotationHover?: (hover: boolean, annotation: Annotation) => React.ReactNode | void;
+  onAnnotationHover?: (
+    hover: boolean,
+    annotation: Annotation,
+  ) => React.ReactNode | void;
   /** Called when any device×metric's latest value crosses an alert zone boundary. Includes device and metric info. */
   onZoneChange?: (transition: TimeSeriesZoneTransition) => void;
   /** Custom formatter for timestamps in the default tooltip. Receives epoch ms, returns display string. */
@@ -114,8 +150,10 @@ interface Series {
 
 /* ── Annotation type guard ─────────────────────────────────── */
 
-function isRangeAnnotation(a: Annotation): a is import('../utils/types').RangeAnnotation {
-  return 'end' in a;
+function isRangeAnnotation(
+  a: Annotation,
+): a is import("../utils/types").RangeAnnotation {
+  return "end" in a;
 }
 
 /* ── Component ─────────────────────────────────────────────── */
@@ -136,7 +174,7 @@ export const TimeSeries = memo(function TimeSeries({
   areaColor,
   alertZones = [],
   showLegend = true,
-  legendPosition = 'bottom',
+  legendPosition = "bottom",
   showLoading = true,
   downsample,
   timeWindow,
@@ -150,17 +188,17 @@ export const TimeSeries = memo(function TimeSeries({
   formatLegend,
   annotationMode = false,
   onAnnotate,
-  annotationColor = '#f59e0b',
-  zoomColor = '#3b82f6',
+  annotationColor = "#f59e0b",
+  zoomColor = "#3b82f6",
   onAnnotationHover,
   onZoneChange,
   formatTimestamp: formatTimestampProp,
   onError,
 }: TimeSeriesProps) {
-  validateAlertZones(alertZones, 'TimeSeries');
+  validateAlertZones(alertZones, "TimeSeries");
 
   const resolvedStyles = useResolvedStyles(styles);
-  const clipId = useId().replace(/:/g, '_');
+  const clipId = useId().replace(/:/g, "_");
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltipData, setTooltipData] = useState<TooltipData | null>(null);
   const [visibleSeries, setVisibleSeries] = useState<Set<string> | null>(null);
@@ -175,7 +213,9 @@ export const TimeSeries = memo(function TimeSeries({
   const windowMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
   const windowUpRef = useRef<((e: MouseEvent) => void) | null>(null);
   const rafRef = useRef<number | null>(null);
-  const pendingMouseEvent = useRef<React.MouseEvent<SVGRectElement> | null>(null);
+  const pendingMouseEvent = useRef<React.MouseEvent<SVGRectElement> | null>(
+    null,
+  );
 
   // Annotation ID counter — auto-increments, shared between start_drag/end_drag of same annotation
   const annotationIdRef = useRef(0);
@@ -183,14 +223,19 @@ export const TimeSeries = memo(function TimeSeries({
   const annotationDragFired = useRef(false);
 
   // Annotation hover tooltip
-  const [annotationTooltip, setAnnotationTooltip] = useState<{ content: React.ReactNode; x: number; y: number } | null>(null);
+  const [annotationTooltip, setAnnotationTooltip] = useState<{
+    content: React.ReactNode;
+    x: number;
+    y: number;
+  } | null>(null);
   const hoveredAnnotationIdx = useRef<number | null>(null);
 
   // Autoscroll: derive `now` from the latest data timestamp during render.
   // No rAF loop needed — data flush already triggers re-renders at ~60fps.
   // This eliminates double-render jitter (rAF + data flush competing).
   const hasFixedRange = startProp != null && endProp != null;
-  const isAutoScroll = !hasFixedRange && timeWindow != null && (autoScroll !== false) && !zoomDomain;
+  const isAutoScroll =
+    !hasFixedRange && timeWindow != null && autoScroll !== false && !zoomDomain;
 
   const latestDataTs = useMemo(() => {
     let max = 0;
@@ -206,9 +251,10 @@ export const TimeSeries = memo(function TimeSeries({
 
   // When autoscrolling, use wall clock clamped to latest data + 1s buffer.
   // When not autoscrolling, fall back to static `now` state.
-  const effectiveNow = isAutoScroll && latestDataTs > 0
-    ? Math.min(Date.now(), latestDataTs + 1000)
-    : now;
+  const effectiveNow =
+    isAutoScroll && latestDataTs > 0
+      ? Math.min(Date.now(), latestDataTs + 1000)
+      : now;
 
   const deviceNames = useMemo(() => Object.keys(data), [data]);
   const deviceCount = deviceNames.length;
@@ -219,7 +265,12 @@ export const TimeSeries = memo(function TimeSeries({
     for (const name of deviceNames) {
       result[name] = (data[name] ?? []).filter((point) => {
         if (!isValidTimestamp(point.timestamp)) {
-          onError?.({ type: 'invalid_timestamp', message: `TimeSeries [${name}]: invalid timestamp, received ${point.timestamp}`, rawValue: point.timestamp, component: 'TimeSeries' });
+          onError?.({
+            type: "invalid_timestamp",
+            message: `TimeSeries [${name}]: invalid timestamp, received ${point.timestamp}`,
+            rawValue: point.timestamp,
+            component: "TimeSeries",
+          });
           return false;
         }
         return true;
@@ -230,7 +281,11 @@ export const TimeSeries = memo(function TimeSeries({
 
   // Resolve metrics from first non-empty device (or use prop)
   const resolvedMetrics = useMemo(() => {
-    if (metricsProp) return metricsProp.map((m, i) => ({ ...m, color: m.color ?? getMetricColor(i) }));
+    if (metricsProp)
+      return metricsProp.map((m, i) => ({
+        ...m,
+        color: m.color ?? getMetricColor(i),
+      }));
     for (const name of deviceNames) {
       const points = validDataMap[name];
       if (points && points.length > 0) {
@@ -258,7 +313,10 @@ export const TimeSeries = memo(function TimeSeries({
           device,
           metricKey: m.key,
           label,
-          color: deviceCount === 1 ? (m.color ?? getMetricColor(colorIdx)) : getMetricColor(colorIdx),
+          color:
+            deviceCount === 1
+              ? (m.color ?? getMetricColor(colorIdx))
+              : getMetricColor(colorIdx),
           lineThickness: m.lineThickness,
           pointSize: m.pointSize,
           visible: true,
@@ -286,7 +344,9 @@ export const TimeSeries = memo(function TimeSeries({
   // Cache stores the last downsampled snapshot + the timestamp of the last
   // point in that snapshot, so new realtime points can be appended without
   // re-bucketing the entire dataset.
-  const downsampleCache = useRef<Record<string, { data: DataPoint[]; srcLen: number; lastTs: number }>>({});
+  const downsampleCache = useRef<
+    Record<string, { data: DataPoint[]; srcLen: number; lastTs: number }>
+  >({});
 
   const downsampledMap = useMemo(() => {
     const result: Record<string, DataPoint[]> = {};
@@ -294,15 +354,30 @@ export const TimeSeries = memo(function TimeSeries({
 
     for (const device of deviceNames) {
       const deviceData = validDataMap[device] ?? [];
-      if (deviceData.length === 0) { result[device] = []; continue; }
-      if (!refMetric || downsample === false) { result[device] = deviceData; continue; }
+      if (deviceData.length === 0) {
+        result[device] = [];
+        continue;
+      }
+      if (!refMetric || downsample === false) {
+        result[device] = deviceData;
+        continue;
+      }
 
       const cached = downsampleCache.current[device];
       // Re-downsample when data grows by >5% or shrinks (zoom/trim) or no cache yet
-      if (!cached || deviceData.length > cached.srcLen * 1.05 || deviceData.length < cached.srcLen) {
+      if (
+        !cached ||
+        deviceData.length > cached.srcLen * 1.05 ||
+        deviceData.length < cached.srcLen
+      ) {
         const sampled = applyDownsample(deviceData, downsample, refMetric);
-        const lastTs = sampled.length > 0 ? sampled[sampled.length - 1].timestamp : 0;
-        downsampleCache.current[device] = { data: sampled, srcLen: deviceData.length, lastTs };
+        const lastTs =
+          sampled.length > 0 ? sampled[sampled.length - 1].timestamp : 0;
+        downsampleCache.current[device] = {
+          data: sampled,
+          srcLen: deviceData.length,
+          lastTs,
+        };
         result[device] = sampled;
       } else {
         // Append any new points that arrived after the cached snapshot (realtime stream)
@@ -324,7 +399,8 @@ export const TimeSeries = memo(function TimeSeries({
   const prevZonesRef = useRef<Map<string, AlertZone | null>>(new Map());
 
   useEffect(() => {
-    if (!onZoneChange || alertZones.length === 0 || allSeries.length === 0) return;
+    if (!onZoneChange || alertZones.length === 0 || allSeries.length === 0)
+      return;
 
     for (const ser of allSeries) {
       const points = validDataMap[ser.device] ?? [];
@@ -333,7 +409,8 @@ export const TimeSeries = memo(function TimeSeries({
       const v = Number(last[ser.metricKey]);
       if (!Number.isFinite(v)) continue;
 
-      const currentZone = alertZones.find((z) => v >= z.min && v <= z.max) ?? null;
+      const currentZone =
+        alertZones.find((z) => v >= z.min && v <= z.max) ?? null;
       const key = ser.id; // "device:metric"
       const prev = prevZonesRef.current.get(key);
 
@@ -346,30 +423,43 @@ export const TimeSeries = memo(function TimeSeries({
       // Check if zone changed (compare by min/max/color, not reference)
       const changed =
         (prev === null) !== (currentZone === null) ||
-        (prev !== null && currentZone !== null && (
-          prev.min !== currentZone.min || prev.max !== currentZone.max || prev.color !== currentZone.color
-        ));
+        (prev !== null &&
+          currentZone !== null &&
+          (prev.min !== currentZone.min ||
+            prev.max !== currentZone.max ||
+            prev.color !== currentZone.color));
 
       if (changed) {
-        onZoneChange({ device: ser.device, metric: ser.metricKey, previousZone: prev, currentZone, value: v });
+        onZoneChange({
+          device: ser.device,
+          metric: ser.metricKey,
+          previousZone: prev,
+          currentZone,
+          value: v,
+        });
         prevZonesRef.current.set(key, currentZone);
       }
     }
   }, [validDataMap, allSeries, alertZones, onZoneChange]);
 
-  const handleSelectSeries = useCallback((key: string) => {
-    setVisibleSeries((prev) => {
-      const current = prev ?? new Set(allSeries.map((s) => s.id));
-      // Solo mode: if this is the only visible, show all; otherwise show only this one
-      if (current.size === 1 && current.has(key)) {
-        return new Set(allSeries.map((s) => s.id));
-      }
-      return new Set([key]);
-    });
-  }, [allSeries]);
+  const handleSelectSeries = useCallback(
+    (key: string) => {
+      setVisibleSeries((prev) => {
+        const current = prev ?? new Set(allSeries.map((s) => s.id));
+        // Solo mode: if this is the only visible, show all; otherwise show only this one
+        if (current.size === 1 && current.has(key)) {
+          return new Set(allSeries.map((s) => s.id));
+        }
+        return new Set([key]);
+      });
+    },
+    [allSeries],
+  );
 
   // Check if all data is empty
-  const allEmpty = deviceNames.length === 0 || deviceNames.every((n) => (validDataMap[n]?.length ?? 0) === 0);
+  const allEmpty =
+    deviceNames.length === 0 ||
+    deviceNames.every((n) => (validDataMap[n]?.length ?? 0) === 0);
 
   // Loading state
   if (showLoading && allEmpty) {
@@ -388,19 +478,32 @@ export const TimeSeries = memo(function TimeSeries({
     visible: seriesVisibility.has(s.id),
   }));
 
-  const isLegendVertical = legendPosition === 'left' || legendPosition === 'right';
+  const isLegendVertical =
+    legendPosition === "left" || legendPosition === "right";
 
   return (
     <ResponsiveContainer
-      style={{ backgroundColor: styles?.background?.color ?? 'var(--relay-bg-color, transparent)' }}
+      style={{
+        backgroundColor:
+          styles?.background?.color ?? "var(--relay-bg-color, transparent)",
+      }}
     >
       {({ width, height }) => {
-        const rawS = createScaler(width, height, CHART_REFERENCE, 'width');
+        const rawS = createScaler(width, height, CHART_REFERENCE, "width");
         const s = (px: number) => Math.min(rawS(px), px); // never upscale beyond 1x
         const legendSpace = showLegend ? (isLegendVertical ? 140 : s(30)) : 0;
         const MARGIN = { top: s(20), right: s(20), bottom: s(30), left: s(50) };
-        const chartWidth = width - MARGIN.left - MARGIN.right - (isLegendVertical ? legendSpace : 0);
-        const chartHeight = height - MARGIN.top - MARGIN.bottom - (showLegend && !isLegendVertical ? s(30) : 0) - (title ? s(24) : 0);
+        const chartWidth =
+          width -
+          MARGIN.left -
+          MARGIN.right -
+          (isLegendVertical ? legendSpace : 0);
+        const chartHeight =
+          height -
+          MARGIN.top -
+          MARGIN.bottom -
+          (showLegend && !isLegendVertical ? s(30) : 0) -
+          (title ? s(24) : 0);
 
         if (chartWidth <= 0 || chartHeight <= 0) return null;
 
@@ -413,13 +516,27 @@ export const TimeSeries = memo(function TimeSeries({
           if (zoomDomain) {
             const z0 = zoomDomain[0].getTime();
             const z1 = zoomDomain[1].getTime();
-            filtered = deviceData.filter((d) => d.timestamp >= z0 && d.timestamp <= z1);
+            filtered = deviceData.filter(
+              (d) => d.timestamp >= z0 && d.timestamp <= z1,
+            );
           } else if (hasFixedRange) {
-            const s0 = typeof startProp === 'number' ? startProp : new Date(startProp!).getTime();
-            const e0 = typeof endProp === 'number' ? endProp : new Date(endProp!).getTime();
-            filtered = deviceData.filter((d) => d.timestamp >= s0 && d.timestamp <= e0);
+            const s0 =
+              typeof startProp === "number"
+                ? startProp
+                : new Date(startProp!).getTime();
+            const e0 =
+              typeof endProp === "number"
+                ? endProp
+                : new Date(endProp!).getTime();
+            filtered = deviceData.filter(
+              (d) => d.timestamp >= s0 && d.timestamp <= e0,
+            );
           } else if (timeWindow) {
-            filtered = deviceData.filter((d) => d.timestamp >= effectiveNow - timeWindow && d.timestamp <= effectiveNow);
+            filtered = deviceData.filter(
+              (d) =>
+                d.timestamp >= effectiveNow - timeWindow &&
+                d.timestamp <= effectiveNow,
+            );
           } else {
             filtered = deviceData;
           }
@@ -448,9 +565,11 @@ export const TimeSeries = memo(function TimeSeries({
           xDomainMin = new Date(tMin ?? effectiveNow);
           xDomainMax = new Date(tMax ?? effectiveNow);
         }
-        const xScale = scaleTime().domain([xDomainMin, xDomainMax]).range([0, chartWidth]);
+        const xScale = scaleTime()
+          .domain([xDomainMin, xDomainMax])
+          .range([0, chartWidth]);
 
-        const tickFormat = timeFormat('%H:%M:%S');
+        const tickFormat = timeFormat("%H:%M:%S");
 
         // Y domain from visible data
         let yMin = Infinity;
@@ -470,9 +589,13 @@ export const TimeSeries = memo(function TimeSeries({
           if (zone.min < yMin) yMin = zone.min;
           if (zone.max > yMax) yMax = zone.max;
         }
-        if (!isFinite(yMin)) { yMin = 0; yMax = 1; }
+        if (!isFinite(yMin)) {
+          yMin = 0;
+          yMax = 1;
+        }
         const yPadding = (yMax - yMin) * 0.05 || 1;
-        const yDomainMin = yMin >= 0 ? Math.max(0, yMin - yPadding) : yMin - yPadding;
+        const yDomainMin =
+          yMin >= 0 ? Math.max(0, yMin - yPadding) : yMin - yPadding;
         const yScale = scaleLinear()
           .domain([yDomainMin, yMax + yPadding])
           .range([chartHeight, 0])
@@ -485,12 +608,21 @@ export const TimeSeries = memo(function TimeSeries({
         const clampTs = (px: number) => {
           const clamped = Math.max(0, Math.min(px, chartWidth));
           const t = xScale.invert(clamped).getTime();
-          return Math.max(xDomainMin.getTime(), Math.min(t, xDomainMax.getTime()));
+          return Math.max(
+            xDomainMin.getTime(),
+            Math.min(t, xDomainMax.getTime()),
+          );
         };
 
         const cleanupWindowListeners = () => {
-          if (windowMoveRef.current) { window.removeEventListener('mousemove', windowMoveRef.current); windowMoveRef.current = null; }
-          if (windowUpRef.current) { window.removeEventListener('mouseup', windowUpRef.current); windowUpRef.current = null; }
+          if (windowMoveRef.current) {
+            window.removeEventListener("mousemove", windowMoveRef.current);
+            windowMoveRef.current = null;
+          }
+          if (windowUpRef.current) {
+            window.removeEventListener("mouseup", windowUpRef.current);
+            windowUpRef.current = null;
+          }
         };
 
         const handleMouseDown = (event: React.MouseEvent<SVGRectElement>) => {
@@ -537,8 +669,8 @@ export const TimeSeries = memo(function TimeSeries({
             }
             cleanupWindowListeners();
           };
-          window.addEventListener('mousemove', windowMoveRef.current);
-          window.addEventListener('mouseup', windowUpRef.current);
+          window.addEventListener("mousemove", windowMoveRef.current);
+          window.addEventListener("mouseup", windowUpRef.current);
         };
 
         const handleMouseMove = (event: React.MouseEvent<SVGRectElement>) => {
@@ -549,9 +681,18 @@ export const TimeSeries = memo(function TimeSeries({
             setBrushEnd(clamped);
 
             // Fire start_drag once drag exceeds 10px threshold
-            if (annotationMode && !annotationDragFired.current && brushStart != null && Math.abs(clamped - brushStart) > 10) {
+            if (
+              annotationMode &&
+              !annotationDragFired.current &&
+              brushStart != null &&
+              Math.abs(clamped - brushStart) > 10
+            ) {
               annotationDragFired.current = true;
-              onAnnotate?.(currentAnnotationIdRef.current, clampTs(brushStart), 'start_drag');
+              onAnnotate?.(
+                currentAnnotationIdRef.current,
+                clampTs(brushStart),
+                "start_drag",
+              );
             }
 
             return; // Don't update tooltip while dragging
@@ -570,9 +711,13 @@ export const TimeSeries = memo(function TimeSeries({
 
         const processMouseMove = (event: React.MouseEvent<SVGRectElement>) => {
           // Tooltip logic
-          const [mx, my] = pointer(event.nativeEvent, overlayRef.current ?? event.currentTarget);
+          const [mx, my] = pointer(
+            event.nativeEvent,
+            overlayRef.current ?? event.currentTarget,
+          );
           const x0 = xScale.invert(mx).getTime();
-          const refData = firstDeviceData.length > 0 ? firstDeviceData : flatVisibleData;
+          const refData =
+            firstDeviceData.length > 0 ? firstDeviceData : flatVisibleData;
           // Data is already sorted by timestamp from the hook — skip copy+sort
           const idx = bisect(refData, x0, 1);
           const d0 = refData[idx - 1];
@@ -580,7 +725,13 @@ export const TimeSeries = memo(function TimeSeries({
 
           if (!d0 && !d1) return;
 
-          const closest = !d1 ? d0 : !d0 ? d1 : x0 - d0.timestamp > d1.timestamp - x0 ? d1 : d0;
+          const closest = !d1
+            ? d0
+            : !d0
+              ? d1
+              : x0 - d0.timestamp > d1.timestamp - x0
+                ? d1
+                : d0;
           const ts = closest.timestamp;
 
           // Gather values from all active series at this timestamp
@@ -591,7 +742,13 @@ export const TimeSeries = memo(function TimeSeries({
             const devIdx = bisect(devSorted, ts, 1);
             const dd0 = devSorted[devIdx - 1];
             const dd1 = devSorted[devIdx];
-            const devClosest = !dd1 ? dd0 : !dd0 ? dd1 : ts - dd0.timestamp > dd1.timestamp - ts ? dd1 : dd0;
+            const devClosest = !dd1
+              ? dd0
+              : !dd0
+                ? dd1
+                : ts - dd0.timestamp > dd1.timestamp - ts
+                  ? dd1
+                  : dd0;
             return {
               key: ser.id,
               label: ser.label,
@@ -608,7 +765,10 @@ export const TimeSeries = memo(function TimeSeries({
           let nearLine = false;
           for (const mv of metricValues) {
             const lineY = yScale(mv.value);
-            if (Math.abs(my - lineY) <= SNAP_PX) { nearLine = true; break; }
+            if (Math.abs(my - lineY) <= SNAP_PX) {
+              nearLine = true;
+              break;
+            }
           }
 
           // Check if cursor is inside an annotation region
@@ -618,10 +778,16 @@ export const TimeSeries = memo(function TimeSeries({
               if (isRangeAnnotation(ann)) {
                 const ax0 = xScale(new Date(ann.start));
                 const ax1 = xScale(new Date(ann.end));
-                if (mx >= ax0 && mx <= ax1) { insideAnnotation = true; break; }
+                if (mx >= ax0 && mx <= ax1) {
+                  insideAnnotation = true;
+                  break;
+                }
               } else {
                 const ax = xScale(new Date(ann.timestamp));
-                if (Math.abs(mx - ax) <= 4) { insideAnnotation = true; break; }
+                if (Math.abs(mx - ax) <= 4) {
+                  insideAnnotation = true;
+                  break;
+                }
               }
             }
           }
@@ -644,7 +810,11 @@ export const TimeSeries = memo(function TimeSeries({
 
           if (!suppressDataTooltip && onHover && metricValues.length > 0) {
             onHover(
-              { metric: metricValues[0].key, value: metricValues[0].value, timestamp: ts },
+              {
+                metric: metricValues[0].key,
+                value: metricValues[0].value,
+                timestamp: ts,
+              },
               event.nativeEvent,
             );
           }
@@ -658,17 +828,29 @@ export const TimeSeries = memo(function TimeSeries({
               if (isRangeAnnotation(ann)) {
                 const ax0 = xScale(new Date(ann.start));
                 const ax1 = xScale(new Date(ann.end));
-                if (mx >= ax0 - HIT_PX && mx <= ax1 + HIT_PX) { foundIdx = ai; break; }
+                if (mx >= ax0 - HIT_PX && mx <= ax1 + HIT_PX) {
+                  foundIdx = ai;
+                  break;
+                }
               } else {
                 const ax = xScale(new Date(ann.timestamp));
-                if (Math.abs(mx - ax) <= HIT_PX) { foundIdx = ai; break; }
+                if (Math.abs(mx - ax) <= HIT_PX) {
+                  foundIdx = ai;
+                  break;
+                }
               }
             }
 
-            if (foundIdx !== null && foundIdx !== hoveredAnnotationIdx.current) {
+            if (
+              foundIdx !== null &&
+              foundIdx !== hoveredAnnotationIdx.current
+            ) {
               // Left previous annotation
               if (hoveredAnnotationIdx.current !== null) {
-                onAnnotationHover(false, annotations[hoveredAnnotationIdx.current]);
+                onAnnotationHover(
+                  false,
+                  annotations[hoveredAnnotationIdx.current],
+                );
               }
               // Entered new annotation
               hoveredAnnotationIdx.current = foundIdx;
@@ -683,10 +865,18 @@ export const TimeSeries = memo(function TimeSeries({
             } else if (foundIdx !== null && annotationTooltip) {
               // Still on same annotation — update tooltip position
               const [sx, sy] = pointer(event.nativeEvent, svgRef.current!);
-              setAnnotationTooltip((prev) => prev ? { ...prev, x: sx, y: sy } : null);
-            } else if (foundIdx === null && hoveredAnnotationIdx.current !== null) {
+              setAnnotationTooltip((prev) =>
+                prev ? { ...prev, x: sx, y: sy } : null,
+              );
+            } else if (
+              foundIdx === null &&
+              hoveredAnnotationIdx.current !== null
+            ) {
               // Left annotation
-              onAnnotationHover(false, annotations[hoveredAnnotationIdx.current]);
+              onAnnotationHover(
+                false,
+                annotations[hoveredAnnotationIdx.current],
+              );
               hoveredAnnotationIdx.current = null;
               setAnnotationTooltip(null);
             }
@@ -702,10 +892,18 @@ export const TimeSeries = memo(function TimeSeries({
               const x1 = Math.max(brushStart, brushEnd);
               if (x1 - x0 > 10) {
                 // Range annotation — fire end_drag with the release timestamp
-                onAnnotate?.(currentAnnotationIdRef.current, clampTs(brushEnd), 'end_drag');
+                onAnnotate?.(
+                  currentAnnotationIdRef.current,
+                  clampTs(brushEnd),
+                  "end_drag",
+                );
               } else {
                 // Point annotation — fire click with the clamped timestamp
-                onAnnotate?.(currentAnnotationIdRef.current, clampTs(brushStart), 'click');
+                onAnnotate?.(
+                  currentAnnotationIdRef.current,
+                  clampTs(brushStart),
+                  "click",
+                );
               }
               setBrushStart(null);
               setBrushEnd(null);
@@ -748,7 +946,13 @@ export const TimeSeries = memo(function TimeSeries({
           if (onRelease) {
             const last = tooltipData?.metrics[0];
             onRelease(
-              last ? { metric: last.key, value: last.value, timestamp: tooltipData!.point.timestamp } : null,
+              last
+                ? {
+                    metric: last.key,
+                    value: last.value,
+                    timestamp: tooltipData!.point.timestamp,
+                  }
+                : null,
               event.nativeEvent,
             );
           }
@@ -759,13 +963,29 @@ export const TimeSeries = memo(function TimeSeries({
           const deviceData = downsampledMap[ser.device] ?? [];
           let filtered: typeof deviceData;
           if (zoomDomain) {
-            filtered = deviceData.filter((d) => d.timestamp >= zoomDomain[0].getTime() && d.timestamp <= zoomDomain[1].getTime());
+            filtered = deviceData.filter(
+              (d) =>
+                d.timestamp >= zoomDomain[0].getTime() &&
+                d.timestamp <= zoomDomain[1].getTime(),
+            );
           } else if (hasFixedRange) {
-            const s0 = typeof startProp === 'number' ? startProp : new Date(startProp!).getTime();
-            const e0 = typeof endProp === 'number' ? endProp : new Date(endProp!).getTime();
-            filtered = deviceData.filter((d) => d.timestamp >= s0 && d.timestamp <= e0);
+            const s0 =
+              typeof startProp === "number"
+                ? startProp
+                : new Date(startProp!).getTime();
+            const e0 =
+              typeof endProp === "number"
+                ? endProp
+                : new Date(endProp!).getTime();
+            filtered = deviceData.filter(
+              (d) => d.timestamp >= s0 && d.timestamp <= e0,
+            );
           } else if (timeWindow) {
-            filtered = deviceData.filter((d) => d.timestamp >= effectiveNow - timeWindow && d.timestamp <= effectiveNow);
+            filtered = deviceData.filter(
+              (d) =>
+                d.timestamp >= effectiveNow - timeWindow &&
+                d.timestamp <= effectiveNow,
+            );
           } else {
             filtered = deviceData;
           }
@@ -773,7 +993,13 @@ export const TimeSeries = memo(function TimeSeries({
         });
 
         const legendEl = showLegend ? (
-          <Legend items={legendItems} onSelect={handleSelectSeries} position={legendPosition} style={resolvedStyles?.legend} s={s} />
+          <Legend
+            items={legendItems}
+            onSelect={handleSelectSeries}
+            position={legendPosition}
+            style={resolvedStyles?.legend}
+            s={s}
+          />
         ) : null;
 
         const isHorizontalLegend = !isLegendVertical;
@@ -781,17 +1007,19 @@ export const TimeSeries = memo(function TimeSeries({
         return (
           <div
             style={{
-              display: 'flex',
-              flexDirection: isLegendVertical ? 'row' : 'column',
-              width: '100%',
-              height: '100%',
+              display: "flex",
+              flexDirection: isLegendVertical ? "row" : "column",
+              width: "100%",
+              height: "100%",
             }}
           >
             {title && (
               <div
                 style={{
-                  textAlign: 'center',
-                  fontFamily: resolvedStyles?.title?.fontFamily ?? 'var(--relay-font-family)',
+                  textAlign: "center",
+                  fontFamily:
+                    resolvedStyles?.title?.fontFamily ??
+                    "var(--relay-font-family)",
                   fontSize: resolvedStyles?.title?.fontSize ?? s(14),
                   fontWeight: resolvedStyles?.title?.fontWeight ?? 600,
                   color: resolvedStyles?.title?.color,
@@ -802,10 +1030,19 @@ export const TimeSeries = memo(function TimeSeries({
                 {title}
               </div>
             )}
-            {isHorizontalLegend && (legendPosition === 'top') && legendEl}
-            {isLegendVertical && legendPosition === 'left' && legendEl}
-            <div style={{ flex: 1, position: 'relative', order: 0 }}>
-              <svg ref={svgRef} width={isLegendVertical ? chartWidth + MARGIN.left + MARGIN.right : width} height={chartHeight + MARGIN.top + MARGIN.bottom} style={{ userSelect: 'none' }}>
+            {isHorizontalLegend && legendPosition === "top" && legendEl}
+            {isLegendVertical && legendPosition === "left" && legendEl}
+            <div style={{ flex: 1, position: "relative", order: 0 }}>
+              <svg
+                ref={svgRef}
+                width={
+                  isLegendVertical
+                    ? chartWidth + MARGIN.left + MARGIN.right
+                    : width
+                }
+                height={chartHeight + MARGIN.top + MARGIN.bottom}
+                style={{ userSelect: "none" }}
+              >
                 <defs>
                   <clipPath id={clipId}>
                     <rect x={0} y={0} width={chartWidth} height={chartHeight} />
@@ -830,17 +1067,34 @@ export const TimeSeries = memo(function TimeSeries({
                   />
 
                   {/* Annotation visuals (rendered below overlay) */}
-                  <g clipPath={`url(#${clipId})`} style={{ pointerEvents: 'none' }}>
+                  <g
+                    clipPath={`url(#${clipId})`}
+                    style={{ pointerEvents: "none" }}
+                  >
                     {annotations.map((ann, i) => {
                       if (isRangeAnnotation(ann)) {
                         const x0 = xScale(new Date(ann.start));
                         const x1 = xScale(new Date(ann.end));
-                        const color = ann.color ?? '#6b7280';
+                        const color = ann.color ?? "#6b7280";
                         return (
                           <g key={`ann-${i}`}>
-                            <rect x={x0} y={0} width={x1 - x0} height={chartHeight} fill={color} opacity={0.1} />
+                            <rect
+                              x={x0}
+                              y={0}
+                              width={x1 - x0}
+                              height={chartHeight}
+                              fill={color}
+                              opacity={0.1}
+                            />
                             {ann.label && (
-                              <text x={(x0 + x1) / 2} y={s(12)} textAnchor="middle" fontSize={s(10)} fill={color} fontFamily="var(--relay-font-family)">
+                              <text
+                                x={(x0 + x1) / 2}
+                                y={s(12)}
+                                textAnchor="middle"
+                                fontSize={s(10)}
+                                fill={color}
+                                fontFamily="var(--relay-font-family)"
+                              >
                                 {ann.label}
                               </text>
                             )}
@@ -848,12 +1102,26 @@ export const TimeSeries = memo(function TimeSeries({
                         );
                       } else {
                         const x = xScale(new Date(ann.timestamp));
-                        const color = ann.color ?? '#6b7280';
+                        const color = ann.color ?? "#6b7280";
                         return (
                           <g key={`ann-${i}`}>
-                            <line x1={x} x2={x} y1={0} y2={chartHeight} stroke={color} strokeWidth={1} strokeDasharray="4,3" />
+                            <line
+                              x1={x}
+                              x2={x}
+                              y1={0}
+                              y2={chartHeight}
+                              stroke={color}
+                              strokeWidth={1}
+                              strokeDasharray="4,3"
+                            />
                             {ann.label && (
-                              <text x={x + s(4)} y={s(10)} fontSize={s(10)} fill={color} fontFamily="var(--relay-font-family)">
+                              <text
+                                x={x + s(4)}
+                                y={s(10)}
+                                fontSize={s(10)}
+                                fill={color}
+                                fontFamily="var(--relay-font-family)"
+                              >
                                 {ann.label}
                               </text>
                             )}
@@ -867,17 +1135,26 @@ export const TimeSeries = memo(function TimeSeries({
                   <g clipPath={`url(#${clipId})`}>
                     {activeSeries.map((ser, serIdx) => {
                       const color = ser.color;
-                      const thickness = ser.lineThickness ?? lineThicknessProp ?? s(2);
+                      const thickness =
+                        ser.lineThickness ?? lineThicknessProp ?? s(2);
                       const ptSize = ser.pointSize ?? pointSizeProp;
                       const visData = seriesVisibleData[serIdx] ?? [];
 
                       const metricLineGen = line<DataPoint>()
-                        .defined((d) => d[ser.metricKey] !== undefined && d[ser.metricKey] !== null)
+                        .defined(
+                          (d) =>
+                            d[ser.metricKey] !== undefined &&
+                            d[ser.metricKey] !== null,
+                        )
                         .x((d) => xScale(new Date(d.timestamp)))
                         .y((d) => yScale(Number(d[ser.metricKey]) || 0));
 
                       const metricAreaGen = area<DataPoint>()
-                        .defined((d) => d[ser.metricKey] !== undefined && d[ser.metricKey] !== null)
+                        .defined(
+                          (d) =>
+                            d[ser.metricKey] !== undefined &&
+                            d[ser.metricKey] !== null,
+                        )
                         .x((d) => xScale(new Date(d.timestamp)))
                         .y0(chartHeight)
                         .y1((d) => yScale(Number(d[ser.metricKey]) || 0));
@@ -886,13 +1163,13 @@ export const TimeSeries = memo(function TimeSeries({
                         <g key={ser.id}>
                           {showArea && (
                             <path
-                              d={metricAreaGen(visData) ?? ''}
+                              d={metricAreaGen(visData) ?? ""}
                               fill={areaColor ?? color}
                               opacity={0.15}
                             />
                           )}
                           <path
-                            d={metricLineGen(visData) ?? ''}
+                            d={metricLineGen(visData) ?? ""}
                             fill="none"
                             stroke={color}
                             strokeWidth={thickness}
@@ -900,65 +1177,79 @@ export const TimeSeries = memo(function TimeSeries({
                             strokeLinecap="round"
                           />
                           {/* Points */}
-                          {ptSize != null && ptSize > 0 && visData.map((d, di) => {
-                            const v = d[ser.metricKey];
-                            if (v === undefined || v === null) return null;
-                            return (
-                              <circle
-                                key={di}
-                                cx={xScale(new Date(d.timestamp))}
-                                cy={yScale(Number(v) || 0)}
-                                r={ptSize}
-                                fill={color}
-                              />
-                            );
-                          })}
+                          {ptSize != null &&
+                            ptSize > 0 &&
+                            visData.map((d, di) => {
+                              const v = d[ser.metricKey];
+                              if (v === undefined || v === null) return null;
+                              return (
+                                <circle
+                                  key={di}
+                                  cx={xScale(new Date(d.timestamp))}
+                                  cy={yScale(Number(v) || 0)}
+                                  r={ptSize}
+                                  fill={color}
+                                />
+                              );
+                            })}
                         </g>
                       );
                     })}
                   </g>
 
                   {/* Brush / annotation preview overlay */}
-                  {brushStart != null && brushEnd != null && (() => {
-                    const bx0 = Math.min(brushStart, brushEnd);
-                    const bx1 = Math.max(brushStart, brushEnd);
-                    const isSmall = bx1 - bx0 <= 10;
+                  {brushStart != null &&
+                    brushEnd != null &&
+                    (() => {
+                      const bx0 = Math.min(brushStart, brushEnd);
+                      const bx1 = Math.max(brushStart, brushEnd);
+                      const isSmall = bx1 - bx0 <= 10;
 
-                    if (annotationMode) {
-                      // Annotation preview
-                      if (isSmall) {
-                        // Point annotation preview — vertical dashed line
+                      if (annotationMode) {
+                        // Annotation preview
+                        if (isSmall) {
+                          // Point annotation preview — vertical dashed line
+                          return (
+                            <line
+                              x1={brushStart}
+                              x2={brushStart}
+                              y1={0}
+                              y2={chartHeight}
+                              stroke={annotationColor}
+                              strokeWidth={2}
+                              strokeDasharray="4,3"
+                            />
+                          );
+                        }
+                        // Range annotation preview — shaded band
                         return (
-                          <line
-                            x1={brushStart} x2={brushStart}
-                            y1={0} y2={chartHeight}
+                          <rect
+                            x={bx0}
+                            y={0}
+                            width={bx1 - bx0}
+                            height={chartHeight}
+                            fill={annotationColor}
+                            opacity={0.2}
                             stroke={annotationColor}
-                            strokeWidth={2}
-                            strokeDasharray="4,3"
+                            strokeWidth={1}
                           />
                         );
                       }
-                      // Range annotation preview — shaded band
+
+                      // Zoom brush
                       return (
                         <rect
-                          x={bx0} y={0}
-                          width={bx1 - bx0} height={chartHeight}
-                          fill={annotationColor} opacity={0.2}
-                          stroke={annotationColor} strokeWidth={1}
+                          x={bx0}
+                          y={0}
+                          width={bx1 - bx0}
+                          height={chartHeight}
+                          fill={zoomColor}
+                          opacity={0.15}
+                          stroke={zoomColor}
+                          strokeWidth={1}
                         />
                       );
-                    }
-
-                    // Zoom brush
-                    return (
-                      <rect
-                        x={bx0} y={0}
-                        width={bx1 - bx0} height={chartHeight}
-                        fill={zoomColor} opacity={0.15}
-                        stroke={zoomColor} strokeWidth={1}
-                      />
-                    );
-                  })()}
+                    })()}
 
                   {/* Hover crosshair */}
                   {tooltipData && (
@@ -973,7 +1264,13 @@ export const TimeSeries = memo(function TimeSeries({
                     />
                   )}
 
-                  <XAxis xScale={xScale} height={chartHeight} style={resolvedStyles?.axis} tickFormat={tickFormat} s={s} />
+                  <XAxis
+                    xScale={xScale}
+                    height={chartHeight}
+                    style={resolvedStyles?.axis}
+                    tickFormat={tickFormat}
+                    s={s}
+                  />
                   <YAxis yScale={yScale} style={resolvedStyles?.axis} s={s} />
 
                   {/* Invisible overlay for mouse events */}
@@ -982,7 +1279,13 @@ export const TimeSeries = memo(function TimeSeries({
                     width={chartWidth}
                     height={chartHeight}
                     fill="transparent"
-                    style={{ cursor: annotationMode ? 'copy' : zoomEnabled ? 'crosshair' : undefined }}
+                    style={{
+                      cursor: annotationMode
+                        ? "copy"
+                        : zoomEnabled
+                          ? "crosshair"
+                          : undefined,
+                    }}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
@@ -998,18 +1301,18 @@ export const TimeSeries = memo(function TimeSeries({
                 <button
                   onClick={() => setZoomDomain(null)}
                   style={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: s(4),
                     right: s(4),
-                    background: 'var(--relay-tooltip-bg, #1a1a1a)',
-                    color: 'var(--relay-tooltip-text, #ffffff)',
-                    border: 'none',
+                    background: "var(--relay-tooltip-bg, #1a1a1a)",
+                    color: "var(--relay-tooltip-text, #ffffff)",
+                    border: "none",
                     borderRadius: s(4),
                     padding: `${s(4)}px ${s(8)}px`,
                     fontSize: s(11),
-                    cursor: 'pointer',
+                    cursor: "pointer",
                     zIndex: 10,
-                    fontFamily: 'var(--relay-font-family)',
+                    fontFamily: "var(--relay-font-family)",
                   }}
                   type="button"
                 >
@@ -1029,47 +1332,52 @@ export const TimeSeries = memo(function TimeSeries({
               />
 
               {/* Annotation hover tooltip — hidden when data-point tooltip is active (near line) */}
-              {annotationTooltip && !tooltipData && (() => {
-                // Clamp to viewport: measure position and flip if needed
-                const tooltipW = 200; // estimated width
-                const tooltipH = 80;  // estimated height
-                let left = annotationTooltip.x;
-                let top = annotationTooltip.y - 8;
+              {annotationTooltip &&
+                !tooltipData &&
+                (() => {
+                  // Clamp to viewport: measure position and flip if needed
+                  const tooltipW = 200; // estimated width
+                  const tooltipH = 80; // estimated height
+                  let left = annotationTooltip.x;
+                  let top = annotationTooltip.y - 8;
 
-                // Horizontal: prefer centered above cursor, flip if overflows
-                if (left + tooltipW / 2 > width) {
-                  left = width - tooltipW / 2 - 4;
-                } else if (left - tooltipW / 2 < 0) {
-                  left = tooltipW / 2 + 4;
-                }
+                  // Horizontal: prefer centered above cursor, flip if overflows
+                  if (left + tooltipW / 2 > width) {
+                    left = width - tooltipW / 2 - 4;
+                  } else if (left - tooltipW / 2 < 0) {
+                    left = tooltipW / 2 + 4;
+                  }
 
-                // Vertical: prefer above cursor, flip below if no room
-                if (top - tooltipH < 0) {
-                  top = annotationTooltip.y + 16; // below cursor
-                }
+                  // Vertical: prefer above cursor, flip below if no room
+                  if (top - tooltipH < 0) {
+                    top = annotationTooltip.y + 16; // below cursor
+                  }
 
-                // Clamp final top
-                top = Math.max(4, Math.min(top, height - 4));
+                  // Clamp final top
+                  top = Math.max(4, Math.min(top, height - 4));
 
-                return (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left,
-                      top,
-                      transform: top === annotationTooltip.y + 16 ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-                      pointerEvents: 'none',
-                      zIndex: 5,
-                      maxWidth: width - 8,
-                    }}
-                  >
-                    {annotationTooltip.content}
-                  </div>
-                );
-              })()}
+                  return (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left,
+                        top,
+                        transform:
+                          top === annotationTooltip.y + 16
+                            ? "translate(-50%, 0)"
+                            : "translate(-50%, -100%)",
+                        pointerEvents: "none",
+                        zIndex: 5,
+                        maxWidth: width - 8,
+                      }}
+                    >
+                      {annotationTooltip.content}
+                    </div>
+                  );
+                })()}
             </div>
-            {isLegendVertical && legendPosition === 'right' && legendEl}
-            {isHorizontalLegend && legendPosition === 'bottom' && legendEl}
+            {isLegendVertical && legendPosition === "right" && legendEl}
+            {isHorizontalLegend && legendPosition === "bottom" && legendEl}
           </div>
         );
       }}

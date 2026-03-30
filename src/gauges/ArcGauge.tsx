@@ -1,12 +1,28 @@
-import { useRef } from 'react';
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import { defaultFormatValue, defaultFormatTimestamp } from '../utils/formatters';
-import { resolveFont } from '../utils/useResolvedStyles';
-import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
-import { createScaler, GAUGE_REFERENCE } from '../utils/scaler';
-import { validateRange, validateAlertZones, validateValue, type ComponentError } from '../utils/validation';
-import { ResponsiveContainer } from '../charts/shared/ResponsiveContainer';
-import { CardSkeleton } from '../charts/shared/Skeleton';
+import { useRef } from "react";
+import type {
+  AlertZone,
+  FontStyle,
+  BackgroundStyle,
+  RelayDataPoint,
+} from "../utils/types";
+import {
+  defaultFormatValue,
+  defaultFormatTimestamp,
+} from "../utils/formatters";
+import { resolveFont } from "../utils/useResolvedStyles";
+import {
+  useZoneTransition,
+  type ZoneTransition,
+} from "../utils/useZoneTransition";
+import { createScaler, GAUGE_REFERENCE } from "../utils/scaler";
+import {
+  validateRange,
+  validateAlertZones,
+  validateValue,
+  type ComponentError,
+} from "../utils/validation";
+import { ResponsiveContainer } from "../charts/shared/ResponsiveContainer";
+import { CardSkeleton } from "../charts/shared/Skeleton";
 import {
   buildArcPath,
   arcLength,
@@ -17,7 +33,7 @@ import {
   getValuePosition,
   getZoneBoundaries,
   clampArcAngle,
-} from './shared';
+} from "./shared";
 
 export interface ArcGaugeStyles {
   value?: FontStyle;
@@ -33,7 +49,8 @@ export interface ArcGaugeStyles {
 }
 
 export interface ArcGaugeProps {
-  value: number;
+  /** Accept full hook result from useRelayLatest. */
+  data: RelayDataPoint;
   min?: number;
   max?: number;
   formatValue?: (value: number) => string;
@@ -42,7 +59,6 @@ export interface ArcGaugeProps {
   unit?: string;
   styles?: ArcGaugeStyles;
   showZoneValues?: boolean;
-  lastUpdated?: Date | number;
   showLastUpdated?: boolean;
   /** Custom formatter for the timestamp. Receives Date | number, must return string. Default: dd MMM yyyy HH:MM:SS.sss +TZ */
   formatTimestamp?: (ts: Date | number) => string;
@@ -52,7 +68,7 @@ export interface ArcGaugeProps {
 }
 
 export function ArcGauge({
-  value,
+  data,
   min = 0,
   max = 100,
   formatValue = defaultFormatValue,
@@ -61,18 +77,20 @@ export function ArcGauge({
   unit,
   styles,
   showZoneValues = false,
-  lastUpdated,
   showLastUpdated = false,
   formatTimestamp = defaultFormatTimestamp,
   showLoading = true,
   onZoneChange,
   onError,
 }: ArcGaugeProps) {
-  validateRange(min, max, 'ArcGauge');
-  validateAlertZones(alertZones, 'ArcGauge');
+  const resolvedValue = data.value as number;
+  const resolvedLastUpdated = data.timestamp;
+
+  validateRange(min, max, "ArcGauge");
+  validateAlertZones(alertZones, "ArcGauge");
 
   const lastValidRef = useRef<number | null>(null);
-  const validatedValue = validateValue(value, 'ArcGauge', onError);
+  const validatedValue = validateValue(resolvedValue, "ArcGauge", onError);
   if (validatedValue !== null) {
     lastValidRef.current = validatedValue;
   }
@@ -103,31 +121,30 @@ export function ArcGauge({
     <ResponsiveContainer
       explicitWidth={styles?.width}
       explicitHeight={styles?.height}
-      style={{ backgroundColor: styles?.background?.color ?? 'transparent' }}
+      style={{ backgroundColor: styles?.background?.color ?? "transparent" }}
     >
       {({ width, height }) => {
         const s = createScaler(width, height, GAUGE_REFERENCE);
 
         const minMaxFontSize = s(minMaxStyle?.fontSize ?? 10);
-        const zoneValueExtra = showZoneValues && alertZones.length > 0 ? minMaxFontSize + s(4) : 0;
+        const zoneValueExtra =
+          showZoneValues && alertZones.length > 0 ? minMaxFontSize + s(4) : 0;
         const padding = s(20) + zoneValueExtra;
         const arcThickness = s(styles?.arcThickness ?? 20);
         const valueFontSize = s(valueStyle?.fontSize ?? 26);
         const labelFontSize = s(labelStyleR?.fontSize ?? 12);
         const unitFontSize = s(unitStyle?.fontSize ?? 13);
 
-
         const sweepRad = (sweepDegrees * Math.PI) / 180;
         const halfSweep = sweepRad / 2;
-        const arcBottomFraction = sweepDegrees <= 180
-          ? 0
-          : Math.sin(halfSweep - Math.PI / 2);
+        const arcBottomFraction =
+          sweepDegrees <= 180 ? 0 : Math.sin(halfSweep - Math.PI / 2);
 
         const textSpace = sweepDegrees <= 180 ? s(50) : s(20);
         const totalVertical = padding * 2 + textSpace;
         const maxRadius = Math.min(
           (width - padding * 2) / 2,
-          (height - totalVertical) / (1 + arcBottomFraction)
+          (height - totalVertical) / (1 + arcBottomFraction),
         );
         const radius = Math.max(s(40), maxRadius);
         const cx = width / 2;
@@ -138,18 +155,25 @@ export function ArcGauge({
         const zoneDashes = buildZoneDashes(alertZones, min, max, totalLen);
         const clampedValue = Math.min(max, Math.max(min, renderValue!));
         const valueDash = buildValueDash(clampedValue, min, max, totalLen);
-        const valueColor = alertZones.length > 0
-          ? getZoneColor(clampedValue, alertZones, '#3b82f6')
-          : '#3b82f6';
+        const valueColor =
+          alertZones.length > 0
+            ? getZoneColor(clampedValue, alertZones, "#3b82f6")
+            : "#3b82f6";
 
-        const endpoints = getArcEndpoints(cx, cy, radius + arcThickness / 2 + s(12), sweepDegrees);
+        const endpoints = getArcEndpoints(
+          cx,
+          cy,
+          radius + arcThickness / 2 + s(12),
+          sweepDegrees,
+        );
 
         // Value + label stack centered inside the arc
         const totalTextHeight = label
           ? valueFontSize + labelFontSize + s(4)
           : valueFontSize;
         const valueY = cy - totalTextHeight / 2 + valueFontSize / 2;
-        const labelYPos = valueY + valueFontSize * 0.5 + labelFontSize * 0.5 + s(4);
+        const labelYPos =
+          valueY + valueFontSize * 0.5 + labelFontSize * 0.5 + s(4);
 
         return (
           <svg
@@ -160,7 +184,7 @@ export function ArcGauge({
             aria-valuenow={renderValue!}
             aria-valuemin={min}
             aria-valuemax={max}
-            aria-label={label ?? 'Gauge'}
+            aria-label={label ?? "Gauge"}
           >
             <path
               d={arcPathD}
@@ -199,7 +223,7 @@ export function ArcGauge({
               textAnchor="middle"
               dominantBaseline="central"
               fontSize={valueFontSize}
-              fontFamily={valueStyle?.fontFamily ?? 'var(--relay-font-family)'}
+              fontFamily={valueStyle?.fontFamily ?? "var(--relay-font-family)"}
               fontWeight={valueStyle?.fontWeight ?? 700}
               fill={valueStyle?.color ?? valueColor}
             >
@@ -207,11 +231,14 @@ export function ArcGauge({
               {unit && (
                 <tspan
                   fontSize={unitFontSize}
-                  fontFamily={unitStyle?.fontFamily ?? 'var(--relay-font-family)'}
+                  fontFamily={
+                    unitStyle?.fontFamily ?? "var(--relay-font-family)"
+                  }
                   fontWeight={unitStyle?.fontWeight ?? 400}
-                  fill={unitStyle?.color ?? '#6b7280'}
+                  fill={unitStyle?.color ?? "#6b7280"}
                 >
-                  {' '}{unit}
+                  {" "}
+                  {unit}
                 </tspan>
               )}
             </text>
@@ -223,9 +250,11 @@ export function ArcGauge({
                 textAnchor="middle"
                 dominantBaseline="central"
                 fontSize={labelFontSize}
-                fontFamily={labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+                fontFamily={
+                  labelStyleR?.fontFamily ?? "var(--relay-font-family)"
+                }
                 fontWeight={labelStyleR?.fontWeight ?? 400}
-                fill={labelStyleR?.color ?? '#6b7280'}
+                fill={labelStyleR?.color ?? "#6b7280"}
               >
                 {label}
               </text>
@@ -237,9 +266,13 @@ export function ArcGauge({
               y={endpoints.startY}
               textAnchor="middle"
               fontSize={s(minMaxStyle?.fontSize ?? 10)}
-              fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+              fontFamily={
+                minMaxStyle?.fontFamily ??
+                labelStyleR?.fontFamily ??
+                "var(--relay-font-family)"
+              }
               fontWeight={minMaxStyle?.fontWeight ?? 400}
-              fill={minMaxStyle?.color ?? '#9ca3af'}
+              fill={minMaxStyle?.color ?? "#9ca3af"}
             >
               {formatValue(min)}
             </text>
@@ -249,50 +282,79 @@ export function ArcGauge({
               y={endpoints.endY}
               textAnchor="middle"
               fontSize={s(minMaxStyle?.fontSize ?? 10)}
-              fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+              fontFamily={
+                minMaxStyle?.fontFamily ??
+                labelStyleR?.fontFamily ??
+                "var(--relay-font-family)"
+              }
               fontWeight={minMaxStyle?.fontWeight ?? 400}
-              fill={minMaxStyle?.color ?? '#9ca3af'}
+              fill={minMaxStyle?.color ?? "#9ca3af"}
             >
               {formatValue(max)}
             </text>
 
             {/* Zone boundary values */}
-            {showZoneValues && alertZones.length > 0 && getZoneBoundaries(alertZones, min, max).map((bv) => {
-              const pos = getValuePosition(cx, cy, radius + arcThickness / 2 + s(12), bv, min, max, sweepDegrees);
-              return (
-                <text
-                  key={`zv-${bv}`}
-                  x={pos.x}
-                  y={pos.y}
-                  textAnchor="middle"
-                  fontSize={s(minMaxStyle?.fontSize ?? 10)}
-                  fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
-                  fontWeight={minMaxStyle?.fontWeight ?? 400}
-                  fill={minMaxStyle?.color ?? '#9ca3af'}
-                >
-                  {formatValue(bv)}
-                </text>
-              );
-            })}
+            {showZoneValues &&
+              alertZones.length > 0 &&
+              getZoneBoundaries(alertZones, min, max).map((bv) => {
+                const pos = getValuePosition(
+                  cx,
+                  cy,
+                  radius + arcThickness / 2 + s(12),
+                  bv,
+                  min,
+                  max,
+                  sweepDegrees,
+                );
+                return (
+                  <text
+                    key={`zv-${bv}`}
+                    x={pos.x}
+                    y={pos.y}
+                    textAnchor="middle"
+                    fontSize={s(minMaxStyle?.fontSize ?? 10)}
+                    fontFamily={
+                      minMaxStyle?.fontFamily ??
+                      labelStyleR?.fontFamily ??
+                      "var(--relay-font-family)"
+                    }
+                    fontWeight={minMaxStyle?.fontWeight ?? 400}
+                    fill={minMaxStyle?.color ?? "#9ca3af"}
+                  >
+                    {formatValue(bv)}
+                  </text>
+                );
+              })}
 
-            {showLastUpdated && lastUpdated != null && (() => {
-              const tsText = formatTimestamp(lastUpdated);
-              const tsFontSize = s(lastUpdatedStyle?.fontSize ?? 9);
-              const tsY = (label ? labelYPos + labelFontSize * 0.5 : valueY + valueFontSize * 0.5) + tsFontSize + s(4);
-              return (
-                <text
-                  x={cx}
-                  y={tsY}
-                  textAnchor="middle"
-                  fontSize={tsFontSize}
-                  fontFamily={lastUpdatedStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
-                  fontWeight={lastUpdatedStyle?.fontWeight ?? 400}
-                  fill={lastUpdatedStyle?.color ?? '#9ca3af'}
-                >
-                  {tsText}
-                </text>
-              );
-            })()}
+            {showLastUpdated &&
+              resolvedLastUpdated != null &&
+              (() => {
+                const tsText = formatTimestamp(resolvedLastUpdated);
+                const tsFontSize = s(lastUpdatedStyle?.fontSize ?? 9);
+                const tsY =
+                  (label
+                    ? labelYPos + labelFontSize * 0.5
+                    : valueY + valueFontSize * 0.5) +
+                  tsFontSize +
+                  s(4);
+                return (
+                  <text
+                    x={cx}
+                    y={tsY}
+                    textAnchor="middle"
+                    fontSize={tsFontSize}
+                    fontFamily={
+                      lastUpdatedStyle?.fontFamily ??
+                      labelStyleR?.fontFamily ??
+                      "var(--relay-font-family)"
+                    }
+                    fontWeight={lastUpdatedStyle?.fontWeight ?? 400}
+                    fill={lastUpdatedStyle?.color ?? "#9ca3af"}
+                  >
+                    {tsText}
+                  </text>
+                );
+              })()}
           </svg>
         );
       }}

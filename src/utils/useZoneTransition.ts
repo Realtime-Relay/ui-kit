@@ -1,5 +1,5 @@
-import { useRef, useEffect } from 'react';
-import type { AlertZone } from './types';
+import { useRef, useEffect } from "react";
+import type { AlertZone } from "./types";
 
 export interface ZoneTransition {
   previousZone: AlertZone | null;
@@ -21,7 +21,7 @@ function findZone(value: number, zones: AlertZone[]): AlertZone | null {
 export function useZoneTransition(
   value: number | undefined | null,
   zones: AlertZone[],
-  onZoneChange?: (transition: ZoneTransition) => void
+  onZoneChange?: (transition: ZoneTransition) => void,
 ) {
   const prevZoneRef = useRef<AlertZone | null | undefined>(undefined);
 
@@ -41,11 +41,11 @@ export function useZoneTransition(
     // Zone changed if one is null and other isn't, or if they differ
     const changed =
       (prev === null) !== (currentZone === null) ||
-      (prev !== null && currentZone !== null && (
-        prev.min !== currentZone.min ||
-        prev.max !== currentZone.max ||
-        prev.color !== currentZone.color
-      ));
+      (prev !== null &&
+        currentZone !== null &&
+        (prev.min !== currentZone.min ||
+          prev.max !== currentZone.max ||
+          prev.color !== currentZone.color));
 
     if (changed) {
       onZoneChange({ previousZone: prev, currentZone, value });

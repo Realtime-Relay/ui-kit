@@ -1,10 +1,21 @@
-import { useRef, useState, useEffect } from 'react';
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import { defaultFormatValue, defaultFormatTimestamp } from '../utils/formatters';
-import { resolveFont } from '../utils/useResolvedStyles';
-import { createScaler } from '../utils/scaler';
-import { validateAlertZones, type ComponentError } from '../utils/validation';
-import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
+import { useRef, useState, useEffect } from "react";
+import type {
+  AlertZone,
+  FontStyle,
+  BackgroundStyle,
+  RelayDataPoint,
+} from "../utils/types";
+import {
+  defaultFormatValue,
+  defaultFormatTimestamp,
+} from "../utils/formatters";
+import { resolveFont } from "../utils/useResolvedStyles";
+import { createScaler } from "../utils/scaler";
+import { validateAlertZones, type ComponentError } from "../utils/validation";
+import {
+  useZoneTransition,
+  type ZoneTransition,
+} from "../utils/useZoneTransition";
 
 const STAT_REFERENCE = 300;
 
@@ -18,17 +29,17 @@ export interface StatCardStyles {
 }
 
 export interface StatCardProps {
-  value: any;
+  /** Accept full hook result from useRelayLatest. */
+  data: RelayDataPoint;
   numericValue?: number;
   label?: string;
   formatValue?: (value: any) => string;
   alertZones?: AlertZone[];
   onZoneChange?: (transition: ZoneTransition) => void;
-  borderRadius?: number | 'rounded' | 'sharp';
+  borderRadius?: number | "rounded" | "sharp";
   borderColor?: string;
   borderThickness?: number;
   styles?: StatCardStyles;
-  lastUpdated?: Date | number;
   showLastUpdated?: boolean;
   formatTimestamp?: (ts: Date | number) => string;
   lastUpdatedMargin?: number;
@@ -36,17 +47,17 @@ export interface StatCardProps {
   onError?: (error: ComponentError) => void;
 }
 
-function resolveBorderRadius(value?: number | 'rounded' | 'sharp'): string {
-  if (value === 'sharp') return '0';
-  if (value === 'rounded') return 'var(--relay-border-radius, 8px)';
-  if (typeof value === 'number') return `${value}px`;
-  return 'var(--relay-border-radius, 8px)';
+function resolveBorderRadius(value?: number | "rounded" | "sharp"): string {
+  if (value === "sharp") return "0";
+  if (value === "rounded") return "var(--relay-border-radius, 8px)";
+  if (typeof value === "number") return `${value}px`;
+  return "var(--relay-border-radius, 8px)";
 }
 
 function defaultDisplayFormat(value: any): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'number') return defaultFormatValue(value);
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return defaultFormatValue(value);
+  if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
 
@@ -59,11 +70,11 @@ function getZoneColor(value: number, zones: AlertZone[]): string | null {
 
 function toCss(val: string | number | undefined): string | undefined {
   if (val === undefined) return undefined;
-  return typeof val === 'number' ? `${val}px` : val;
+  return typeof val === "number" ? `${val}px` : val;
 }
 
 export function StatCard({
-  value,
+  data,
   numericValue,
   label,
   formatValue,
@@ -73,41 +84,54 @@ export function StatCard({
   borderColor,
   borderThickness,
   styles,
-  lastUpdated,
   showLastUpdated = false,
   formatTimestamp = defaultFormatTimestamp,
   lastUpdatedMargin = 8,
   showLoading = true,
   onError,
 }: StatCardProps) {
+  const resolvedValue = data.value;
+  const resolvedLastUpdated = data.timestamp;
+
   // Validate alert zones (hard error)
   if (alertZones.length > 0) {
-    validateAlertZones(alertZones, 'StatCard');
+    validateAlertZones(alertZones, "StatCard");
   }
 
   const containerRef = useRef<HTMLDivElement>(null);
   const lastValidRef = useRef<any>(null);
-  const [dims, setDims] = useState({ width: STAT_REFERENCE, height: STAT_REFERENCE });
+  const [dims, setDims] = useState({
+    width: STAT_REFERENCE,
+    height: STAT_REFERENCE,
+  });
 
   // Track last valid value
-  if (value !== null && value !== undefined) {
-    lastValidRef.current = value;
+  if (resolvedValue !== null && resolvedValue !== undefined) {
+    lastValidRef.current = resolvedValue;
   } else {
     // null/undefined — fire onError
     onError?.({
-      type: 'invalid_value',
-      message: `StatCard: value is ${value === null ? 'null' : 'undefined'}.`,
-      rawValue: value,
-      component: 'StatCard',
+      type: "invalid_value",
+      message: `StatCard: value is ${resolvedValue === null ? "null" : "undefined"}.`,
+      rawValue: resolvedValue,
+      component: "StatCard",
     });
   }
 
-  const renderValue = value !== null && value !== undefined ? value : lastValidRef.current;
+  const renderValue =
+    resolvedValue !== null && resolvedValue !== undefined
+      ? resolvedValue
+      : lastValidRef.current;
 
   // Resolve the numeric value for zone evaluation
-  const zoneNumeric = numericValue ?? (typeof renderValue === 'number' ? renderValue : null);
+  const zoneNumeric =
+    numericValue ?? (typeof renderValue === "number" ? renderValue : null);
 
-  useZoneTransition(zoneNumeric ?? 0, alertZones, zoneNumeric !== null ? onZoneChange : undefined);
+  useZoneTransition(
+    zoneNumeric ?? 0,
+    alertZones,
+    zoneNumeric !== null ? onZoneChange : undefined,
+  );
 
   // ResizeObserver for proportional scaling
   useEffect(() => {
@@ -118,14 +142,18 @@ export function StatCard({
       if (entry) {
         const w = Math.round(entry.contentRect.width);
         const h = Math.round(entry.contentRect.height);
-        setDims((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+        setDims((prev) =>
+          prev.width === w && prev.height === h
+            ? prev
+            : { width: w, height: h },
+        );
       }
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  const s = createScaler(dims.width, dims.height, STAT_REFERENCE, 'width');
+  const s = createScaler(dims.width, dims.height, STAT_REFERENCE, "width");
 
   // Resolve font styles
   const valueStyleR = resolveFont(styles?.value);
@@ -133,18 +161,22 @@ export function StatCard({
   const lastUpdatedStyleR = resolveFont(styles?.lastUpdated);
 
   // Zone color
-  const zoneColor = zoneNumeric !== null && alertZones.length > 0
-    ? getZoneColor(zoneNumeric, alertZones)
-    : null;
+  const zoneColor =
+    zoneNumeric !== null && alertZones.length > 0
+      ? getZoneColor(zoneNumeric, alertZones)
+      : null;
 
   // Format display value
-  const displayValue = renderValue !== null && renderValue !== undefined
-    ? (formatValue ? formatValue(renderValue) : defaultDisplayFormat(renderValue))
-    : '';
+  const displayValue =
+    renderValue !== null && renderValue !== undefined
+      ? formatValue
+        ? formatValue(renderValue)
+        : defaultDisplayFormat(renderValue)
+      : "";
 
   // Container sizing
-  const widthCss = toCss(styles?.width) ?? '100%';
-  const heightCss = toCss(styles?.height) ?? '100%';
+  const widthCss = toCss(styles?.width) ?? "100%";
+  const heightCss = toCss(styles?.height) ?? "100%";
 
   // Loading skeleton
   if (showLoading && renderValue === null) {
@@ -159,8 +191,8 @@ export function StatCard({
             var(--relay-skeleton-base, #e5e7eb) 25%,
             var(--relay-skeleton-shine, #f3f4f6) 50%,
             var(--relay-skeleton-base, #e5e7eb) 75%)`,
-          backgroundSize: '200% 100%',
-          animation: 'relay-skeleton-shimmer 1.5s ease-in-out infinite',
+          backgroundSize: "200% 100%",
+          animation: "relay-skeleton-shimmer 1.5s ease-in-out infinite",
         }}
       />
     );
@@ -172,26 +204,27 @@ export function StatCard({
       style={{
         width: widthCss,
         height: heightCss,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: styles?.background?.color ?? 'transparent',
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: styles?.background?.color ?? "transparent",
         borderRadius: resolveBorderRadius(borderRadius),
-        border: borderColor || borderThickness
-          ? `${borderThickness ?? 1}px solid ${borderColor ?? 'var(--relay-border-color, #e0e0e0)'}`
-          : undefined,
+        border:
+          borderColor || borderThickness
+            ? `${borderThickness ?? 1}px solid ${borderColor ?? "var(--relay-border-color, #e0e0e0)"}`
+            : undefined,
         padding: s(16),
-        boxSizing: 'border-box',
+        boxSizing: "border-box",
       }}
     >
       {label && (
         <div
           style={{
-            fontFamily: labelStyleR?.fontFamily ?? 'var(--relay-font-family)',
+            fontFamily: labelStyleR?.fontFamily ?? "var(--relay-font-family)",
             fontSize: labelStyleR?.fontSize ?? s(13),
             fontWeight: labelStyleR?.fontWeight ?? 400,
-            color: labelStyleR?.color ?? zoneColor ?? '#6b7280',
+            color: labelStyleR?.color ?? zoneColor ?? "#6b7280",
             marginBottom: s(4),
           }}
         >
@@ -200,30 +233,31 @@ export function StatCard({
       )}
       <div
         style={{
-          fontFamily: valueStyleR?.fontFamily ?? 'var(--relay-font-family)',
+          fontFamily: valueStyleR?.fontFamily ?? "var(--relay-font-family)",
           fontSize: valueStyleR?.fontSize ?? s(32),
           fontWeight: valueStyleR?.fontWeight ?? 700,
-          color: valueStyleR?.color ?? zoneColor ?? 'currentColor',
+          color: valueStyleR?.color ?? zoneColor ?? "currentColor",
           lineHeight: 1.2,
-          textAlign: 'center',
-          wordBreak: 'break-word',
-          overflowWrap: 'anywhere',
-          maxWidth: '100%',
+          textAlign: "center",
+          wordBreak: "break-word",
+          overflowWrap: "anywhere",
+          maxWidth: "100%",
         }}
       >
         {displayValue}
       </div>
-      {showLastUpdated && lastUpdated != null && (
+      {showLastUpdated && resolvedLastUpdated != null && (
         <div
           style={{
-            fontFamily: lastUpdatedStyleR?.fontFamily ?? 'var(--relay-font-family)',
+            fontFamily:
+              lastUpdatedStyleR?.fontFamily ?? "var(--relay-font-family)",
             fontSize: lastUpdatedStyleR?.fontSize ?? s(11),
             fontWeight: lastUpdatedStyleR?.fontWeight ?? 400,
-            color: lastUpdatedStyleR?.color ?? zoneColor ?? '#9ca3af',
+            color: lastUpdatedStyleR?.color ?? zoneColor ?? "#9ca3af",
             marginTop: s(lastUpdatedMargin),
           }}
         >
-          {formatTimestamp(lastUpdated)}
+          {formatTimestamp(resolvedLastUpdated)}
         </div>
       )}
     </div>

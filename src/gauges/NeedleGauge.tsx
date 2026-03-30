@@ -1,12 +1,28 @@
-import { useRef } from 'react';
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import { defaultFormatValue, defaultFormatTimestamp } from '../utils/formatters';
-import { resolveFont } from '../utils/useResolvedStyles';
-import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
-import { createScaler, GAUGE_REFERENCE } from '../utils/scaler';
-import { validateRange, validateAlertZones, validateValue, type ComponentError } from '../utils/validation';
-import { ResponsiveContainer } from '../charts/shared/ResponsiveContainer';
-import { CardSkeleton } from '../charts/shared/Skeleton';
+import { useRef } from "react";
+import type {
+  AlertZone,
+  FontStyle,
+  BackgroundStyle,
+  RelayDataPoint,
+} from "../utils/types";
+import {
+  defaultFormatValue,
+  defaultFormatTimestamp,
+} from "../utils/formatters";
+import { resolveFont } from "../utils/useResolvedStyles";
+import {
+  useZoneTransition,
+  type ZoneTransition,
+} from "../utils/useZoneTransition";
+import { createScaler, GAUGE_REFERENCE } from "../utils/scaler";
+import {
+  validateRange,
+  validateAlertZones,
+  validateValue,
+  type ComponentError,
+} from "../utils/validation";
+import { ResponsiveContainer } from "../charts/shared/ResponsiveContainer";
+import { CardSkeleton } from "../charts/shared/Skeleton";
 import {
   valueToAngle,
   buildArcPath,
@@ -17,7 +33,7 @@ import {
   getValuePosition,
   getZoneBoundaries,
   clampArcAngle,
-} from './shared';
+} from "./shared";
 
 export interface NeedleGaugeStyles {
   value?: FontStyle;
@@ -34,7 +50,8 @@ export interface NeedleGaugeStyles {
 }
 
 export interface NeedleGaugeProps {
-  value: number;
+  /** Accept full hook result from useRelayLatest. Extracts value and timestamp automatically. */
+  data: RelayDataPoint;
   min?: number;
   max?: number;
   formatValue?: (value: number) => string;
@@ -44,8 +61,6 @@ export interface NeedleGaugeProps {
   styles?: NeedleGaugeStyles;
   /** Show values at alert zone boundary points on the arc. */
   showZoneValues?: boolean;
-  /** Timestamp of the last data update. Displayed below the label when showLastUpdated is true. */
-  lastUpdated?: Date | number;
   /** Show/hide the last updated timestamp. Default: false. */
   showLastUpdated?: boolean;
   /** Custom formatter for the timestamp. Receives Date | number, must return string. Default: dd MMM yyyy HH:MM:SS.sss +TZ */
@@ -56,7 +71,7 @@ export interface NeedleGaugeProps {
 }
 
 export function NeedleGauge({
-  value,
+  data,
   min = 0,
   max = 100,
   formatValue = defaultFormatValue,
@@ -65,20 +80,22 @@ export function NeedleGauge({
   unit,
   styles,
   showZoneValues = false,
-  lastUpdated,
   showLastUpdated = false,
   formatTimestamp = defaultFormatTimestamp,
   showLoading = true,
   onZoneChange,
   onError,
 }: NeedleGaugeProps) {
+  const resolvedValue = data.value as number;
+  const resolvedLastUpdated = data.timestamp;
+
   // Hard validation — throws on config errors
-  validateRange(min, max, 'NeedleGauge');
-  validateAlertZones(alertZones, 'NeedleGauge');
+  validateRange(min, max, "NeedleGauge");
+  validateAlertZones(alertZones, "NeedleGauge");
 
   // Soft validation — fires onError, falls back to last valid
   const lastValidRef = useRef<number | null>(null);
-  const validatedValue = validateValue(value, 'NeedleGauge', onError);
+  const validatedValue = validateValue(resolvedValue, "NeedleGauge", onError);
   if (validatedValue !== null) {
     lastValidRef.current = validatedValue;
   }
@@ -109,13 +126,14 @@ export function NeedleGauge({
     <ResponsiveContainer
       explicitWidth={styles?.width}
       explicitHeight={styles?.height}
-      style={{ backgroundColor: styles?.background?.color ?? 'transparent' }}
+      style={{ backgroundColor: styles?.background?.color ?? "transparent" }}
     >
       {({ width, height }) => {
         const s = createScaler(width, height, GAUGE_REFERENCE);
 
         const minMaxFontSize = s(minMaxStyle?.fontSize ?? 10);
-        const zoneValueExtra = showZoneValues && alertZones.length > 0 ? minMaxFontSize + s(4) : 0;
+        const zoneValueExtra =
+          showZoneValues && alertZones.length > 0 ? minMaxFontSize + s(4) : 0;
         const padding = s(20) + zoneValueExtra;
         const arcThickness = s(styles?.arcThickness ?? 14);
         const needleThickness = s(styles?.needleThickness ?? 2.5);
@@ -123,18 +141,16 @@ export function NeedleGauge({
         const labelFontSize = s(labelStyleR?.fontSize ?? 12);
         const unitFontSize = s(unitStyle?.fontSize ?? 13);
 
-
         const sweepRad = (sweepDegrees * Math.PI) / 180;
         const halfSweep = sweepRad / 2;
-        const arcBottomFraction = sweepDegrees <= 180
-          ? 0
-          : Math.sin(halfSweep - Math.PI / 2);
+        const arcBottomFraction =
+          sweepDegrees <= 180 ? 0 : Math.sin(halfSweep - Math.PI / 2);
 
         const textSpace = sweepDegrees <= 180 ? s(60) : s(60);
         const totalVertical = padding * 2 + textSpace;
         const maxRadius = Math.min(
           (width - padding * 2) / 2,
-          (height - totalVertical) / (1 + arcBottomFraction)
+          (height - totalVertical) / (1 + arcBottomFraction),
         );
         const radius = Math.max(s(40), maxRadius);
         const cx = width / 2;
@@ -150,9 +166,14 @@ export function NeedleGauge({
         const needleLen = radius - arcThickness - s(8);
         const nx = cx + needleLen * Math.cos(angle);
         const ny = cy + needleLen * Math.sin(angle);
-        const valueColor = getZoneColor(clampedValue, alertZones, '#374151');
+        const valueColor = getZoneColor(clampedValue, alertZones, "#374151");
 
-        const endpoints = getArcEndpoints(cx, cy, radius + arcThickness / 2 + s(12), sweepDegrees);
+        const endpoints = getArcEndpoints(
+          cx,
+          cy,
+          radius + arcThickness / 2 + s(12),
+          sweepDegrees,
+        );
 
         let valueY: number;
         let labelY: number;
@@ -179,7 +200,7 @@ export function NeedleGauge({
             aria-valuenow={renderValue!}
             aria-valuemin={min}
             aria-valuemax={max}
-            aria-label={label ?? 'Gauge'}
+            aria-label={label ?? "Gauge"}
           >
             <path
               d={arcPathD}
@@ -211,7 +232,12 @@ export function NeedleGauge({
               strokeWidth={needleThickness}
               strokeLinecap="butt"
             />
-            <circle cx={cx} cy={cy} r={Math.max(s(4), needleThickness * 2)} fill={valueColor} />
+            <circle
+              cx={cx}
+              cy={cy}
+              r={Math.max(s(4), needleThickness * 2)}
+              fill={valueColor}
+            />
 
             {/* Min label */}
             <text
@@ -219,9 +245,13 @@ export function NeedleGauge({
               y={endpoints.startY}
               textAnchor="middle"
               fontSize={s(minMaxStyle?.fontSize ?? 10)}
-              fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+              fontFamily={
+                minMaxStyle?.fontFamily ??
+                labelStyleR?.fontFamily ??
+                "var(--relay-font-family)"
+              }
               fontWeight={minMaxStyle?.fontWeight ?? 400}
-              fill={minMaxStyle?.color ?? '#9ca3af'}
+              fill={minMaxStyle?.color ?? "#9ca3af"}
             >
               {formatValue(min)}
             </text>
@@ -231,31 +261,49 @@ export function NeedleGauge({
               y={endpoints.endY}
               textAnchor="middle"
               fontSize={s(minMaxStyle?.fontSize ?? 10)}
-              fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+              fontFamily={
+                minMaxStyle?.fontFamily ??
+                labelStyleR?.fontFamily ??
+                "var(--relay-font-family)"
+              }
               fontWeight={minMaxStyle?.fontWeight ?? 400}
-              fill={minMaxStyle?.color ?? '#9ca3af'}
+              fill={minMaxStyle?.color ?? "#9ca3af"}
             >
               {formatValue(max)}
             </text>
 
             {/* Zone boundary values */}
-            {showZoneValues && alertZones.length > 0 && getZoneBoundaries(alertZones, min, max).map((bv) => {
-              const pos = getValuePosition(cx, cy, radius + arcThickness / 2 + s(12), bv, min, max, sweepDegrees);
-              return (
-                <text
-                  key={`zv-${bv}`}
-                  x={pos.x}
-                  y={pos.y}
-                  textAnchor="middle"
-                  fontSize={s(minMaxStyle?.fontSize ?? 10)}
-                  fontFamily={minMaxStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
-                  fontWeight={minMaxStyle?.fontWeight ?? 400}
-                  fill={minMaxStyle?.color ?? '#9ca3af'}
-                >
-                  {formatValue(bv)}
-                </text>
-              );
-            })}
+            {showZoneValues &&
+              alertZones.length > 0 &&
+              getZoneBoundaries(alertZones, min, max).map((bv) => {
+                const pos = getValuePosition(
+                  cx,
+                  cy,
+                  radius + arcThickness / 2 + s(12),
+                  bv,
+                  min,
+                  max,
+                  sweepDegrees,
+                );
+                return (
+                  <text
+                    key={`zv-${bv}`}
+                    x={pos.x}
+                    y={pos.y}
+                    textAnchor="middle"
+                    fontSize={s(minMaxStyle?.fontSize ?? 10)}
+                    fontFamily={
+                      minMaxStyle?.fontFamily ??
+                      labelStyleR?.fontFamily ??
+                      "var(--relay-font-family)"
+                    }
+                    fontWeight={minMaxStyle?.fontWeight ?? 400}
+                    fill={minMaxStyle?.color ?? "#9ca3af"}
+                  >
+                    {formatValue(bv)}
+                  </text>
+                );
+              })}
 
             <text
               x={cx}
@@ -263,7 +311,7 @@ export function NeedleGauge({
               textAnchor="middle"
               dominantBaseline="central"
               fontSize={valueFontSize}
-              fontFamily={valueStyle?.fontFamily ?? 'var(--relay-font-family)'}
+              fontFamily={valueStyle?.fontFamily ?? "var(--relay-font-family)"}
               fontWeight={valueStyle?.fontWeight ?? 700}
               fill={valueStyle?.color ?? valueColor}
             >
@@ -271,11 +319,14 @@ export function NeedleGauge({
               {unit && (
                 <tspan
                   fontSize={unitFontSize}
-                  fontFamily={unitStyle?.fontFamily ?? 'var(--relay-font-family)'}
+                  fontFamily={
+                    unitStyle?.fontFamily ?? "var(--relay-font-family)"
+                  }
                   fontWeight={unitStyle?.fontWeight ?? 400}
-                  fill={unitStyle?.color ?? '#6b7280'}
+                  fill={unitStyle?.color ?? "#6b7280"}
                 >
-                  {' '}{unit}
+                  {" "}
+                  {unit}
                 </tspan>
               )}
             </text>
@@ -286,32 +337,45 @@ export function NeedleGauge({
                 y={labelY}
                 textAnchor="middle"
                 fontSize={labelFontSize}
-                fontFamily={labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
+                fontFamily={
+                  labelStyleR?.fontFamily ?? "var(--relay-font-family)"
+                }
                 fontWeight={labelStyleR?.fontWeight ?? 400}
-                fill={labelStyleR?.color ?? '#6b7280'}
+                fill={labelStyleR?.color ?? "#6b7280"}
               >
                 {label}
               </text>
             )}
 
-            {showLastUpdated && lastUpdated != null && (() => {
-              const tsText = formatTimestamp(lastUpdated);
-              const tsFontSize = s(lastUpdatedStyle?.fontSize ?? 9);
-              const tsY = (label ? labelY + labelFontSize * 0.5 : valueY + valueFontSize * 0.5) + tsFontSize + s(4);
-              return (
-                <text
-                  x={cx}
-                  y={tsY}
-                  textAnchor="middle"
-                  fontSize={tsFontSize}
-                  fontFamily={lastUpdatedStyle?.fontFamily ?? labelStyleR?.fontFamily ?? 'var(--relay-font-family)'}
-                  fontWeight={lastUpdatedStyle?.fontWeight ?? 400}
-                  fill={lastUpdatedStyle?.color ?? '#9ca3af'}
-                >
-                  {tsText}
-                </text>
-              );
-            })()}
+            {showLastUpdated &&
+              resolvedLastUpdated != null &&
+              (() => {
+                const tsText = formatTimestamp(resolvedLastUpdated);
+                const tsFontSize = s(lastUpdatedStyle?.fontSize ?? 9);
+                const tsY =
+                  (label
+                    ? labelY + labelFontSize * 0.5
+                    : valueY + valueFontSize * 0.5) +
+                  tsFontSize +
+                  s(4);
+                return (
+                  <text
+                    x={cx}
+                    y={tsY}
+                    textAnchor="middle"
+                    fontSize={tsFontSize}
+                    fontFamily={
+                      lastUpdatedStyle?.fontFamily ??
+                      labelStyleR?.fontFamily ??
+                      "var(--relay-font-family)"
+                    }
+                    fontWeight={lastUpdatedStyle?.fontWeight ?? 400}
+                    fill={lastUpdatedStyle?.color ?? "#9ca3af"}
+                  >
+                    {tsText}
+                  </text>
+                );
+              })()}
           </svg>
         );
       }}

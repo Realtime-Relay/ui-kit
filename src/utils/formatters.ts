@@ -4,7 +4,20 @@ export function defaultFormatValue(value: number): string {
   return parseFloat(value.toFixed(2)).toString();
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /**
  * Default timestamp formatter.
@@ -14,20 +27,20 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export function defaultFormatTimestamp(ts: Date | number): string {
   const d = ts instanceof Date ? ts : new Date(ts);
 
-  const dd = String(d.getDate()).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, "0");
   const mmm = MONTHS[d.getMonth()];
   const yyyy = d.getFullYear();
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  const ss = String(d.getSeconds()).padStart(2, '0');
-  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  const ms = String(d.getMilliseconds()).padStart(3, "0");
 
   // Timezone offset: getTimezoneOffset() returns minutes, negative for east of UTC
   const offsetMin = d.getTimezoneOffset();
-  const sign = offsetMin <= 0 ? '+' : '-';
+  const sign = offsetMin <= 0 ? "+" : "-";
   const absOffset = Math.abs(offsetMin);
-  const tzHH = String(Math.floor(absOffset / 60)).padStart(2, '0');
-  const tzMM = String(absOffset % 60).padStart(2, '0');
+  const tzHH = String(Math.floor(absOffset / 60)).padStart(2, "0");
+  const tzMM = String(absOffset % 60).padStart(2, "0");
 
   return `${dd} ${mmm} ${yyyy} ${hh}:${mm}:${ss}.${ms} ${sign}${tzHH}:${tzMM}`;
 }

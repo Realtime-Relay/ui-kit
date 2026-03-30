@@ -1,4 +1,4 @@
-import type { ScaleLinear, ScaleTime } from 'd3';
+import type { ScaleLinear, ScaleTime } from "d3";
 
 interface GridProps {
   xScale: ScaleTime<number, number> | ScaleLinear<number, number>;
@@ -21,10 +21,10 @@ export function Grid({
 }: GridProps) {
   if (!showGrid) return null;
 
-  const color = gridColor ?? 'var(--relay-grid-color, #e0e0e0)';
+  const color = gridColor ?? "var(--relay-grid-color, #e0e0e0)";
   const thickness = gridThickness ?? 1;
 
-  const xTicks = 'ticks' in xScale ? (xScale as any).ticks() : [];
+  const xTicks = "ticks" in xScale ? (xScale as any).ticks() : [];
   const yTicks = yScale.ticks();
 
   return (

@@ -29,9 +29,9 @@ export function createScaler(
   width: number,
   height: number,
   reference: number = GAUGE_REFERENCE,
-  mode: 'min' | 'width' = 'min'
+  mode: "min" | "width" = "min",
 ): (px: number) => number {
-  const dimension = mode === 'min' ? Math.min(width, height) : width;
+  const dimension = mode === "min" ? Math.min(width, height) : width;
   const factor = dimension / reference;
   return (px: number) => px * factor;
 }

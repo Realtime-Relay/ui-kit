@@ -10,23 +10,23 @@ Typical deployment: IoT dashboards where a device telemetry value must be render
 
 ## Props
 
-| Prop | Type | Default | Required | Description |
-|---|---|---|---|---|
-| `value` | `number` | — | Yes | Current value to display. The needle position and displayed text are derived from this. See **Value Validation** for handling of `null`, `undefined`, `NaN`, `Infinity`, and out-of-range values. |
-| `min` | `number` | `0` | No | Minimum value of the gauge range. Must be strictly less than `max`. Used as the left-most arc endpoint. |
-| `max` | `number` | `100` | No | Maximum value of the gauge range. Must be strictly greater than `min`. Used as the right-most arc endpoint. |
-| `formatValue` | `(value: number) => string` | `defaultFormatValue` | No | Formatter for the displayed value text, min/max labels, and zone boundary labels. `defaultFormatValue` trims trailing zeros up to 2 decimal places (e.g., `90` stays `"90"`, `90.10` becomes `"90.1"`, `90.123` becomes `"90.12"`). |
-| `alertZones` | `AlertZone[]` | `[]` | No | Colored arc segments indicating named ranges (warning, critical, normal, etc.). Each zone has `min`, `max`, `color`, and optional `label`. See **Alert Zone Behavior**. |
-| `label` | `string` | `undefined` | No | Metric label displayed below the value text (e.g., `"temperature"`, `"pressure"`). |
-| `unit` | `string` | `undefined` | No | Unit suffix displayed next to the value text as an inline `<tspan>` (e.g., `"°C"`, `"psi"`, `"%"`). |
-| `styles` | `NeedleGaugeStyles` | `undefined` | No | Full style customization object. See **Styles Object**. |
-| `showZoneValues` | `boolean` | `false` | No | When `true`, renders numeric boundary values at each zone transition point along the arc (e.g., zones `[0-30, 30-70, 70-100]` renders `"30"` and `"70"` on the arc). Extra top padding is added to prevent clipping. |
-| `lastUpdated` | `Date \| number` | `undefined` | No | Timestamp of the last data update. Can be a `Date` object or epoch millisecond number. Only rendered when `showLastUpdated` is `true`. |
-| `showLastUpdated` | `boolean` | `false` | No | Toggle display of the last-updated timestamp below the label (or below the value if no label). When `false`, the timestamp is never rendered even if `lastUpdated` is provided. |
-| `formatTimestamp` | `(ts: Date \| number) => string` | `defaultFormatTimestamp` | No | Custom formatter for the timestamp. Default format: `dd MMM yyyy HH:MM:SS.sss +TZ` (e.g., `"26 Mar 2026 22:39:40.123 +05:30"`). |
-| `showLoading` | `boolean` | `true` | No | When `true` and value resolves to `null` (either passed as `null`/`undefined` or fails validation), renders a skeleton loader instead of the gauge. |
-| `onZoneChange` | `(transition: ZoneTransition) => void` | `undefined` | No | Callback fired when the value crosses an alert zone boundary. Receives `{ previousZone: AlertZone \| null, currentZone: AlertZone \| null, value: number }`. Does NOT fire on initial render — only on subsequent zone changes. |
-| `onError` | `(error: ComponentError) => void` | `undefined` | No | Callback fired for soft validation errors (invalid value). Receives `{ type, message, rawValue, component }`. Hard validation errors (invalid config) throw instead. |
+| Prop              | Type                                   | Default                  | Required | Description                                                                                                                                                                                                                         |
+| ----------------- | -------------------------------------- | ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `value`           | `number`                               | —                        | Yes      | Current value to display. The needle position and displayed text are derived from this. See **Value Validation** for handling of `null`, `undefined`, `NaN`, `Infinity`, and out-of-range values.                                   |
+| `min`             | `number`                               | `0`                      | No       | Minimum value of the gauge range. Must be strictly less than `max`. Used as the left-most arc endpoint.                                                                                                                             |
+| `max`             | `number`                               | `100`                    | No       | Maximum value of the gauge range. Must be strictly greater than `min`. Used as the right-most arc endpoint.                                                                                                                         |
+| `formatValue`     | `(value: number) => string`            | `defaultFormatValue`     | No       | Formatter for the displayed value text, min/max labels, and zone boundary labels. `defaultFormatValue` trims trailing zeros up to 2 decimal places (e.g., `90` stays `"90"`, `90.10` becomes `"90.1"`, `90.123` becomes `"90.12"`). |
+| `alertZones`      | `AlertZone[]`                          | `[]`                     | No       | Colored arc segments indicating named ranges (warning, critical, normal, etc.). Each zone has `min`, `max`, `color`, and optional `label`. See **Alert Zone Behavior**.                                                             |
+| `label`           | `string`                               | `undefined`              | No       | Metric label displayed below the value text (e.g., `"temperature"`, `"pressure"`).                                                                                                                                                  |
+| `unit`            | `string`                               | `undefined`              | No       | Unit suffix displayed next to the value text as an inline `<tspan>` (e.g., `"°C"`, `"psi"`, `"%"`).                                                                                                                                 |
+| `styles`          | `NeedleGaugeStyles`                    | `undefined`              | No       | Full style customization object. See **Styles Object**.                                                                                                                                                                             |
+| `showZoneValues`  | `boolean`                              | `false`                  | No       | When `true`, renders numeric boundary values at each zone transition point along the arc (e.g., zones `[0-30, 30-70, 70-100]` renders `"30"` and `"70"` on the arc). Extra top padding is added to prevent clipping.                |
+| `lastUpdated`     | `Date \| number`                       | `undefined`              | No       | Timestamp of the last data update. Can be a `Date` object or epoch millisecond number. Only rendered when `showLastUpdated` is `true`.                                                                                              |
+| `showLastUpdated` | `boolean`                              | `false`                  | No       | Toggle display of the last-updated timestamp below the label (or below the value if no label). When `false`, the timestamp is never rendered even if `lastUpdated` is provided.                                                     |
+| `formatTimestamp` | `(ts: Date \| number) => string`       | `defaultFormatTimestamp` | No       | Custom formatter for the timestamp. Default format: `dd MMM yyyy HH:MM:SS.sss +TZ` (e.g., `"26 Mar 2026 22:39:40.123 +05:30"`).                                                                                                     |
+| `showLoading`     | `boolean`                              | `true`                   | No       | When `true` and value resolves to `null` (either passed as `null`/`undefined` or fails validation), renders a skeleton loader instead of the gauge.                                                                                 |
+| `onZoneChange`    | `(transition: ZoneTransition) => void` | `undefined`              | No       | Callback fired when the value crosses an alert zone boundary. Receives `{ previousZone: AlertZone \| null, currentZone: AlertZone \| null, value: number }`. Does NOT fire on initial render — only on subsequent zone changes.     |
+| `onError`         | `(error: ComponentError) => void`      | `undefined`              | No       | Callback fired for soft validation errors (invalid value). Receives `{ type, message, rawValue, component }`. Hard validation errors (invalid config) throw instead.                                                                |
 
 ---
 
@@ -34,17 +34,17 @@ Typical deployment: IoT dashboards where a device telemetry value must be render
 
 ```typescript
 interface NeedleGaugeStyles {
-  value?: FontStyle;           // Value text styling
-  label?: FontStyle;           // Metric label text styling
-  unit?: FontStyle;            // Unit suffix text styling
-  minMax?: FontStyle;          // Min/max label and zone boundary value text styling
-  lastUpdated?: FontStyle;     // Timestamp text styling
+  value?: FontStyle; // Value text styling
+  label?: FontStyle; // Metric label text styling
+  unit?: FontStyle; // Unit suffix text styling
+  minMax?: FontStyle; // Min/max label and zone boundary value text styling
+  lastUpdated?: FontStyle; // Timestamp text styling
   background?: BackgroundStyle; // { color?: string } — container background color, default 'transparent'
-  arcThickness?: number;       // Arc stroke width in reference pixels (default: 14). Scaled proportionally.
-  needleThickness?: number;    // Needle stroke width in reference pixels (default: 2.5). Scaled proportionally.
-  arcAngle?: number;           // Sweep angle in degrees (clamped to 30–300, default: 180). Controls how much of a circle the arc covers.
-  width?: number;              // Explicit maximum width in CSS pixels. If omitted, fills container.
-  height?: number;             // Explicit maximum height in CSS pixels. If omitted, fills container.
+  arcThickness?: number; // Arc stroke width in reference pixels (default: 14). Scaled proportionally.
+  needleThickness?: number; // Needle stroke width in reference pixels (default: 2.5). Scaled proportionally.
+  arcAngle?: number; // Sweep angle in degrees (clamped to 30–300, default: 180). Controls how much of a circle the arc covers.
+  width?: number; // Explicit maximum width in CSS pixels. If omitted, fills container.
+  height?: number; // Explicit maximum height in CSS pixels. If omitted, fills container.
 }
 ```
 
@@ -52,11 +52,11 @@ interface NeedleGaugeStyles {
 
 ```typescript
 interface FontStyle {
-  fontFamily?: string;          // CSS font-family string. Falls back through resolution chain (see below).
-  fontSize?: number;            // Font size in reference pixels (scaled proportionally). Each text element has its own default.
+  fontFamily?: string; // CSS font-family string. Falls back through resolution chain (see below).
+  fontSize?: number; // Font size in reference pixels (scaled proportionally). Each text element has its own default.
   fontWeight?: number | string; // CSS font-weight (e.g., 400, 700, "bold").
-  color?: string;               // CSS color string. Each text element has its own default.
-  fontFile?: string;            // URL or path to .otf/.ttf/.woff/.woff2 file. Auto-generates @font-face rule.
+  color?: string; // CSS color string. Each text element has its own default.
+  fontFile?: string; // URL or path to .otf/.ttf/.woff/.woff2 file. Auto-generates @font-face rule.
 }
 ```
 
@@ -102,9 +102,9 @@ interface BackgroundStyle {
 
 ```typescript
 interface AlertZone {
-  min: number;    // Start of zone range (inclusive)
-  max: number;    // End of zone range (inclusive)
-  color: string;  // CSS color string for the zone
+  min: number; // Start of zone range (inclusive)
+  max: number; // End of zone range (inclusive)
+  color: string; // CSS color string for the zone
   label?: string; // Optional human-readable label (used in error messages)
 }
 ```
@@ -217,14 +217,14 @@ Each text element resolves its `fontFamily` through the following chain, stoppin
 
 ### Per-element defaults
 
-| Element | fontFamily fallback chain | fontSize default | fontWeight default | color default |
-|---|---|---|---|---|
-| Value text | `styles.value.fontFamily` > `var(--relay-font-family)` | 22 | 700 | zone color or `#374151` |
-| Unit text | `styles.unit.fontFamily` > `var(--relay-font-family)` | 13 | 400 | `#6b7280` |
-| Label text | `styles.label.fontFamily` > `var(--relay-font-family)` | 12 | 400 | `#6b7280` |
-| Min/Max text | `styles.minMax.fontFamily` > `styles.label.fontFamily` > `var(--relay-font-family)` | 10 | 400 | `#9ca3af` |
-| Zone values | `styles.minMax.fontFamily` > `styles.label.fontFamily` > `var(--relay-font-family)` | 10 | 400 | `#9ca3af` |
-| Timestamp | `styles.lastUpdated.fontFamily` > `styles.label.fontFamily` > `var(--relay-font-family)` | 9 | 400 | `#9ca3af` |
+| Element      | fontFamily fallback chain                                                                | fontSize default | fontWeight default | color default           |
+| ------------ | ---------------------------------------------------------------------------------------- | ---------------- | ------------------ | ----------------------- |
+| Value text   | `styles.value.fontFamily` > `var(--relay-font-family)`                                   | 22               | 700                | zone color or `#374151` |
+| Unit text    | `styles.unit.fontFamily` > `var(--relay-font-family)`                                    | 13               | 400                | `#6b7280`               |
+| Label text   | `styles.label.fontFamily` > `var(--relay-font-family)`                                   | 12               | 400                | `#6b7280`               |
+| Min/Max text | `styles.minMax.fontFamily` > `styles.label.fontFamily` > `var(--relay-font-family)`      | 10               | 400                | `#9ca3af`               |
+| Zone values  | `styles.minMax.fontFamily` > `styles.label.fontFamily` > `var(--relay-font-family)`      | 10               | 400                | `#9ca3af`               |
+| Timestamp    | `styles.lastUpdated.fontFamily` > `styles.label.fontFamily` > `var(--relay-font-family)` | 9                | 400                | `#9ca3af`               |
 
 ---
 

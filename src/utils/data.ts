@@ -1,4 +1,4 @@
-import type { DataPoint } from './types';
+import type { DataPoint } from "./types";
 
 /**
  * Normalize a real-time SDK telemetry message into a DataPoint.
@@ -19,11 +19,11 @@ export function normalizeRealtimePoint(msg: {
  * SDK shape varies — this handles the { [metric]: { value, timestamp } } format.
  */
 export function normalizeHistoricalPoint(
-  entry: Record<string, { value: any; timestamp: number }>
+  entry: Record<string, { value: any; timestamp: number }>,
 ): DataPoint {
   const point: DataPoint = { timestamp: 0 };
   for (const [metric, data] of Object.entries(entry)) {
-    if (data && typeof data === 'object' && 'timestamp' in data) {
+    if (data && typeof data === "object" && "timestamp" in data) {
       point.timestamp = data.timestamp;
       point[metric] = data.value;
     }
@@ -39,7 +39,7 @@ export function normalizeHistoricalPoint(
  */
 export function mergeData(
   historical: DataPoint[],
-  realtime: DataPoint[]
+  realtime: DataPoint[],
 ): DataPoint[] {
   const merged = [...historical, ...realtime];
   merged.sort((a, b) => a.timestamp - b.timestamp);
@@ -63,7 +63,7 @@ export function mergeData(
     const allKeys = new Set<string>();
     for (const p of result) {
       for (const k of Object.keys(p)) {
-        if (k !== 'timestamp') allKeys.add(k);
+        if (k !== "timestamp") allKeys.add(k);
       }
     }
 

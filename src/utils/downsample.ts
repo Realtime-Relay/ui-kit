@@ -1,4 +1,4 @@
-import type { DataPoint } from './types';
+import type { DataPoint } from "./types";
 
 /**
  * Largest Triangle Three Buckets (LTTB) downsampling algorithm.
@@ -9,7 +9,7 @@ import type { DataPoint } from './types';
 export function lttbDownsample(
   data: DataPoint[],
   targetCount: number,
-  metricKey: string
+  metricKey: string,
 ): DataPoint[] {
   const length = data.length;
   if (targetCount >= length || targetCount < 3) return data;
@@ -21,11 +21,17 @@ export function lttbDownsample(
 
   for (let i = 0; i < targetCount - 2; i++) {
     const bucketStart = Math.floor((i + 1) * bucketSize) + 1;
-    const bucketEnd = Math.min(Math.floor((i + 2) * bucketSize) + 1, length - 1);
+    const bucketEnd = Math.min(
+      Math.floor((i + 2) * bucketSize) + 1,
+      length - 1,
+    );
 
     // Calculate average point in next bucket
     const nextBucketStart = Math.floor((i + 2) * bucketSize) + 1;
-    const nextBucketEnd = Math.min(Math.floor((i + 3) * bucketSize) + 1, length - 1);
+    const nextBucketEnd = Math.min(
+      Math.floor((i + 3) * bucketSize) + 1,
+      length - 1,
+    );
 
     let avgX = 0;
     let avgY = 0;
@@ -52,7 +58,7 @@ export function lttbDownsample(
       const currY = Number(data[j][metricKey]) || 0;
 
       const area = Math.abs(
-        (prevX - avgX) * (currY - prevY) - (prevX - currX) * (avgY - prevY)
+        (prevX - avgX) * (currY - prevY) - (prevX - currX) * (avgY - prevY),
       );
 
       if (area > maxArea) {
@@ -79,12 +85,12 @@ export function lttbDownsample(
 export function applyDownsample(
   data: DataPoint[],
   config: false | number | ((data: DataPoint[]) => DataPoint[]) | undefined,
-  metricKey: string
+  metricKey: string,
 ): DataPoint[] {
   if (config === false) return data;
-  if (typeof config === 'function') return config(data);
+  if (typeof config === "function") return config(data);
 
-  const target = typeof config === 'number' ? config : 1500;
+  const target = typeof config === "number" ? config : 1500;
   if (data.length <= target) return data;
 
   return lttbDownsample(data, target, metricKey);

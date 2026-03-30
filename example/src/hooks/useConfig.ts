@@ -1,20 +1,20 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
-const STORAGE_KEY = 'relayx-ui-example-config';
+const STORAGE_KEY = "relayx-ui-example-config";
 
 export interface AppConfig {
   apiKey: string;
   secret: string;
-  mode: 'production' | 'test';
+  mode: "production" | "test";
   deviceIdent: string;
   metrics: string[];
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  apiKey: '',
-  secret: '',
-  mode: 'production',
-  deviceIdent: '',
+  apiKey: "",
+  secret: "",
+  mode: "production",
+  deviceIdent: "",
   metrics: [],
 };
 

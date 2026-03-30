@@ -1,9 +1,17 @@
-import { useRef } from 'react';
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import { defaultFormatValue } from '../utils/formatters';
-import { resolveFontFamily } from '../utils/fonts';
-import { useZoneTransition, type ZoneTransition } from '../utils/useZoneTransition';
-import { validateRange, validateAlertZones, validateValue, type ComponentError } from '../utils/validation';
+import { useRef } from "react";
+import type { AlertZone, FontStyle, BackgroundStyle } from "../utils/types";
+import { defaultFormatValue } from "../utils/formatters";
+import { resolveFontFamily } from "../utils/fonts";
+import {
+  useZoneTransition,
+  type ZoneTransition,
+} from "../utils/useZoneTransition";
+import {
+  validateRange,
+  validateAlertZones,
+  validateValue,
+  type ComponentError,
+} from "../utils/validation";
 
 export interface ProgressBarStyles {
   /** Font file path/URL or CSS font-family for the label. Supports .otf/.ttf/.woff/.woff2 imports. */
@@ -19,7 +27,7 @@ export interface ProgressBarProps {
   value: number;
   min?: number;
   max?: number;
-  orientation?: 'horizontal' | 'vertical';
+  orientation?: "horizontal" | "vertical";
   showLabel?: boolean;
   formatValue?: (value: number) => string;
   alertZones?: AlertZone[];
@@ -31,7 +39,11 @@ export interface ProgressBarProps {
   onError?: (error: ComponentError) => void;
 }
 
-function getZoneColor(value: number, zones: AlertZone[], fallback: string): string {
+function getZoneColor(
+  value: number,
+  zones: AlertZone[],
+  fallback: string,
+): string {
   for (const zone of zones) {
     if (value >= zone.min && value <= zone.max) return zone.color;
   }
@@ -40,14 +52,14 @@ function getZoneColor(value: number, zones: AlertZone[], fallback: string): stri
 
 function toCss(val: string | number | undefined): string | undefined {
   if (val === undefined) return undefined;
-  return typeof val === 'number' ? `${val}px` : val;
+  return typeof val === "number" ? `${val}px` : val;
 }
 
 export function ProgressBar({
   value,
   min = 0,
   max = 100,
-  orientation = 'horizontal',
+  orientation = "horizontal",
   showLabel = true,
   formatValue = defaultFormatValue,
   alertZones = [],
@@ -57,11 +69,11 @@ export function ProgressBar({
   onZoneChange,
   onError,
 }: ProgressBarProps) {
-  validateRange(min, max, 'ProgressBar');
-  validateAlertZones(alertZones, 'ProgressBar');
+  validateRange(min, max, "ProgressBar");
+  validateAlertZones(alertZones, "ProgressBar");
 
   const lastValidRef = useRef<number | null>(null);
-  const validatedValue = validateValue(value, 'ProgressBar', onError);
+  const validatedValue = validateValue(value, "ProgressBar", onError);
   if (validatedValue !== null) {
     lastValidRef.current = validatedValue;
   }
@@ -70,15 +82,17 @@ export function ProgressBar({
   useZoneTransition(renderValue ?? min, alertZones, onZoneChange);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const isHorizontal = orientation === 'horizontal';
+  const isHorizontal = orientation === "horizontal";
 
   const labelFont = styles?.label_font_file;
   const resolvedFontFamily = labelFont?.fontFamily
     ? resolveFontFamily(labelFont.fontFamily)
     : undefined;
 
-  const containerWidthCss = toCss(styles?.width) ?? '100%';
-  const containerHeightCss = toCss(styles?.height) ?? (isHorizontal ? 'var(--relay-progress-height, 24px)' : '100%');
+  const containerWidthCss = toCss(styles?.width) ?? "100%";
+  const containerHeightCss =
+    toCss(styles?.height) ??
+    (isHorizontal ? "var(--relay-progress-height, 24px)" : "100%");
 
   if (showLoading && renderValue == null) {
     return (
@@ -86,15 +100,15 @@ export function ProgressBar({
         ref={containerRef}
         style={{
           width: containerWidthCss,
-          maxWidth: '100%',
+          maxWidth: "100%",
           height: containerHeightCss,
           background: `linear-gradient(90deg,
             var(--relay-skeleton-base, #e5e7eb) 25%,
             var(--relay-skeleton-shine, #f3f4f6) 50%,
             var(--relay-skeleton-base, #e5e7eb) 75%)`,
-          backgroundSize: '200% 100%',
-          animation: 'relay-skeleton-shimmer 1.5s ease-in-out infinite',
-          borderRadius: 'var(--relay-progress-border-radius, 4px)',
+          backgroundSize: "200% 100%",
+          animation: "relay-skeleton-shimmer 1.5s ease-in-out infinite",
+          borderRadius: "var(--relay-progress-border-radius, 4px)",
         }}
       />
     );
@@ -104,57 +118,74 @@ export function ProgressBar({
   const clampedValue = Math.min(max, Math.max(min, renderValue!));
   const ratio = range > 0 ? (clampedValue - min) / range : 0;
   const percentage = ratio * 100;
-  const fillColor = getZoneColor(clampedValue, alertZones, 'var(--relay-progress-fill, #3b82f6)');
+  const fillColor = getZoneColor(
+    clampedValue,
+    alertZones,
+    "var(--relay-progress-fill, #3b82f6)",
+  );
   const hasZones = alertZones.length > 0;
-  const displayZones = hasZones && (showAlertZones !== false);
+  const displayZones = hasZones && showAlertZones !== false;
 
   return (
     <div
       ref={containerRef}
       style={{
         width: containerWidthCss,
-        maxWidth: '100%',
+        maxWidth: "100%",
         height: containerHeightCss,
-        backgroundColor: styles?.background?.color ?? 'var(--relay-progress-bg, #e5e7eb)',
-        borderRadius: 'var(--relay-progress-border-radius, 4px)',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
+        backgroundColor:
+          styles?.background?.color ?? "var(--relay-progress-bg, #e5e7eb)",
+        borderRadius: "var(--relay-progress-border-radius, 4px)",
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
       }}
     >
       {/* Layer 0: Alert zone background bands (transparent, behind fill) */}
-      {displayZones && alertZones.map((zone, i) => {
-        const zoneStart = ((Math.max(zone.min, min) - min) / range) * 100;
-        const zoneEnd = ((Math.min(zone.max, max) - min) / range) * 100;
-        const zoneWidth = zoneEnd - zoneStart;
+      {displayZones &&
+        alertZones.map((zone, i) => {
+          const zoneStart = ((Math.max(zone.min, min) - min) / range) * 100;
+          const zoneEnd = ((Math.min(zone.max, max) - min) / range) * 100;
+          const zoneWidth = zoneEnd - zoneStart;
 
-        return (
-          <div
-            key={`bg-${i}`}
-            style={{
-              position: 'absolute',
-              ...(isHorizontal
-                ? { left: `${zoneStart}%`, top: 0, bottom: 0, width: `${zoneWidth}%` }
-                : { left: 0, right: 0, bottom: `${zoneStart}%`, height: `${zoneWidth}%` }),
-              backgroundColor: zone.color,
-              opacity: 0.15,
-              zIndex: 0,
-            }}
-          />
-        );
-      })}
+          return (
+            <div
+              key={`bg-${i}`}
+              style={{
+                position: "absolute",
+                ...(isHorizontal
+                  ? {
+                      left: `${zoneStart}%`,
+                      top: 0,
+                      bottom: 0,
+                      width: `${zoneWidth}%`,
+                    }
+                  : {
+                      left: 0,
+                      right: 0,
+                      bottom: `${zoneStart}%`,
+                      height: `${zoneWidth}%`,
+                    }),
+                backgroundColor: zone.color,
+                opacity: 0.15,
+                zIndex: 0,
+              }}
+            />
+          );
+        })}
 
       {/* Layer 1: Solid fill bar (fully opaque, covers zone bands underneath) */}
       <div
         style={{
-          position: 'absolute',
+          position: "absolute",
           ...(isHorizontal
             ? { left: 0, top: 0, bottom: 0, width: `${percentage}%` }
             : { left: 0, right: 0, bottom: 0, height: `${percentage}%` }),
           backgroundColor: fillColor,
-          borderRadius: 'inherit',
-          transition: 'width 300ms ease, height 300ms ease, background-color 300ms ease',
+          borderRadius: "inherit",
+          transition:
+            "width 300ms ease, height 300ms ease, background-color 300ms ease",
           zIndex: 1,
         }}
       />
@@ -163,16 +194,20 @@ export function ProgressBar({
       {showLabel && (
         <span
           style={{
-            position: 'relative',
+            position: "relative",
             zIndex: 3,
-            width: '100%',
-            textAlign: 'center',
-            fontFamily: resolvedFontFamily ?? labelFont?.fontFamily ?? 'var(--relay-font-family)',
+            width: "100%",
+            textAlign: "center",
+            fontFamily:
+              resolvedFontFamily ??
+              labelFont?.fontFamily ??
+              "var(--relay-font-family)",
             fontSize: labelFont?.fontSize ?? 12,
             fontWeight: labelFont?.fontWeight ?? 600,
-            color: labelFont?.color ?? (percentage > 50 ? '#fff' : 'currentColor'),
-            transition: 'color 300ms ease',
-            pointerEvents: 'none',
+            color:
+              labelFont?.color ?? (percentage > 50 ? "#fff" : "currentColor"),
+            transition: "color 300ms ease",
+            pointerEvents: "none",
           }}
         >
           {formatValue(renderValue!)}
@@ -180,26 +215,37 @@ export function ProgressBar({
       )}
 
       {/* Layer 3: Invisible tooltip hit areas for alert zones (on top of everything) */}
-      {displayZones && alertZones.map((zone, i) => {
-        const zoneStart = ((Math.max(zone.min, min) - min) / range) * 100;
-        const zoneEnd = ((Math.min(zone.max, max) - min) / range) * 100;
-        const zoneWidth = zoneEnd - zoneStart;
+      {displayZones &&
+        alertZones.map((zone, i) => {
+          const zoneStart = ((Math.max(zone.min, min) - min) / range) * 100;
+          const zoneEnd = ((Math.min(zone.max, max) - min) / range) * 100;
+          const zoneWidth = zoneEnd - zoneStart;
 
-        return (
-          <div
-            key={`tip-${i}`}
-            title={`${zone.label ? zone.label + ': ' : ''}${zone.min} – ${zone.max}`}
-            style={{
-              position: 'absolute',
-              ...(isHorizontal
-                ? { left: `${zoneStart}%`, top: 0, bottom: 0, width: `${zoneWidth}%` }
-                : { left: 0, right: 0, bottom: `${zoneStart}%`, height: `${zoneWidth}%` }),
-              zIndex: 4,
-              background: 'transparent',
-            }}
-          />
-        );
-      })}
+          return (
+            <div
+              key={`tip-${i}`}
+              title={`${zone.label ? zone.label + ": " : ""}${zone.min} – ${zone.max}`}
+              style={{
+                position: "absolute",
+                ...(isHorizontal
+                  ? {
+                      left: `${zoneStart}%`,
+                      top: 0,
+                      bottom: 0,
+                      width: `${zoneWidth}%`,
+                    }
+                  : {
+                      left: 0,
+                      right: 0,
+                      bottom: `${zoneStart}%`,
+                      height: `${zoneWidth}%`,
+                    }),
+                zIndex: 4,
+                background: "transparent",
+              }}
+            />
+          );
+        })}
     </div>
   );
 }

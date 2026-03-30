@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { RelayApp } from 'relayx-app-js';
+import { useMemo, useState } from "react";
+import { RelayApp } from "relayx-app-js";
 import {
   RelayProvider,
   useRelayConnection,
@@ -14,9 +14,9 @@ import {
   PresenceIndicator,
   ProgressBar,
   StateTimeline,
-} from '@relayx/ui';
-import type { AppConfig } from '../hooks/useConfig';
-import { TimeRangeToolbar } from '../components/TimeRangeToolbar';
+} from "@relayx/ui";
+import type { AppConfig } from "../hooks/useConfig";
+import { TimeRangeToolbar } from "../components/TimeRangeToolbar";
 
 interface DashboardProps {
   config: AppConfig;
@@ -26,10 +26,10 @@ interface DashboardProps {
 /** Convert a Date to `datetime-local` input value (YYYY-MM-DDTHH:mm) */
 function toLocalInput(date: Date): string {
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const h = String(date.getHours()).padStart(2, '0');
-  const min = String(date.getMinutes()).padStart(2, '0');
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
   return `${y}-${m}-${d}T${h}:${min}`;
 }
 
@@ -44,17 +44,17 @@ export function Dashboard({ config, onGoToSettings }: DashboardProps) {
     return (
       <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
           gap: 16,
-          color: '#6b7280',
+          color: "#6b7280",
         }}
       >
         <div style={{ fontSize: 48 }}>&#9881;</div>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: '#111827' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "#111827" }}>
           Configuration Required
         </h2>
         <p>Enter your RelayX credentials and device info to get started.</p>
@@ -62,14 +62,14 @@ export function Dashboard({ config, onGoToSettings }: DashboardProps) {
           onClick={onGoToSettings}
           type="button"
           style={{
-            padding: '10px 24px',
-            backgroundColor: '#3b82f6',
-            color: '#fff',
-            border: 'none',
+            padding: "10px 24px",
+            backgroundColor: "#3b82f6",
+            color: "#fff",
+            border: "none",
             borderRadius: 8,
             fontSize: 14,
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: "pointer",
           }}
         >
           Go to Settings
@@ -85,7 +85,7 @@ export function Dashboard({ config, onGoToSettings }: DashboardProps) {
         secret: config.secret,
         mode: config.mode,
       }),
-    [config.apiKey, config.secret, config.mode]
+    [config.apiKey, config.secret, config.mode],
   );
 
   return (
@@ -102,7 +102,9 @@ function DashboardContent({ config }: { config: AppConfig }) {
   // Time range state
   const [isLive, setIsLive] = useState(true);
   const [liveWindow, setLiveWindow] = useState(60_000); // 60s default
-  const [histStart, setHistStart] = useState(() => toLocalInput(new Date(Date.now() - 3_600_000)));
+  const [histStart, setHistStart] = useState(() =>
+    toLocalInput(new Date(Date.now() - 3_600_000)),
+  );
   const [histEnd, setHistEnd] = useState(() => toLocalInput(new Date()));
   const [appliedRange, setAppliedRange] = useState(() => ({
     start: new Date(Date.now() - 3_600_000).toISOString(),
@@ -131,24 +133,29 @@ function DashboardContent({ config }: { config: AppConfig }) {
     live: isLive,
   });
 
-  const { value: latestValue, timestamp: latestTs } = useRelayLatest({
+  const latestResult = useRelayLatest({
     deviceIdent: config.deviceIdent,
     metric: firstMetric,
     timeRange,
   });
+  const latestValue = latestResult.value;
 
   return (
-    <div style={{ padding: 24, overflow: 'auto', height: '100%' }}>
+    <div style={{ padding: 24, overflow: "auto", height: "100%" }}>
       {/* Connection status bar */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
+          display: "flex",
+          alignItems: "center",
           gap: 8,
           marginBottom: 16,
-          padding: '8px 16px',
+          padding: "8px 16px",
           borderRadius: 8,
-          backgroundColor: error ? '#fef2f2' : isConnected ? '#f0fdf4' : '#fffbeb',
+          backgroundColor: error
+            ? "#fef2f2"
+            : isConnected
+              ? "#f0fdf4"
+              : "#fffbeb",
           fontSize: 13,
         }}
       >
@@ -156,22 +163,35 @@ function DashboardContent({ config }: { config: AppConfig }) {
           style={{
             width: 8,
             height: 8,
-            borderRadius: '50%',
-            backgroundColor: error ? '#ef4444' : isConnected ? '#22c55e' : '#f59e0b',
+            borderRadius: "50%",
+            backgroundColor: error
+              ? "#ef4444"
+              : isConnected
+                ? "#22c55e"
+                : "#f59e0b",
           }}
         />
         {error ? (
-          <span style={{ color: '#dc2626' }}>Connection error: {error.message}</span>
+          <span style={{ color: "#dc2626" }}>
+            Connection error: {error.message}
+          </span>
         ) : isConnected ? (
-          <span style={{ color: '#16a34a' }}>
+          <span style={{ color: "#16a34a" }}>
             Connected to <strong>{config.deviceIdent}</strong>
           </span>
         ) : (
-          <span style={{ color: '#d97706' }}>Connecting...</span>
+          <span style={{ color: "#d97706" }}>Connecting...</span>
         )}
       </div>
 
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, color: '#111827' }}>
+      <h1
+        style={{
+          fontSize: 22,
+          fontWeight: 700,
+          marginBottom: 16,
+          color: "#111827",
+        }}
+      >
         Dashboard
       </h1>
 
@@ -190,8 +210,8 @@ function DashboardContent({ config }: { config: AppConfig }) {
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
           gap: 20,
         }}
       >
@@ -200,7 +220,7 @@ function DashboardContent({ config }: { config: AppConfig }) {
           <div style={{ height: 300 }}>
             <TimeSeries
               data={{ [config.deviceIdent]: tsData }}
-              title={`${config.metrics.join(', ')} — Line`}
+              title={`${config.metrics.join(", ")} — Line`}
               showLoading={tsLoading}
               timeWindow={isLive ? liveWindow : undefined}
               autoScroll={isLive}
@@ -213,7 +233,7 @@ function DashboardContent({ config }: { config: AppConfig }) {
           <div style={{ height: 300 }}>
             <TimeSeries
               data={{ [config.deviceIdent]: tsData }}
-              title={`${config.metrics.join(', ')} — Area`}
+              title={`${config.metrics.join(", ")} — Area`}
               area
               showLoading={tsLoading}
               timeWindow={isLive ? liveWindow : undefined}
@@ -237,14 +257,14 @@ function DashboardContent({ config }: { config: AppConfig }) {
         <Card title="Needle Gauge">
           <div style={{ height: 200 }}>
             <NeedleGauge
-              value={latestValue ?? 0}
+              data={{ value: latestValue ?? 0, timestamp: null }}
               label={firstMetric}
               unit=""
               min={0}
               max={100}
               alertZones={[
-                { min: 0, max: 50, color: '#22c55e' },
-                { min: 50, max: 100, color: '#ef4444' },
+                { min: 0, max: 50, color: "#22c55e" },
+                { min: 50, max: 100, color: "#ef4444" },
               ]}
             />
           </div>
@@ -254,15 +274,15 @@ function DashboardContent({ config }: { config: AppConfig }) {
         <Card title="Arc Gauge">
           <div style={{ height: 200 }}>
             <ArcGauge
-              value={latestValue ?? 0}
+              data={{ value: latestValue ?? 0, timestamp: null }}
               label={firstMetric}
               unit=""
               min={0}
               max={100}
               alertZones={[
-                { min: 0, max: 30, color: '#3b82f6' },
-                { min: 30, max: 60, color: '#8b5cf6' },
-                { min: 60, max: 100, color: '#ec4899' },
+                { min: 0, max: 30, color: "#3b82f6" },
+                { min: 30, max: 60, color: "#8b5cf6" },
+                { min: 60, max: 100, color: "#ec4899" },
               ]}
             />
           </div>
@@ -272,10 +292,9 @@ function DashboardContent({ config }: { config: AppConfig }) {
         <Card title="Stat Card">
           <div style={{ height: 140 }}>
             <StatCard
-              value={latestValue ?? '--'}
+              data={latestResult}
               label={firstMetric}
               formatValue={(v) => v.toFixed(2)}
-              lastUpdated={latestTs ?? undefined}
               showLastUpdated
               borderColor="#e0e0e0"
               borderThickness={1}
@@ -288,7 +307,7 @@ function DashboardContent({ config }: { config: AppConfig }) {
         <Card title="Stat Card + Sparkline">
           <div style={{ height: 160 }}>
             <StatCardWithGraph
-              value={latestValue ?? '--'}
+              data={latestResult}
               label={firstMetric}
               formatValue={(v) => v.toFixed(2)}
               sparklineData={tsData.slice(-50)}
@@ -297,7 +316,6 @@ function DashboardContent({ config }: { config: AppConfig }) {
               borderColor="#e0e0e0"
               borderThickness={1}
               borderRadius="rounded"
-              lastUpdated={latestTs ?? undefined}
               showLastUpdated
             />
           </div>
@@ -308,32 +326,45 @@ function DashboardContent({ config }: { config: AppConfig }) {
           <div
             style={{
               height: 80,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               gap: 12,
               fontSize: 16,
             }}
           >
             <PresenceIndicator online={isConnected} size={16} />
-            <span style={{ fontWeight: 600, color: isConnected ? '#16a34a' : '#dc2626' }}>
-              {config.deviceIdent} — {isConnected ? 'Online' : 'Offline'}
+            <span
+              style={{
+                fontWeight: 600,
+                color: isConnected ? "#16a34a" : "#dc2626",
+              }}
+            >
+              {config.deviceIdent} — {isConnected ? "Online" : "Offline"}
             </span>
           </div>
         </Card>
 
         {/* 9. Progress Bar */}
         <Card title="Progress Bar">
-          <div style={{ height: 80, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+          <div
+            style={{
+              height: 80,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
             <ProgressBar
-              value={latestValue ?? 0}
+              data={{ value: latestValue ?? 0, timestamp: null }}
               min={0}
               max={100}
               formatValue={(v) => v.toFixed(1)}
               alertZones={[
-                { min: 0, max: 40, color: '#22c55e' },
-                { min: 40, max: 70, color: '#f59e0b' },
-                { min: 70, max: 100, color: '#ef4444' },
+                { min: 0, max: 40, color: "#22c55e" },
+                { min: 40, max: 70, color: "#f59e0b" },
+                { min: 70, max: 100, color: "#ef4444" },
               ]}
             />
           </div>
@@ -346,14 +377,14 @@ function DashboardContent({ config }: { config: AppConfig }) {
               data={{ [config.deviceIdent]: tsData }}
               metricKey={firstMetric}
               stateMapper={(value: number) => {
-                if (value > 70) return 'critical';
-                if (value > 40) return 'warning';
-                return 'normal';
+                if (value > 70) return "critical";
+                if (value > 40) return "warning";
+                return "normal";
               }}
               stateColors={{
-                normal: '#22c55e',
-                warning: '#f59e0b',
-                critical: '#ef4444',
+                normal: "#22c55e",
+                warning: "#f59e0b",
+                critical: "#ef4444",
               }}
               showLoading={tsLoading}
             />
@@ -377,19 +408,19 @@ function Card({
     <div
       style={{
         gridColumn: span > 1 ? `span ${span}` : undefined,
-        backgroundColor: '#fff',
+        backgroundColor: "#fff",
         borderRadius: 12,
-        border: '1px solid #e5e7eb',
-        overflow: 'hidden',
+        border: "1px solid #e5e7eb",
+        overflow: "hidden",
       }}
     >
       <div
         style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #f3f4f6',
+          padding: "12px 16px",
+          borderBottom: "1px solid #f3f4f6",
           fontSize: 13,
           fontWeight: 600,
-          color: '#374151',
+          color: "#374151",
         }}
       >
         {title}

@@ -8,11 +8,11 @@ Requirements: `requirements/StatCardWithGraph.md`
 ## Component Signature
 
 ```typescript
-import { useMemo, useRef, useState, useEffect } from 'react';
-import { scaleTime, scaleLinear, line, area, extent } from 'd3';
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import type { ComponentError } from '../utils/validation';
-import type { ZoneTransition } from '../utils/useZoneTransition';
+import { useMemo, useRef, useState, useEffect } from "react";
+import { scaleTime, scaleLinear, line, area, extent } from "d3";
+import type { AlertZone, FontStyle, BackgroundStyle } from "../utils/types";
+import type { ComponentError } from "../utils/validation";
+import type { ZoneTransition } from "../utils/useZoneTransition";
 
 export interface StatCardWithGraphStyles {
   value?: FontStyle;
@@ -25,7 +25,7 @@ export interface StatCardWithGraphStyles {
 
 export interface StatCardWithGraphProps {
   // -- Display --
-  value: any;
+  data: RelayDataPoint; // result from useRelayLatest(); data.value provides the component value, data.timestamp provides the last updated time
   numericValue?: number;
   label?: string;
   formatValue?: (value: any) => string;
@@ -33,21 +33,20 @@ export interface StatCardWithGraphProps {
   // -- Sparkline --
   sparklineData?: any[];
   sparklineExtractor?: (point: any) => number;
-  sparklineWindow?: number;   // ms, default 30000
-  graphLineColor?: string;    // default '#3b82f6'
+  sparklineWindow?: number; // ms, default 30000
+  graphLineColor?: string; // default '#3b82f6'
 
   // -- Alert Zones --
   alertZones?: AlertZone[];
   onZoneChange?: (transition: ZoneTransition) => void;
 
   // -- Timestamp --
-  lastUpdated?: Date | number;
   showLastUpdated?: boolean;
   formatTimestamp?: (ts: Date | number) => string;
   lastUpdatedMargin?: number;
 
   // -- Border --
-  borderRadius?: number | 'rounded' | 'sharp';
+  borderRadius?: number | "rounded" | "sharp";
   borderColor?: string;
   borderThickness?: number;
 
@@ -61,15 +60,16 @@ export interface StatCardWithGraphProps {
 ```
 
 **Prop defaults applied via destructuring:**
+
 ```typescript
-sparklineData = []
-sparklineWindow = 30000
-graphLineColor = '#3b82f6'
-alertZones = []
-showLastUpdated = false
-formatTimestamp = defaultFormatTimestamp
-lastUpdatedMargin = 8
-showLoading = true
+sparklineData = [];
+sparklineWindow = 30000;
+graphLineColor = "#3b82f6";
+alertZones = [];
+showLastUpdated = false;
+formatTimestamp = defaultFormatTimestamp;
+lastUpdatedMargin = 8;
+showLoading = true;
 ```
 
 ---
@@ -91,11 +91,11 @@ Identical to StatCard. These four functions are duplicated in the file (not impo
 ### `resolveBorderRadius(value?: number | 'rounded' | 'sharp'): string`
 
 ```typescript
-function resolveBorderRadius(value?: number | 'rounded' | 'sharp'): string {
-  if (value === 'sharp') return '0';
-  if (value === 'rounded') return 'var(--relay-border-radius, 8px)';
-  if (typeof value === 'number') return `${value}px`;
-  return 'var(--relay-border-radius, 8px)';
+function resolveBorderRadius(value?: number | "rounded" | "sharp"): string {
+  if (value === "sharp") return "0";
+  if (value === "rounded") return "var(--relay-border-radius, 8px)";
+  if (typeof value === "number") return `${value}px`;
+  return "var(--relay-border-radius, 8px)";
 }
 ```
 
@@ -103,9 +103,9 @@ function resolveBorderRadius(value?: number | 'rounded' | 'sharp'): string {
 
 ```typescript
 function defaultDisplayFormat(value: any): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'number') return defaultFormatValue(value);
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return defaultFormatValue(value);
+  if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
 ```
@@ -126,7 +126,7 @@ function getZoneColor(value: number, zones: AlertZone[]): string | null {
 ```typescript
 function toCss(val: string | number | undefined): string | undefined {
   if (val === undefined) return undefined;
-  return typeof val === 'number' ? `${val}px` : val;
+  return typeof val === "number" ? `${val}px` : val;
 }
 ```
 
@@ -138,7 +138,10 @@ Identical to StatCard:
 
 ```typescript
 const containerRef = useRef<HTMLDivElement>(null);
-const [dims, setDims] = useState({ width: STAT_REFERENCE, height: STAT_REFERENCE });
+const [dims, setDims] = useState({
+  width: STAT_REFERENCE,
+  height: STAT_REFERENCE,
+});
 
 useEffect(() => {
   const el = containerRef.current;
@@ -148,7 +151,9 @@ useEffect(() => {
     if (entry) {
       const w = Math.round(entry.contentRect.width);
       const h = Math.round(entry.contentRect.height);
-      setDims((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+      setDims((prev) =>
+        prev.width === w && prev.height === h ? prev : { width: w, height: h },
+      );
     }
   });
   ro.observe(el);
@@ -163,7 +168,7 @@ useEffect(() => {
 ## Scaler Configuration
 
 ```typescript
-const s = createScaler(dims.width, dims.height, STAT_REFERENCE, 'width');
+const s = createScaler(dims.width, dims.height, STAT_REFERENCE, "width");
 ```
 
 Mode `'width'`: scale factor = `dims.width / 300`. Same as StatCard.
@@ -176,8 +181,8 @@ Mode `'width'`: scale factor = `dims.width / 300`. Same as StatCard.
 useEffect(() => {
   if (sparklineData.length > 0 && !sparklineExtractor) {
     console.warn(
-      'StatCardWithGraph: sparklineData provided without sparklineExtractor. ' +
-      'Sparkline will not render. Provide sparklineExtractor={(point) => point.yourMetric}.'
+      "StatCardWithGraph: sparklineData provided without sparklineExtractor. " +
+        "Sparkline will not render. Provide sparklineExtractor={(point) => point.yourMetric}.",
     );
   }
 }, [sparklineData.length > 0, !sparklineExtractor]);
@@ -190,11 +195,14 @@ useEffect(() => {
 ## Sparkline Color Priority
 
 ```typescript
-const isGraphColorExplicit = graphLineColor !== '#3b82f6';
-const sparkColor = isGraphColorExplicit ? graphLineColor : (zoneColor ?? graphLineColor);
+const isGraphColorExplicit = graphLineColor !== "#3b82f6";
+const sparkColor = isGraphColorExplicit
+  ? graphLineColor
+  : (zoneColor ?? graphLineColor);
 ```
 
 Resolution order:
+
 1. If `graphLineColor` differs from the default `'#3b82f6'`, the developer has explicitly set it. Use `graphLineColor` regardless of zone color.
 2. If `graphLineColor` is the default, check `zoneColor`. If a zone color is active, use it.
 3. If no zone color is active, use the default `'#3b82f6'`.
@@ -212,7 +220,9 @@ const sparklinePath = useMemo(() => { ... },
 ```
 
 ### Dependencies
+
 The memoized path recomputes when any of these change:
+
 - `sparklineData` — new data points
 - `sparklineExtractor` — different extraction function
 - `sparklineWindow` — changed time window
@@ -220,13 +230,19 @@ The memoized path recomputes when any of these change:
 - `dims.height` — container resized vertically
 
 ### Return Type
+
 ```typescript
-{ line: string; area: string; viewBox: string }
+{
+  line: string;
+  area: string;
+  viewBox: string;
+}
 ```
 
 ### Early Returns (no sparkline rendered)
 
 The memo returns `{ line: '', area: '', viewBox: '0 0 100 40' }` in these cases:
+
 1. `sparklineExtractor` is falsy.
 2. `sparklineData.length < 2`.
 3. After extraction and validation, fewer than 2 valid points remain.
@@ -240,24 +256,25 @@ An empty `line` string causes the SVG to not render (checked via `sparklinePath.
 const points: { timestamp: number; value: number }[] = [];
 for (const point of sparklineData) {
   const ts = point.timestamp;
-  if (typeof ts !== 'number' || !Number.isFinite(ts)) continue;   // skip invalid timestamp
+  if (typeof ts !== "number" || !Number.isFinite(ts)) continue; // skip invalid timestamp
   const val = sparklineExtractor(point);
-  if (typeof val !== 'number' || !Number.isFinite(val)) continue;  // skip invalid value
+  if (typeof val !== "number" || !Number.isFinite(val)) continue; // skip invalid value
   points.push({ timestamp: ts, value: val });
 }
 ```
 
 Each raw data point goes through two validations:
+
 1. `point.timestamp` must be a finite number.
 2. `sparklineExtractor(point)` must return a finite number.
-Points failing either check are silently dropped.
+   Points failing either check are silently dropped.
 
 ### Time Windowing
 
 ```typescript
-const latestTs = Math.max(...points.map(p => p.timestamp));
+const latestTs = Math.max(...points.map((p) => p.timestamp));
 const windowStart = latestTs - sparklineWindow;
-const windowed = points.filter(p => p.timestamp >= windowStart);
+const windowed = points.filter((p) => p.timestamp >= windowStart);
 ```
 
 - `latestTs` = maximum timestamp across all valid extracted points.
@@ -275,7 +292,10 @@ for (const d of windowed) {
   if (d.value < yMin) yMin = d.value;
   if (d.value > yMax) yMax = d.value;
 }
-if (yMin === yMax) { yMin -= 1; yMax += 1; }
+if (yMin === yMax) {
+  yMin -= 1;
+  yMax += 1;
+}
 ```
 
 **Identical Y values edge case:** When all values are the same, `yMin === yMax`. The component expands the range by +/- 1, producing a flat horizontal line at the vertical center of the SVG.
@@ -293,9 +313,7 @@ const xScale = scaleTime()
   .domain([new Date(tMin), new Date(tMax)])
   .range([0, w]);
 
-const yScale = scaleLinear()
-  .domain([yMin, yMax])
-  .range([h, 0]);   // inverted: larger values at top
+const yScale = scaleLinear().domain([yMin, yMax]).range([h, 0]); // inverted: larger values at top
 ```
 
 - `scaleTime`: maps timestamp range to horizontal pixel range `[0, w]`.
@@ -312,8 +330,8 @@ const lineGen = line<SparkPoint>()
 
 const areaGen = area<SparkPoint>()
   .x((d) => xScale(new Date(d.timestamp)))
-  .y0(h)               // bottom of SVG
-  .y1((d) => yScale(d.value));  // data line
+  .y0(h) // bottom of SVG
+  .y1((d) => yScale(d.value)); // data line
 ```
 
 - **Line generator:** produces an SVG `d` attribute string connecting points with straight line segments.
@@ -323,8 +341,8 @@ const areaGen = area<SparkPoint>()
 
 ```typescript
 return {
-  line: lineGen(windowed) ?? '',
-  area: areaGen(windowed) ?? '',
+  line: lineGen(windowed) ?? "",
+  area: areaGen(windowed) ?? "",
   viewBox: `0 0 ${w} ${h}`,
 };
 ```
@@ -430,7 +448,7 @@ div.container (ref=containerRef)
        │      maxWidth:     '100%'
        │    text: {displayValue}
        │
-       └─ [if showLastUpdated === true AND lastUpdated != null]
+       └─ [if showLastUpdated === true AND data.timestamp != null]
           div.timestamp
             style:
               fontFamily:   lastUpdatedStyleR?.fontFamily ?? 'var(--relay-font-family)'
@@ -438,10 +456,11 @@ div.container (ref=containerRef)
               fontWeight:   lastUpdatedStyleR?.fontWeight ?? 400
               color:        lastUpdatedStyleR?.color ?? zoneColor ?? '#9ca3af'
               marginTop:    s(lastUpdatedMargin)
-            text: {formatTimestamp(lastUpdated)}
+            text: {formatTimestamp(data.timestamp)}
 ```
 
 Key structural differences from StatCard:
+
 - Container has `position: 'relative'` and `overflow: 'hidden'` (StatCard has neither).
 - Container does NOT have `display: 'flex'` directly; the flex layout is on the content overlay div instead.
 - Container does NOT have `padding` directly; padding is on the content overlay div.
@@ -462,20 +481,26 @@ renderValue → defaultDisplayFormat(renderValue)   [if formatValue prop NOT pro
 
 ---
 
+## `data` Prop
+
+The required prop providing value and timestamp. `data.value` is used as the component value and `data.timestamp` as the last updated timestamp. Recommended pattern: `<StatCardWithGraph data={useRelayLatest({...})} showLastUpdated />`
+
+---
+
 ## Zone Color Resolution and Propagation
 
 Same resolution as StatCard for text elements:
 
-| Element | Color Resolution Chain |
-|---|---|
-| Label | `labelStyleR?.color` -> `zoneColor` -> `'#6b7280'` |
-| Value | `valueStyleR?.color` -> `zoneColor` -> `'currentColor'` |
+| Element   | Color Resolution Chain                                   |
+| --------- | -------------------------------------------------------- |
+| Label     | `labelStyleR?.color` -> `zoneColor` -> `'#6b7280'`       |
+| Value     | `valueStyleR?.color` -> `zoneColor` -> `'currentColor'`  |
 | Timestamp | `lastUpdatedStyleR?.color` -> `zoneColor` -> `'#9ca3af'` |
 
 Additional for sparkline:
 
-| Element | Color Resolution |
-|---|---|
+| Element                   | Color Resolution                                                        |
+| ------------------------- | ----------------------------------------------------------------------- |
 | Sparkline (stroke + fill) | `isGraphColorExplicit ? graphLineColor : (zoneColor ?? graphLineColor)` |
 
 ---
@@ -498,8 +523,12 @@ Identical to StatCard:
 
 ```css
 @keyframes relay-skeleton-shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 ```
 
@@ -510,6 +539,7 @@ Animation: `1.5s ease-in-out infinite`.
 ## Loading State Conditions
 
 Identical to StatCard:
+
 1. `showLoading === true` (default) AND `renderValue === null` (no previous valid value).
 2. When loading, the entire card is replaced by the skeleton div. No sparkline SVG is rendered.
 
@@ -532,24 +562,31 @@ strokeWidth={s(2)}
 ## Edge Cases
 
 ### Fewer Than 2 Points
+
 If `sparklineData.length < 2`, or after extraction/validation fewer than 2 valid points remain, or after time windowing fewer than 2 points remain: the memo returns empty strings, `sparklinePath.line` is falsy, and the SVG is not rendered.
 
 ### Identical Y Values
+
 When all y-values are equal: `yMin -= 1; yMax += 1`. The line renders as a flat horizontal line at the vertical midpoint of the SVG.
 
 ### Missing Extractor
+
 When `sparklineData` is non-empty but `sparklineExtractor` is not provided:
+
 - A console warning fires (via `useEffect`).
 - The `useMemo` returns empty strings (first guard: `!sparklineExtractor`).
 - No SVG is rendered.
 
 ### Non-Finite Timestamps or Values
+
 Points with `typeof ts !== 'number'`, `!Number.isFinite(ts)`, `typeof val !== 'number'`, or `!Number.isFinite(val)` are silently dropped from the dataset.
 
 ### Empty sparklineData
+
 `sparklineData = []` (default): no extraction occurs, memo returns empty strings, no SVG rendered. No warning is logged (the warning only fires when `sparklineData.length > 0 && !sparklineExtractor`).
 
 ### Single Valid Point After Windowing
+
 If time windowing reduces the dataset to 1 point, the memo returns empty strings. A line requires at least 2 points.
 
 ---
@@ -557,7 +594,11 @@ If time windowing reduces the dataset to 1 point, the memo returns empty strings
 ## Zone Transition Callback
 
 ```typescript
-useZoneTransition(zoneNumeric ?? 0, alertZones, zoneNumeric !== null ? onZoneChange : undefined);
+useZoneTransition(
+  zoneNumeric ?? 0,
+  alertZones,
+  zoneNumeric !== null ? onZoneChange : undefined,
+);
 ```
 
 Identical to StatCard. `ZoneTransition` type: `{ previousZone: AlertZone | null, currentZone: AlertZone | null, value: number }`. Zone identity compared by `min`, `max`, `color` fields. First render initializes silently.

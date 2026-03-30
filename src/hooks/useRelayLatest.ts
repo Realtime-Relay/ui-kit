@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import type { TimeRange } from '../utils/types';
-import { useRelayApp } from '../context/RelayProvider';
-import { normalizeRealtimePoint } from '../utils/data';
+import { useState, useEffect, useRef } from "react";
+import type { TimeRange } from "../utils/types";
+import { useRelayApp } from "../context/RelayProvider";
+import { normalizeRealtimePoint } from "../utils/data";
 
 export interface UseRelayLatestOptions {
   deviceIdent: string;
@@ -19,7 +19,8 @@ export interface UseRelayLatestResult {
 /** Convert a TimeRange start/end value to a UTC ISO string. */
 function toUTCISO(value: Date | string): string {
   if (value instanceof Date) return value.toISOString();
-  if (value.includes('T') && (value.endsWith('Z') || value.includes('+'))) return value;
+  if (value.includes("T") && (value.endsWith("Z") || value.includes("+")))
+    return value;
   const date = new Date(value);
   if (isNaN(date.getTime())) return value;
   return date.toISOString();
@@ -51,11 +52,11 @@ export function useRelayLatest({
       metric: [metric],
       callback: (msg) => {
         if (cancelled) return;
-        
+
         hasData.current = true;
-        
+
         const point = normalizeRealtimePoint(msg);
-        
+
         setValue(Number(point[metric]));
         setTimestamp(point.timestamp);
         setIsLoading(false);
@@ -73,9 +74,8 @@ export function useRelayLatest({
         });
 
         if (!cancelled && !hasData.current && result[metric]) {
-          
           hasData.current = true;
-          
+
           setValue(Number(result[metric].value));
           setTimestamp(result[metric].timestamp);
           setIsLoading(false);
@@ -92,7 +92,9 @@ export function useRelayLatest({
 
     return () => {
       cancelled = true;
-      app.telemetry.off({ device_ident: deviceIdent, metric: [metric] }).catch(() => {});
+      app.telemetry
+        .off({ device_ident: deviceIdent, metric: [metric] })
+        .catch(() => {});
     };
   }, [app, deviceIdent, metric, startUTC, endUTC]);
 

@@ -8,9 +8,9 @@ Requirements: `requirements/StatCard.md`
 ## Component Signature
 
 ```typescript
-import type { AlertZone, FontStyle, BackgroundStyle } from '../utils/types';
-import type { ComponentError } from '../utils/validation';
-import type { ZoneTransition } from '../utils/useZoneTransition';
+import type { AlertZone, FontStyle, BackgroundStyle } from "../utils/types";
+import type { ComponentError } from "../utils/validation";
+import type { ZoneTransition } from "../utils/useZoneTransition";
 
 export interface StatCardStyles {
   value?: FontStyle;
@@ -22,17 +22,16 @@ export interface StatCardStyles {
 }
 
 export interface StatCardProps {
-  value: any;
+  data: RelayDataPoint; // result from useRelayLatest(); data.value provides the component value, data.timestamp provides the last updated time
   numericValue?: number;
   label?: string;
   formatValue?: (value: any) => string;
   alertZones?: AlertZone[];
   onZoneChange?: (transition: ZoneTransition) => void;
-  borderRadius?: number | 'rounded' | 'sharp';
+  borderRadius?: number | "rounded" | "sharp";
   borderColor?: string;
   borderThickness?: number;
   styles?: StatCardStyles;
-  lastUpdated?: Date | number;
   showLastUpdated?: boolean;
   formatTimestamp?: (ts: Date | number) => string;
   lastUpdatedMargin?: number;
@@ -42,12 +41,13 @@ export interface StatCardProps {
 ```
 
 **Prop defaults applied via destructuring:**
+
 ```typescript
-alertZones = []
-showLastUpdated = false
-formatTimestamp = defaultFormatTimestamp
-lastUpdatedMargin = 8
-showLoading = true
+alertZones = [];
+showLastUpdated = false;
+formatTimestamp = defaultFormatTimestamp;
+lastUpdatedMargin = 8;
+showLoading = true;
 ```
 
 ---
@@ -67,11 +67,11 @@ All proportional scaling is relative to a 300px-wide container.
 ### `resolveBorderRadius(value?: number | 'rounded' | 'sharp'): string`
 
 ```typescript
-function resolveBorderRadius(value?: number | 'rounded' | 'sharp'): string {
-  if (value === 'sharp') return '0';
-  if (value === 'rounded') return 'var(--relay-border-radius, 8px)';
-  if (typeof value === 'number') return `${value}px`;
-  return 'var(--relay-border-radius, 8px)';  // undefined falls through to rounded
+function resolveBorderRadius(value?: number | "rounded" | "sharp"): string {
+  if (value === "sharp") return "0";
+  if (value === "rounded") return "var(--relay-border-radius, 8px)";
+  if (typeof value === "number") return `${value}px`;
+  return "var(--relay-border-radius, 8px)"; // undefined falls through to rounded
 }
 ```
 
@@ -81,10 +81,10 @@ Type-aware formatting for values when no custom `formatValue` is provided:
 
 ```typescript
 function defaultDisplayFormat(value: any): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'number') return defaultFormatValue(value);  // up to 2 decimals, trailing zeros trimmed
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);  // string, boolean, symbol, bigint
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return defaultFormatValue(value); // up to 2 decimals, trailing zeros trimmed
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value); // string, boolean, symbol, bigint
 }
 ```
 
@@ -108,7 +108,7 @@ Iterates zones in array order. First matching zone wins (inclusive on both bound
 ```typescript
 function toCss(val: string | number | undefined): string | undefined {
   if (val === undefined) return undefined;
-  return typeof val === 'number' ? `${val}px` : val;
+  return typeof val === "number" ? `${val}px` : val;
 }
 ```
 
@@ -120,7 +120,10 @@ Converts dimension values for `styles.width` / `styles.height` to CSS strings.
 
 ```typescript
 const containerRef = useRef<HTMLDivElement>(null);
-const [dims, setDims] = useState({ width: STAT_REFERENCE, height: STAT_REFERENCE });
+const [dims, setDims] = useState({
+  width: STAT_REFERENCE,
+  height: STAT_REFERENCE,
+});
 
 useEffect(() => {
   const el = containerRef.current;
@@ -130,7 +133,9 @@ useEffect(() => {
     if (entry) {
       const w = Math.round(entry.contentRect.width);
       const h = Math.round(entry.contentRect.height);
-      setDims((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+      setDims((prev) =>
+        prev.width === w && prev.height === h ? prev : { width: w, height: h },
+      );
     }
   });
   ro.observe(el);
@@ -139,6 +144,7 @@ useEffect(() => {
 ```
 
 Key details:
+
 - Initial state: `{ width: 300, height: 300 }` (matches `STAT_REFERENCE`), so the first render uses 1:1 scale before measurement.
 - Dimensions are rounded to integers via `Math.round` to avoid sub-pixel jitter.
 - **Dedup logic:** `setDims` uses a functional updater that returns the previous object reference when width and height are unchanged. This prevents unnecessary re-renders from ResizeObserver firing multiple times with the same dimensions.
@@ -150,7 +156,7 @@ Key details:
 ## Scaler Configuration
 
 ```typescript
-const s = createScaler(dims.width, dims.height, STAT_REFERENCE, 'width');
+const s = createScaler(dims.width, dims.height, STAT_REFERENCE, "width");
 ```
 
 - Mode: `'width'` — scale factor is `dims.width / 300`.
@@ -170,6 +176,7 @@ const lastUpdatedStyleR = resolveFont(styles?.lastUpdated);
 ```
 
 `resolveFont` (from `utils/useResolvedStyles`):
+
 1. If `style` is `undefined`, returns `undefined`.
 2. If `style.fontFile` is set, calls `resolveFontFamily(fontFile)` which injects a `@font-face` declaration into the document head (idempotent) and returns a generated family name. Returns a new style object with `fontFamily` replaced.
 3. If `style.fontFamily` looks like a font URL, resolves it the same way.
@@ -187,10 +194,16 @@ const lastValidRef = useRef<any>(null);
 if (value !== null && value !== undefined) {
   lastValidRef.current = value;
 } else {
-  onError?.({ type: 'invalid_value', message: '...', rawValue: value, component: 'StatCard' });
+  onError?.({
+    type: "invalid_value",
+    message: "...",
+    rawValue: value,
+    component: "StatCard",
+  });
 }
 
-const renderValue = value !== null && value !== undefined ? value : lastValidRef.current;
+const renderValue =
+  value !== null && value !== undefined ? value : lastValidRef.current;
 ```
 
 - Non-null/non-undefined `value` is stored in the ref immediately (during render, not in an effect).
@@ -199,13 +212,18 @@ const renderValue = value !== null && value !== undefined ? value : lastValidRef
 ### Step 2: Zone numeric resolution
 
 ```typescript
-const zoneNumeric = numericValue ?? (typeof renderValue === 'number' ? renderValue : null);
+const zoneNumeric =
+  numericValue ?? (typeof renderValue === "number" ? renderValue : null);
 ```
 
 ### Step 3: Zone transition tracking
 
 ```typescript
-useZoneTransition(zoneNumeric ?? 0, alertZones, zoneNumeric !== null ? onZoneChange : undefined);
+useZoneTransition(
+  zoneNumeric ?? 0,
+  alertZones,
+  zoneNumeric !== null ? onZoneChange : undefined,
+);
 ```
 
 When `zoneNumeric` is `null`, `onZoneChange` is passed as `undefined`, which disables the hook. The fallback `0` is passed as the value but has no effect since the callback is disabled.
@@ -213,17 +231,21 @@ When `zoneNumeric` is `null`, `onZoneChange` is passed as `undefined`, which dis
 ### Step 4: Zone color computation
 
 ```typescript
-const zoneColor = zoneNumeric !== null && alertZones.length > 0
-  ? getZoneColor(zoneNumeric, alertZones)
-  : null;
+const zoneColor =
+  zoneNumeric !== null && alertZones.length > 0
+    ? getZoneColor(zoneNumeric, alertZones)
+    : null;
 ```
 
 ### Step 5: Format display string
 
 ```typescript
-const displayValue = renderValue !== null && renderValue !== undefined
-  ? (formatValue ? formatValue(renderValue) : defaultDisplayFormat(renderValue))
-  : '';
+const displayValue =
+  renderValue !== null && renderValue !== undefined
+    ? formatValue
+      ? formatValue(renderValue)
+      : defaultDisplayFormat(renderValue)
+    : "";
 ```
 
 **Chain:** `renderValue` -> `formatValue(renderValue)` (if provided) OR `defaultDisplayFormat(renderValue)` (if not) -> `displayValue` string.
@@ -294,7 +316,7 @@ div.container (ref=containerRef)
   │      maxWidth:     '100%'
   │    text: {displayValue}
   │
-  └─ [if showLastUpdated === true AND lastUpdated != null]
+  └─ [if showLastUpdated === true AND data.timestamp != null]
      div.timestamp
        style:
          fontFamily:   lastUpdatedStyleR?.fontFamily ?? 'var(--relay-font-family)'
@@ -302,8 +324,14 @@ div.container (ref=containerRef)
          fontWeight:   lastUpdatedStyleR?.fontWeight ?? 400
          color:        lastUpdatedStyleR?.color ?? zoneColor ?? '#9ca3af'
          marginTop:    s(lastUpdatedMargin)
-       text: {formatTimestamp(lastUpdated)}
+       text: {formatTimestamp(data.timestamp)}
 ```
+
+---
+
+## `data` Prop
+
+The required prop providing value and timestamp. `data.value` is used as the component value and `data.timestamp` as the last updated timestamp. Recommended pattern: `<StatCard data={useRelayLatest({...})} showLastUpdated />`
 
 ---
 
@@ -311,13 +339,14 @@ div.container (ref=containerRef)
 
 Zone color is computed once and applied as a fallback for three elements:
 
-| Element | Color Resolution (left to right, first non-null wins) |
-|---|---|
-| Label | `labelStyleR?.color` -> `zoneColor` -> `'#6b7280'` |
-| Value | `valueStyleR?.color` -> `zoneColor` -> `'currentColor'` |
+| Element   | Color Resolution (left to right, first non-null wins)    |
+| --------- | -------------------------------------------------------- |
+| Label     | `labelStyleR?.color` -> `zoneColor` -> `'#6b7280'`       |
+| Value     | `valueStyleR?.color` -> `zoneColor` -> `'currentColor'`  |
 | Timestamp | `lastUpdatedStyleR?.color` -> `zoneColor` -> `'#9ca3af'` |
 
 The `??` (nullish coalescing) chain means:
+
 - If the developer sets an explicit `styles.value.color`, zone color is ignored for the value.
 - If the developer does NOT set an explicit color, zone color is used when present.
 - If no zone matches, the default color applies.
@@ -330,12 +359,17 @@ The component references a CSS `@keyframes` animation named `relay-skeleton-shim
 
 ```css
 @keyframes relay-skeleton-shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 ```
 
 Animation properties:
+
 - Duration: `1.5s`
 - Timing function: `ease-in-out`
 - Iteration: `infinite`
@@ -346,6 +380,7 @@ Animation properties:
 ## Loading State Conditions
 
 The loading skeleton is displayed when ALL of these are true:
+
 1. `showLoading === true` (default)
 2. `renderValue === null` (meaning: `value` is null/undefined AND no previous valid value exists in `lastValidRef`)
 

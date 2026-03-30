@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, type ReactNode } from 'react';
+import { useRef, useState, useEffect, type ReactNode } from "react";
 
 export interface Dimensions {
   width: number;
@@ -23,9 +23,18 @@ interface ResponsiveContainerProps {
  * - ResizeObserver watches the outer div
  * - This prevents the infinite resize loop where SVG content grows the container
  */
-export function ResponsiveContainer({ className, style, explicitWidth, explicitHeight, children }: ResponsiveContainerProps) {
+export function ResponsiveContainer({
+  className,
+  style,
+  explicitWidth,
+  explicitHeight,
+  children,
+}: ResponsiveContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
+  const [dimensions, setDimensions] = useState<Dimensions>({
+    width: 0,
+    height: 0,
+  });
 
   useEffect(() => {
     const el = containerRef.current;
@@ -52,16 +61,16 @@ export function ResponsiveContainer({ className, style, explicitWidth, explicitH
       ref={containerRef}
       className={className}
       style={{
-        width: explicitWidth ? `${explicitWidth}px` : '100%',
-        height: explicitHeight ? `${explicitHeight}px` : '100%',
-        maxWidth: '100%',
-        position: 'relative',
-        overflow: 'hidden',
+        width: explicitWidth ? `${explicitWidth}px` : "100%",
+        height: explicitHeight ? `${explicitHeight}px` : "100%",
+        maxWidth: "100%",
+        position: "relative",
+        overflow: "hidden",
         ...style,
       }}
     >
       {dimensions.width > 0 && dimensions.height > 0 ? (
-        <div style={{ position: 'absolute', inset: 0 }}>
+        <div style={{ position: "absolute", inset: 0 }}>
           {children(dimensions)}
         </div>
       ) : null}

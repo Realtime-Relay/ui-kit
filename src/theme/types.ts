@@ -1,1 +1,1 @@
-export type { FontStyle, BackgroundStyle } from '../utils/types';
+export type { FontStyle, BackgroundStyle } from "../utils/types";
