@@ -90,7 +90,6 @@ export interface TimeSeriesProps {
   gridThickness?: number;
   styles?: TimeSeriesStyles;
   area?: boolean;
-  areaColor?: string;
   alertZones?: AlertZone[];
   showLegend?: boolean;
   legendPosition?: "top" | "bottom" | "left" | "right";
@@ -175,7 +174,6 @@ export const TimeSeries = memo(function TimeSeries({
   gridThickness,
   styles,
   area: showArea = false,
-  areaColor,
   alertZones = [],
   showLegend = true,
   legendPosition = "bottom",
@@ -1173,7 +1171,7 @@ export const TimeSeries = memo(function TimeSeries({
                           {showArea && (
                             <path
                               d={metricAreaGen(visData) ?? ""}
-                              fill={areaColor ?? color}
+                              fill={color}
                               opacity={0.15}
                             />
                           )}

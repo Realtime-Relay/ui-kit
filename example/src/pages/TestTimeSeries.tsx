@@ -417,7 +417,6 @@ export function TestTimeSeries() {
             data={singleDevice}
             metricKey="value"
             area
-            areaColor="#8b5cf6"
           />
         </Card>
 

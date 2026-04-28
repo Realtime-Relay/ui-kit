@@ -633,7 +633,6 @@ function LivePage({
             data={singleDeviceData}
             metricKey={firstMetric}
             area
-            areaColor="#8b5cf6"
           />
         </Card>
       </div>
