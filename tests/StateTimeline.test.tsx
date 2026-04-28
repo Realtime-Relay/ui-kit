@@ -369,7 +369,7 @@ describe("StateTimeline - tooltip", () => {
     const { container } = render(
       <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
     );
-    const tooltip = container.querySelector('[style*="position: fixed"]');
+    const tooltip = container.querySelector('[style*="z-index: 1000"]');
     expect(tooltip).toBeFalsy();
   });
 
@@ -383,8 +383,16 @@ describe("StateTimeline - tooltip", () => {
     expect(canvas).toBeTruthy();
     // Fire mouseLeave to verify it doesn't crash
     fireEvent.mouseLeave(canvas);
-    const tooltip = container.querySelector('[style*="position: fixed"]');
+    const tooltip = container.querySelector('[style*="z-index: 1000"]');
     expect(tooltip).toBeFalsy();
+  });
+
+  it("wrapper is position:relative so tooltip can absolutely position against it", () => {
+    const { container } = render(
+      <StateTimeline data={makeSingleDevice()} stateMapper={mapper} />,
+    );
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.position).toBe("relative");
   });
 });
 

@@ -462,8 +462,8 @@ function CanvasRenderer({
           setHoveredEntry({
             entry: hr.entry,
             deviceName: hr.deviceName,
-            x: e.clientX,
-            y: e.clientY,
+            x: mx,
+            y: my,
           });
           return;
         }
@@ -531,7 +531,7 @@ function CanvasRenderer({
       {hoveredEntry && (
         <div
           style={{
-            position: "fixed",
+            position: "absolute",
             left: hoveredEntry.x + 12,
             top: hoveredEntry.y - 10,
             background: "var(--relay-tooltip-bg, #1a1a1a)",
