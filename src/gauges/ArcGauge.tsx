@@ -58,6 +58,8 @@ export interface ArcGaugeProps {
   label?: string;
   unit?: string;
   styles?: ArcGaugeStyles;
+  /** Color used for the arc fill when no alert zone matches. Default: '#3b82f6' (blue). */
+  defaultColor?: string;
   showZoneValues?: boolean;
   showLastUpdated?: boolean;
   /** Custom formatter for the timestamp. Receives Date | number, must return string. Default: dd MMM yyyy HH:MM:SS.sss +TZ */
@@ -76,6 +78,7 @@ export function ArcGauge({
   label,
   unit,
   styles,
+  defaultColor = "#3b82f6",
   showZoneValues = false,
   showLastUpdated = false,
   formatTimestamp = defaultFormatTimestamp,
@@ -157,8 +160,8 @@ export function ArcGauge({
         const valueDash = buildValueDash(clampedValue, min, max, totalLen);
         const valueColor =
           alertZones.length > 0
-            ? getZoneColor(clampedValue, alertZones, "#3b82f6")
-            : "#3b82f6";
+            ? getZoneColor(clampedValue, alertZones, defaultColor)
+            : defaultColor;
 
         const endpoints = getArcEndpoints(
           cx,

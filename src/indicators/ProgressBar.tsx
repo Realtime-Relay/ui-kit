@@ -54,6 +54,8 @@ export interface ProgressBarProps {
   /** Show min and max values at the ends of the bar. Default: false. */
   showMinMax?: boolean;
   styles?: ProgressBarStyles;
+  /** Color used for the bar fill when no alert zone matches. Default: '#3b82f6' (blue). */
+  defaultColor?: string;
   /** Show/hide the last updated timestamp. Default: false. */
   showLastUpdated?: boolean;
   /** Custom formatter for the timestamp. Receives Date | number, must return string. Default: dd MMM yyyy HH:MM:SS.sss +TZ */
@@ -92,6 +94,7 @@ export function ProgressBar({
   showZoneValues = false,
   showMinMax = false,
   styles,
+  defaultColor = "#3b82f6",
   showLastUpdated = false,
   formatTimestamp = defaultFormatTimestamp,
   showLoading = true,
@@ -157,11 +160,7 @@ export function ProgressBar({
   const clampedValue = Math.min(max, Math.max(min, safeValue));
   const ratio = range > 0 ? (clampedValue - min) / range : 0;
   const percentage = ratio * 100;
-  const fillColor = getZoneColor(
-    clampedValue,
-    alertZones,
-    "var(--relay-progress-fill, #3b82f6)",
-  );
+  const fillColor = getZoneColor(clampedValue, alertZones, defaultColor);
   const hasZones = alertZones.length > 0;
   const displayZones = hasZones && showAlertZones !== false;
 

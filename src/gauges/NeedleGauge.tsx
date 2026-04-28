@@ -28,6 +28,7 @@ import {
   buildArcPath,
   arcLength,
   buildZoneDashes,
+  buildValueDash,
   getZoneColor,
   getArcEndpoints,
   getValuePosition,
@@ -59,6 +60,8 @@ export interface NeedleGaugeProps {
   label?: string;
   unit?: string;
   styles?: NeedleGaugeStyles;
+  /** Color used for the needle and value when no alert zone matches. Default: '#3b82f6' (blue). */
+  defaultColor?: string;
   /** Show values at alert zone boundary points on the arc. */
   showZoneValues?: boolean;
   /** Show/hide the last updated timestamp. Default: false. */
@@ -79,6 +82,7 @@ export function NeedleGauge({
   label,
   unit,
   styles,
+  defaultColor = "#3b82f6",
   showZoneValues = false,
   showLastUpdated = false,
   formatTimestamp = defaultFormatTimestamp,
@@ -162,11 +166,12 @@ export function NeedleGauge({
 
         // Clamp visual to range, but display actual value in label
         const clampedValue = Math.min(max, Math.max(min, renderValue!));
+        const valueDash = buildValueDash(clampedValue, min, max, totalLen);
         const angle = valueToAngle(clampedValue, min, max, sweepDegrees);
         const needleLen = radius - arcThickness - s(8);
         const nx = cx + needleLen * Math.cos(angle);
         const ny = cy + needleLen * Math.sin(angle);
-        const valueColor = getZoneColor(clampedValue, alertZones, "#374151");
+        const valueColor = getZoneColor(clampedValue, alertZones, defaultColor);
 
         const endpoints = getArcEndpoints(
           cx,
@@ -219,9 +224,19 @@ export function NeedleGauge({
                 strokeWidth={arcThickness}
                 strokeDasharray={z.dasharray}
                 strokeDashoffset={z.dashoffset}
-                opacity={1}
+                opacity={0.25}
               />
             ))}
+
+            <path
+              d={arcPathD}
+              fill="none"
+              stroke={valueColor}
+              strokeWidth={arcThickness}
+              strokeLinecap="butt"
+              strokeDasharray={valueDash.dasharray}
+              strokeDashoffset={valueDash.dashoffset}
+            />
 
             <line
               x1={cx}
