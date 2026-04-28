@@ -611,3 +611,56 @@ describe("StateTimeline - tooltip callbacks", () => {
     ).not.toThrow();
   });
 });
+
+// ─── Timezone (X-axis only) ─────────────────────────────────
+
+describe("StateTimeline - timezone", () => {
+  it("renders without crashing when an IANA timezone is provided", () => {
+    expect(() =>
+      render(
+        <StateTimeline
+          data={makeSingleDevice()}
+          stateMapper={mapper}
+          timezone="Asia/Kolkata"
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("renders different x-axis labels when timezone differs by hours", () => {
+    // Use a fixed cross-day window so format goes through Intl.DateTimeFormat predictably.
+    const start = Date.UTC(2026, 0, 15, 12, 0, 0); // 2026-01-15T12:00Z
+    const data: Record<string, DataPoint[]> = {
+      "device-a": Array.from({ length: 6 }, (_, i) => ({
+        timestamp: start + i * 3600_000,
+        value: i % 2 === 0 ? 50 : 80,
+      })),
+    };
+
+    drawCalls = [];
+    render(
+      <StateTimeline data={data} stateMapper={mapper} timezone="UTC" />,
+    );
+    const utcLabels = getDrawCalls("fillText")
+      .map((c) => c.args[0] as string)
+      .filter((s) => /\d{2}:\d{2}/.test(s))
+      .join("|");
+
+    drawCalls = [];
+    render(
+      <StateTimeline
+        data={data}
+        stateMapper={mapper}
+        timezone="Asia/Kolkata"
+      />,
+    );
+    const istLabels = getDrawCalls("fillText")
+      .map((c) => c.args[0] as string)
+      .filter((s) => /\d{2}:\d{2}/.test(s))
+      .join("|");
+
+    expect(utcLabels.length).toBeGreaterThan(0);
+    expect(istLabels.length).toBeGreaterThan(0);
+    expect(utcLabels).not.toBe(istLabels);
+  });
+});

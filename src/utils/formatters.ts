@@ -44,3 +44,16 @@ export function defaultFormatTimestamp(ts: Date | number): string {
 
   return `${dd} ${mmm} ${yyyy} ${hh}:${mm}:${ss}.${ms} ${sign}${tzHH}:${tzMM}`;
 }
+
+/**
+ * Format a Date for axis tick labels in a specific IANA timezone.
+ * When `timezone` is undefined, uses the browser's local timezone.
+ * `opts` is passed through to Intl.DateTimeFormat.
+ */
+export function formatAxisTime(
+  d: Date,
+  timezone: string | undefined,
+  opts: Intl.DateTimeFormatOptions,
+): string {
+  return new Intl.DateTimeFormat([], { ...opts, timeZone: timezone }).format(d);
+}

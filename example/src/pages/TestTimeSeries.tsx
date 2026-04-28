@@ -49,6 +49,24 @@ const multiDayPoints: DataPoint[] = Array.from({ length: 72 }, (_, i) => ({
   value: (Math.sin(i * 0.2) + 1) * 50,
 }));
 
+// 7 days of mock data — one reading per hour (168 points) for two metrics.
+const SEVEN_DAY_POINTS = 24 * 7;
+const sevenDayDevice: Record<string, DataPoint[]> = {
+  "weather-station": Array.from({ length: SEVEN_DAY_POINTS }, (_, i) => {
+    const t = i / SEVEN_DAY_POINTS;
+    return {
+      timestamp: NOW - (SEVEN_DAY_POINTS - i) * 3600_000,
+      // Diurnal cycle (24h) + slow weekly drift
+      temperature:
+        18 + Math.sin((i / 24) * 2 * Math.PI) * 6 + Math.sin(t * Math.PI) * 3,
+      humidity:
+        55 +
+        Math.cos((i / 24) * 2 * Math.PI) * 12 +
+        Math.cos(t * Math.PI * 2) * 5,
+    };
+  }),
+};
+
 // Annotations
 const pointAnnotations: Annotation[] = [
   { timestamp: NOW - 30 * 60_000, label: "Deploy v2.1", color: "#3b82f6" },
@@ -786,6 +804,20 @@ function AnnotationModeTestSection() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Card title="7 Day Range" height={320}>
+          <TimeSeries
+            data={sevenDayDevice}
+            metrics={[
+              { key: "temperature", label: "Temperature (°C)" },
+              { key: "humidity", label: "Humidity (%)" },
+            ]}
+            showLegend
+            legendPosition="bottom"
+          />
+        </Card>
       </div>
     </div>
   );

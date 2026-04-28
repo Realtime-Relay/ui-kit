@@ -486,6 +486,28 @@ function LivePage({
   // Zone transition log
   const [zoneLog, setZoneLog] = useState<string[]>([]);
 
+  // 7 days of mock data — one reading per hour (168 points) for two metrics.
+  const sevenDayData: Record<string, DataPoint[]> = useMemo(() => {
+    const COUNT = 24 * 7;
+    const NOW = Date.now();
+    return {
+      "weather-station": Array.from({ length: COUNT }, (_, i) => {
+        const t = i / COUNT;
+        return {
+          timestamp: NOW - (COUNT - i) * 3600_000,
+          temperature:
+            18 +
+            Math.sin((i / 24) * 2 * Math.PI) * 6 +
+            Math.sin(t * Math.PI) * 3,
+          humidity:
+            55 +
+            Math.cos((i / 24) * 2 * Math.PI) * 12 +
+            Math.cos(t * Math.PI * 2) * 5,
+        };
+      }),
+    };
+  }, []);
+
   // Build multi-device data by offsetting
   const singleDeviceData: Record<string, DataPoint[]> = useMemo(
     () => ({ [deviceIdent]: data }),
@@ -583,6 +605,34 @@ function LivePage({
         }}
       >
         {hoverInfo}
+      </div>
+
+      {/* ── 7 Day Mock ── */}
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>
+        7 Day Range (Mock)
+      </h2>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr",
+          gap: 16,
+          marginBottom: 40,
+        }}
+      >
+        <Card
+          title="Weather station — 7 days"
+          description="168 hourly points across two metrics (temperature, humidity), generated from sine/cosine waves."
+        >
+          <TimeSeries
+            data={sevenDayData}
+            metrics={[
+              { key: "temperature", label: "Temperature (°C)" },
+              { key: "humidity", label: "Humidity (%)" },
+            ]}
+            showLegend
+            legendPosition="bottom"
+          />
+        </Card>
       </div>
 
       {/* ── Basic ── */}

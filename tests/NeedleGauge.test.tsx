@@ -168,11 +168,11 @@ describe("NeedleGauge", () => {
         />,
       );
       const paths = container.querySelectorAll("path");
-      // 1 background + 3 zones = 4 paths
-      expect(paths.length).toBe(4);
+      // 1 background + 3 zones + 1 value-fill arc = 5 paths
+      expect(paths.length).toBe(5);
     });
 
-    it("zones have full opacity", () => {
+    it("zones render at 25% opacity (matching ArcGauge)", () => {
       const { container } = render(
         <NeedleGauge
           data={{ value: 50, timestamp: null }}
@@ -180,9 +180,8 @@ describe("NeedleGauge", () => {
         />,
       );
       const paths = container.querySelectorAll("path");
-      // Zone paths (indices 1, 2, 3)
       for (let i = 1; i <= 3; i++) {
-        expect(paths[i].getAttribute("opacity")).toBe("1");
+        expect(paths[i].getAttribute("opacity")).toBe("0.25");
       }
     });
 
@@ -198,7 +197,7 @@ describe("NeedleGauge", () => {
       expect(line?.getAttribute("stroke")).toBe("#ef4444");
     });
 
-    it("needle uses default color when no zone matches", () => {
+    it("needle uses defaultColor (blue) when no zone matches", () => {
       const { container } = render(
         <NeedleGauge
           data={{ value: 50, timestamp: null }}
@@ -206,7 +205,54 @@ describe("NeedleGauge", () => {
         />,
       );
       const line = container.querySelector("line");
-      expect(line?.getAttribute("stroke")).toBe("#374151");
+      expect(line?.getAttribute("stroke")).toBe("#3b82f6");
+    });
+
+    it("needle uses custom defaultColor override when no zone matches", () => {
+      const { container } = render(
+        <NeedleGauge
+          data={{ value: 50, timestamp: null }}
+          alertZones={[{ min: 80, max: 100, color: "red" }]}
+          defaultColor="#7c3aed"
+        />,
+      );
+      const line = container.querySelector("line");
+      expect(line?.getAttribute("stroke")).toBe("#7c3aed");
+    });
+
+    it("renders a value-fill arc using the active zone color", () => {
+      const { container } = render(
+        <NeedleGauge
+          data={{ value: 80, timestamp: null }}
+          alertZones={zones}
+        />,
+      );
+      const paths = container.querySelectorAll("path");
+      // Value-fill arc is the 5th path (after background + 3 zones)
+      const fillArc = paths[4];
+      expect(fillArc.getAttribute("stroke")).toBe("#ef4444");
+      expect(fillArc.getAttribute("stroke-dasharray")).toBeTruthy();
+    });
+  });
+
+  describe("defaultColor without zones", () => {
+    it("needle defaults to blue when no zones are provided", () => {
+      const { container } = render(
+        <NeedleGauge data={{ value: 50, timestamp: null }} />,
+      );
+      const line = container.querySelector("line");
+      expect(line?.getAttribute("stroke")).toBe("#3b82f6");
+    });
+
+    it("respects custom defaultColor prop with no zones", () => {
+      const { container } = render(
+        <NeedleGauge
+          data={{ value: 50, timestamp: null }}
+          defaultColor="#10b981"
+        />,
+      );
+      const line = container.querySelector("line");
+      expect(line?.getAttribute("stroke")).toBe("#10b981");
     });
   });
 

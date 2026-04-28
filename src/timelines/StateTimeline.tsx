@@ -7,6 +7,7 @@ import { ChartSkeleton } from "../charts/shared/Skeleton";
 import { isValidTimestamp, type ComponentError } from "../utils/validation";
 import { getStateColor, groupStateEntries } from "./stateUtils";
 import type { StateEntry } from "./stateUtils";
+import { formatAxisTime } from "../utils/formatters";
 
 export interface StateTimelineStyles {
   label?: FontStyle;
@@ -30,6 +31,8 @@ export interface StateTimelineProps {
   styles?: StateTimelineStyles;
   rowHeight?: number;
   labelAlign?: "left" | "right";
+  /** IANA timezone (e.g., "Asia/Kolkata") for x-axis tick labels. Defaults to browser local time. */
+  timezone?: string;
   showLoading?: boolean;
   onError?: (error: ComponentError) => void;
 }
@@ -54,6 +57,7 @@ export function StateTimeline({
   styles,
   rowHeight: rowHeightProp,
   labelAlign = "left",
+  timezone,
   showLoading = true,
   onError,
 }: StateTimelineProps) {
@@ -261,6 +265,7 @@ export function StateTimeline({
             formatTooltip={formatTooltip}
             renderTooltip={renderTooltip}
             tooltipStyleR={tooltipStyleR}
+            timezone={timezone}
           />
         );
       }}
@@ -301,6 +306,7 @@ function CanvasRenderer({
   formatTooltip,
   renderTooltip,
   tooltipStyleR,
+  timezone,
 }: any) {
   // Draw canvas
   useEffect(() => {
@@ -391,11 +397,18 @@ function CanvasRenderer({
 
       for (const tick of xScale.ticks(tickCount)) {
         const tx = barsX + xScale(tick);
+        const timeLabel = formatAxisTime(tick, timezone, {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
         const label = spansDays
-          ? tick.toLocaleDateString([], { month: "short", day: "numeric" }) +
+          ? formatAxisTime(tick, timezone, {
+              month: "short",
+              day: "numeric",
+            }) +
             " " +
-            tick.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-          : tick.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            timeLabel
+          : timeLabel;
         ctx.fillText(label, tx, axisY);
       }
       ctx.restore();
@@ -427,6 +440,7 @@ function CanvasRenderer({
     emptyRowColor,
     stateColors,
     hoveredEntry,
+    timezone,
   ]);
 
   // Mouse handlers

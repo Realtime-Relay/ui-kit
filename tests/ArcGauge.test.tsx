@@ -196,6 +196,31 @@ describe("ArcGauge", () => {
       const fillArc = paths[paths.length - 1];
       expect(fillArc.getAttribute("stroke")).toBe("#3b82f6");
     });
+
+    it("respects custom defaultColor when no zone matches", () => {
+      const { container } = render(
+        <ArcGauge
+          data={{ value: 50, timestamp: null }}
+          alertZones={[{ min: 80, max: 100, color: "red" }]}
+          defaultColor="#7c3aed"
+        />,
+      );
+      const paths = container.querySelectorAll("path");
+      const fillArc = paths[paths.length - 1];
+      expect(fillArc.getAttribute("stroke")).toBe("#7c3aed");
+    });
+
+    it("respects custom defaultColor with no zones at all", () => {
+      const { container } = render(
+        <ArcGauge
+          data={{ value: 50, timestamp: null }}
+          defaultColor="#10b981"
+        />,
+      );
+      const paths = container.querySelectorAll("path");
+      const fillArc = paths[paths.length - 1];
+      expect(fillArc.getAttribute("stroke")).toBe("#10b981");
+    });
   });
 
   describe("styles", () => {

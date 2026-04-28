@@ -457,6 +457,104 @@ describe("TimeSeries - area", () => {
     const areaPaths = container.querySelectorAll('path[opacity="0.15"]');
     expect(areaPaths.length).toBe(0);
   });
+
+  it("area fill matches the metric line color", () => {
+    const { container } = render(<TimeSeries data={singleDevice()} area />);
+    const areaPath = container.querySelector('path[opacity="0.15"]');
+    const linePaths = Array.from(
+      container.querySelectorAll("path[stroke][fill='none']"),
+    );
+    expect(areaPath).not.toBeNull();
+    expect(linePaths.length).toBeGreaterThan(0);
+    const lineStroke = linePaths[0].getAttribute("stroke");
+    expect(areaPath?.getAttribute("fill")).toBe(lineStroke);
+  });
+});
+
+// ─── Timezone (X-axis only) ─────────────────────────────────
+
+describe("TimeSeries - timezone", () => {
+  it("renders without crashing when an IANA timezone is provided", () => {
+    const { container } = render(
+      <TimeSeries data={singleDevice()} timezone="Asia/Kolkata" />,
+    );
+    expect(container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("does not affect tooltip formatTimestamp callback", () => {
+    const formatTimestamp = vi.fn(() => "TS");
+    render(
+      <TimeSeries
+        data={singleDevice()}
+        timezone="UTC"
+        formatTimestamp={formatTimestamp}
+      />,
+    );
+    // formatTimestamp is only invoked on hover; just ensure we wired both props together without throwing.
+    expect(formatTimestamp).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Adaptive X-axis tick format ────────────────────────────
+
+describe("TimeSeries - adaptive x-axis tick format", () => {
+  function getTickLabels(container: HTMLElement): string[] {
+    // X-axis labels contain ":" (time component); Y-axis labels are bare numbers.
+    return Array.from(container.querySelectorAll("g.tick text"))
+      .map((t) => t.textContent ?? "")
+      .filter((l) => l.includes(":"));
+  }
+
+  it("uses HH:MM:SS format when span is <= 24 hours", () => {
+    // 1 hour of data — well under 24h
+    const data: Record<string, DataPoint[]> = {
+      "device-a": Array.from({ length: 12 }, (_, i) => ({
+        timestamp: NOW - (12 - i) * 5 * 60_000,
+        value: i,
+      })),
+    };
+    const { container } = render(<TimeSeries data={data} />);
+    const labels = getTickLabels(container);
+    expect(labels.length).toBeGreaterThan(0);
+    // HH:MM:SS — three colon-separated digit groups
+    expect(labels.every((l) => /^\d{2}:\d{2}:\d{2}$/.test(l))).toBe(true);
+  });
+
+  it("uses MMM DD HH:MM format when span is > 24 hours", () => {
+    // 7 days of data
+    const COUNT = 7 * 24;
+    const data: Record<string, DataPoint[]> = {
+      "device-a": Array.from({ length: COUNT }, (_, i) => ({
+        timestamp: NOW - (COUNT - i) * 3600_000,
+        value: i,
+      })),
+    };
+    const { container } = render(<TimeSeries data={data} />);
+    const labels = getTickLabels(container);
+    expect(labels.length).toBeGreaterThan(0);
+    // "MMM DD HH:MM" — month abbrev + day + time
+    expect(
+      labels.every((l) => /^[A-Za-z]{3}\s+\d{1,2}\s+\d{2}:\d{2}$/.test(l)),
+    ).toBe(true);
+  });
+
+  it("multi-day format also applies when timezone is set", () => {
+    const COUNT = 7 * 24;
+    const data: Record<string, DataPoint[]> = {
+      "device-a": Array.from({ length: COUNT }, (_, i) => ({
+        timestamp: NOW - (COUNT - i) * 3600_000,
+        value: i,
+      })),
+    };
+    const { container } = render(
+      <TimeSeries data={data} timezone="UTC" />,
+    );
+    const labels = getTickLabels(container);
+    expect(labels.length).toBeGreaterThan(0);
+    expect(
+      labels.every((l) => /^[A-Za-z]{3}\s+\d{1,2},?\s+\d{2}:\d{2}$/.test(l)),
+    ).toBe(true);
+  });
 });
 
 // ─── Grid ───────────────────────────────────────────────────

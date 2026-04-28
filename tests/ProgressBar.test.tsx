@@ -181,6 +181,49 @@ describe("ProgressBar", () => {
     });
   });
 
+  describe("defaultColor", () => {
+    function getFillBg(container: HTMLElement): string {
+      const allDivs = container.querySelectorAll("div > div");
+      const fillDiv = Array.from(allDivs).find((d) =>
+        (d as HTMLElement).style.transition?.includes("width"),
+      ) as HTMLElement;
+      return fillDiv?.style.backgroundColor ?? "";
+    }
+
+    it("falls back to blue (#3b82f6) when no zones are provided", () => {
+      const { container } = render(
+        <ProgressBar
+          data={{ value: 50, timestamp: null }}
+          showLabel={false}
+        />,
+      );
+      expect(getFillBg(container)).toBe("rgb(59, 130, 246)"); // #3b82f6
+    });
+
+    it("falls back to defaultColor when value is outside all zones", () => {
+      const { container } = render(
+        <ProgressBar
+          data={{ value: 50, timestamp: null }}
+          alertZones={[{ min: 80, max: 100, color: "red" }]}
+          defaultColor="#7c3aed"
+          showLabel={false}
+        />,
+      );
+      expect(getFillBg(container)).toBe("rgb(124, 58, 237)"); // #7c3aed
+    });
+
+    it("respects custom defaultColor with no zones", () => {
+      const { container } = render(
+        <ProgressBar
+          data={{ value: 50, timestamp: null }}
+          defaultColor="#10b981"
+          showLabel={false}
+        />,
+      );
+      expect(getFillBg(container)).toBe("rgb(16, 185, 129)"); // #10b981
+    });
+  });
+
   describe("orientation", () => {
     function getFillBar(container: HTMLElement): HTMLElement {
       const allDivs = container.querySelectorAll("div > div");

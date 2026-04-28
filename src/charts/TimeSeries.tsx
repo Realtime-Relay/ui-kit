@@ -30,7 +30,7 @@ import { resolveMetrics } from "../utils/metrics";
 import { useResolvedStyles } from "../utils/useResolvedStyles";
 import { getMetricColor } from "../theme/palette";
 import { applyDownsample } from "../utils/downsample";
-import { defaultFormatValue } from "../utils/formatters";
+import { defaultFormatValue, formatAxisTime } from "../utils/formatters";
 import { createScaler, CHART_REFERENCE } from "../utils/scaler";
 import {
   isValidTimestamp,
@@ -134,6 +134,8 @@ export interface TimeSeriesProps {
   onZoneChange?: (transition: TimeSeriesZoneTransition) => void;
   /** Custom formatter for timestamps in the default tooltip. Receives epoch ms, returns display string. */
   formatTimestamp?: (timestamp: number) => string;
+  /** IANA timezone (e.g., "Asia/Kolkata", "America/New_York") for x-axis tick labels. Defaults to browser local time. */
+  timezone?: string;
   onError?: (error: ComponentError) => void;
 }
 
@@ -195,6 +197,7 @@ export const TimeSeries = memo(function TimeSeries({
   onAnnotationHover,
   onZoneChange,
   formatTimestamp: formatTimestampProp,
+  timezone,
   onError,
 }: TimeSeriesProps) {
   validateAlertZones(alertZones, "TimeSeries");
@@ -576,7 +579,29 @@ export const TimeSeries = memo(function TimeSeries({
           .domain([xDomainMin, xDomainMax])
           .range([0, chartWidth]);
 
-        const tickFormat = timeFormat("%H:%M:%S");
+        const spanMs = xDomainMax.getTime() - xDomainMin.getTime();
+        const ONE_DAY = 24 * 60 * 60 * 1000;
+        const spansMultipleDays = spanMs > ONE_DAY;
+
+        const tickFormat = timezone
+          ? (d: Date) =>
+              spansMultipleDays
+                ? formatAxisTime(d, timezone, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  })
+                : formatAxisTime(d, timezone, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false,
+                  })
+          : spansMultipleDays
+            ? timeFormat("%b %d %H:%M")
+            : timeFormat("%H:%M:%S");
 
         // Y domain from visible data
         let yMin = Infinity;
