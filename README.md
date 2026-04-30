@@ -39,7 +39,7 @@ All data hooks share the envelope `{ data, isLoading, error }`. Streaming hooks 
 | `useRelayEvents` | Named device events. | `historical` / `realtime` / `both` |
 | `useRelayLogs` | Device logs filtered by level (info/warn/error). | `historical` / `realtime` / `both` |
 | `useRelayCommands` | Command-send history per device. Sliding `end` on refresh. | `historical` only (poll via `refreshInterval`) |
-| `useRelayAlerts` | Fire/resolved/ack timeline per device or per rule. Sliding `end` on refresh. | `historical` only (poll via `refreshInterval`) |
+| `useRelayAlerts` | Fire/resolved/ack feed across the org with optional `ruleIds` / `deviceIdents` / `groupIds` filters. Returns flat snake_case events; frontend reduces by `incident_id` for incident-level UI. | `historical` / `realtime` / `both` |
 
 ### Aggregation example
 
@@ -63,6 +63,30 @@ const { data, refresh } = useRelayCommands({
   refreshInterval: 5000, // every 5s; `end` slides to "now" each tick
 });
 ```
+
+### Alerts feed example
+
+```tsx
+const { data } = useRelayAlerts({
+  mode: "both",
+  filters: { deviceIdents: ["sensor-1"] },
+  timeRange: { start: new Date(Date.now() - 24 * 3600 * 1000), end: new Date() },
+});
+
+// Each event (snake_case, matches app.alert.stream() payload):
+// { state, rule_id, rule_name, rule_type, device_id, device_ident,
+//   incident_id, timestamp, rolling_state? | last_value? | ack? }
+
+// Reduce to active-incident view (one row per incident):
+const active = new Map<string, (typeof data)[number]>();
+for (const e of data) {
+  if (!e.incident_id) continue;
+  if (e.state === "resolved") active.delete(e.incident_id);
+  else active.set(e.incident_id, e); // latest event wins
+}
+```
+
+`mode: 'both'` reconciles via `app.alert.history()` (silent on page load) then takes over with `app.alert.stream()` from `now`. Filters are AND-combined; omit them all to subscribe to every alert in the org.
 
 ## Components
 
