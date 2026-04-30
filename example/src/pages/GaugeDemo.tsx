@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
-import { RelayApp } from "relayx-app-js";
+import { RelayApp } from "@relay-x/app-sdk";
 import {
   NeedleGauge,
   ArcGauge,
