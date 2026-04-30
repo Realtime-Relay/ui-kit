@@ -35,7 +35,7 @@
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
-    "relayx-app-js": "0.1.1"
+    "@relay-x/app-sdk": "0.1.6"
   },
   "peerDependenciesMeta": {
     "relayx-app-js": {

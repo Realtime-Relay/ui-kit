@@ -79,6 +79,8 @@ export interface RelayAppInstance {
       fields: string[];
       start: string;
       end: string;
+      interval?: string;
+      aggregate_fn?: string;
     }) => Promise<Record<string, { value: any; timestamp: number }[]>>;
     latest: (opts: {
       device_ident: string;
@@ -101,12 +103,63 @@ export interface RelayAppInstance {
   alert: {
     list: () => Promise<{ status: string; data: any[] }>;
     history: (opts: {
-      rule_type: string;
-      rule_id: string;
+      rule_type: "DEVICE" | "RULE";
+      device_ident?: string;
+      rule_id?: string;
       rule_states: string[];
+      incident_id?: string;
       start: string;
       end: string;
-    }) => Promise<{ status: string; data: any[] }>;
+    }) => Promise<any>;
+  };
+  events: {
+    stream: (opts: {
+      name: string;
+      device_ident: string | string[];
+      callback: (payload: Record<string, any>) => void;
+    }) => boolean;
+    off: (opts: { name: string }) => void;
+    history: (opts: {
+      device_ident: string;
+      event_names: string[];
+      start: string;
+      end: string;
+    }) => Promise<Record<string, { value: any; timestamp: number }[]>>;
+  };
+  log: {
+    stream: (opts: {
+      device_ident: string;
+      levels?: string | string[];
+      callback: (entry: {
+        level: "info" | "warn" | "error";
+        data: string;
+        timestamp: number;
+      }) => void;
+    }) => Promise<void>;
+    off: (opts: { device_ident: string }) => Promise<void>;
+    history: (opts: {
+      device_ident: string;
+      levels?: string[];
+      start: string;
+      end: string;
+    }) => Promise<{
+      info: { value: any; timestamp: number }[];
+      warn: { value: any; timestamp: number }[];
+      error: { value: any; timestamp: number }[];
+    }>;
+  };
+  command: {
+    history: (opts: {
+      name: string;
+      device_idents: string[];
+      start: string;
+      end: string;
+    }) => Promise<
+      Record<
+        string,
+        Array<{ value: any; timestamp: number }> | { error: string }
+      >
+    >;
   };
   device: {
     get: (ident: string) => Promise<{ status: string; data: any }>;
