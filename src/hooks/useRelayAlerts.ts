@@ -52,9 +52,18 @@ function toUTCISO(value: Date | string): string {
 }
 
 /**
- * Fetch historical alert events for a single rule or device. The SDK only
- * exposes per-rule / per-device history queries — this helper iterates the
- * relevant filter list and merges results.
+ * Fetch historical alert events.
+ *
+ * Uses the org-wide alert.history endpoint:
+ *   - rule_type: "ORG"             → no filters, every alert in the org
+ *   - filters.deviceIdents          → forwarded as device_idents
+ *   - filters.ruleIds (length === 1) → forwarded as rule_id (rule_type: "RULE")
+ *   - filters.ruleIds (length > 1)  → fan out, one query per rule (no
+ *                                      multi-rule support on the endpoint yet)
+ *
+ * Backend yields `rule_id` and `device_id` on every event, so callers always
+ * know which rule/device emitted. Rule-name / rule-type enrichment happens
+ * client-side via `getCachedById` after fetch.
  */
 async function fetchHistorical(
   app: any,
@@ -65,55 +74,76 @@ async function fetchHistorical(
   const ruleIds = filters?.ruleIds ?? [];
   const deviceIdents = filters?.deviceIdents ?? [];
 
-  // If neither is set, we can't query history — the SDK requires at least
-  // one. Iterate the rule list as a fallback so the dashboard still gets
-  // a reconciled snapshot.
-  let effectiveRuleIds = ruleIds;
-  if (effectiveRuleIds.length === 0 && deviceIdents.length === 0) {
-    const listResult = await app.alert.list();
-    const rules = Array.isArray(listResult)
-      ? listResult
-      : (listResult?.data ?? []);
-    effectiveRuleIds = rules.map((r: any) => r.id).filter(Boolean);
-  }
-
   const all: RelayAlertEvent[] = [];
 
-  // Per-rule queries
-  for (const ruleId of effectiveRuleIds) {
+  if (ruleIds.length > 1) {
+    // Multi-rule fan-out (endpoint accepts a single rule_id today).
+    for (const ruleId of ruleIds) {
+      try {
+        const result: any = await app.alert.history({
+          rule_type: "RULE",
+          rule_id: ruleId,
+          ...(deviceIdents.length > 0 ? { device_idents: deviceIdents } : {}),
+          rule_states: ["fire", "resolved", "ack"],
+          start: startUTC,
+          end: endUTC,
+        });
+        mergeIntoEvents(all, result);
+      } catch (err) {
+        console.warn(
+          "[RelayX alert.history] rule fetch failed",
+          ruleId,
+          err,
+        );
+      }
+    }
+  } else {
+    // Single query: ORG-wide, optionally narrowed by deviceIdents and/or one rule.
+    const ruleType = ruleIds.length === 1 ? "RULE" : "ORG";
     try {
       const result: any = await app.alert.history({
-        rule_type: "RULE",
-        rule_id: ruleId,
+        rule_type: ruleType,
+        ...(ruleIds.length === 1 ? { rule_id: ruleIds[0] } : {}),
+        ...(deviceIdents.length > 0 ? { device_idents: deviceIdents } : {}),
         rule_states: ["fire", "resolved", "ack"],
         start: startUTC,
         end: endUTC,
       });
-      const enrich = await enrichmentForRule(app, ruleId);
-      mergeIntoEvents(all, result, ruleId, enrich);
+      mergeIntoEvents(all, result);
     } catch (err) {
-      console.warn("[RelayX alert.history] rule fetch failed", ruleId, err);
+      console.warn("[RelayX alert.history] org fetch failed", err);
     }
   }
 
-  // Per-device queries
-  for (const ident of deviceIdents) {
-    try {
-      const result: any = await app.alert.history({
-        rule_type: "DEVICE",
-        device_ident: ident,
-        rule_states: ["fire", "resolved", "ack"],
-        start: startUTC,
-        end: endUTC,
-      });
-      mergeIntoEvents(all, result, undefined, { device_ident: ident });
-    } catch (err) {
-      console.warn("[RelayX alert.history] device fetch failed", ident, err);
+  // Enrich each event with rule_name / rule_type from the rule cache.
+  // Warm getCachedById by listing once if needed.
+  const distinctRuleIds = new Set<string>();
+  for (const e of all) if (e.rule_id) distinctRuleIds.add(e.rule_id);
+  if (distinctRuleIds.size > 0) {
+    const needsList =
+      typeof app.alert.getCachedById === "function" &&
+      [...distinctRuleIds].some((id) => !app.alert.getCachedById(id));
+    if (needsList && typeof app.alert.list === "function") {
+      try {
+        await app.alert.list();
+      } catch {
+        /* noop */
+      }
+    }
+  }
+  for (const e of all) {
+    if (!e.rule_id) continue;
+    let rule: any = null;
+    if (typeof app.alert.getCachedById === "function") {
+      rule = app.alert.getCachedById(e.rule_id);
+    }
+    if (rule) {
+      e.rule_name = rule.name;
+      e.rule_type = rule.type ?? "THRESHOLD";
     }
   }
 
-  // Deduplicate (same incident_id + state + timestamp may appear via both
-  // per-rule and per-device queries).
+  // Deduplicate (belt-and-braces).
   const seen = new Set<string>();
   const deduped: RelayAlertEvent[] = [];
   for (const e of all) {
@@ -126,39 +156,18 @@ async function fetchHistorical(
   return deduped;
 }
 
-async function enrichmentForRule(app: any, ruleId: string) {
-  let rule: any = null;
-  if (typeof app.alert.getCachedById === "function") {
-    rule = app.alert.getCachedById(ruleId);
-  }
-  if (!rule && typeof app.alert.getById === "function") {
-    try {
-      rule = await app.alert.getById(ruleId);
-    } catch {
-      /* noop */
-    }
-  }
-  return rule
-    ? { rule_name: rule.name, rule_type: rule.type ?? "THRESHOLD" }
-    : {};
-}
-
-function mergeIntoEvents(
-  out: RelayAlertEvent[],
-  result: any,
-  ruleId: string | undefined,
-  enrich: Partial<RelayAlertEvent>,
-) {
-  // Spec shape: { events: [{ state, value, timestamp, incident_id }] }
+function mergeIntoEvents(out: RelayAlertEvent[], result: any) {
+  // Spec shape: { events: [{ state, value, timestamp, incident_id, rule_id, device_id }] }
+  // rule_name / rule_type are filled in later via the rule cache.
   if (Array.isArray(result?.events)) {
     for (const e of result.events) {
       out.push({
         state: e.state,
-        rule_id: ruleId ?? e.rule_id ?? "",
+        rule_id: e.rule_id ?? "",
+        ...(e.device_id ? { device_id: e.device_id } : {}),
         incident_id: e.incident_id ?? null,
         timestamp: e.timestamp,
         ...(e.value !== undefined ? { rolling_state: e.value } : {}),
-        ...enrich,
       });
     }
     return;
@@ -170,11 +179,11 @@ function mergeIntoEvents(
     for (const entry of entries) {
       out.push({
         state,
-        rule_id: ruleId ?? "",
+        rule_id: entry.rule_id ?? "",
+        ...(entry.device_id ? { device_id: entry.device_id } : {}),
         incident_id: entry.incident_id ?? null,
         timestamp: entry.timestamp,
         ...(entry.value !== undefined ? { rolling_state: entry.value } : {}),
-        ...enrich,
       });
     }
   }
