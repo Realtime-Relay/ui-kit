@@ -94,6 +94,25 @@ export function Sidebar({
             letterSpacing: 1,
           }}
         >
+          Live Hooks
+        </div>
+        <NavItem
+          label="Streams"
+          active={activePage === "streams"}
+          onClick={() => onNavigate("streams")}
+          icon="⚡"
+        />
+
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: "#475569",
+            padding: "16px 12px 4px",
+            textTransform: "uppercase",
+            letterSpacing: 1,
+          }}
+        >
           Full Dashboard
         </div>
         <NavItem

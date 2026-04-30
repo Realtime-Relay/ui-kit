@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { RelayApp } from "relayx-app-js";
+import { RelayApp } from "@relay-x/app-sdk";
 import {
   TimeSeries,
   RelayProvider,

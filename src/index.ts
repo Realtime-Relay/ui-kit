@@ -57,6 +57,7 @@ export { useRelayTimeSeries } from "./hooks/useRelayTimeSeries";
 export type {
   UseRelayTimeSeriesOptions,
   UseRelayTimeSeriesResult,
+  AggregateFn,
 } from "./hooks/useRelayTimeSeries";
 export { useRelayLatest } from "./hooks/useRelayLatest";
 export type {
@@ -68,6 +69,32 @@ export type {
   UseRelayPresenceResult,
   PresenceEvent,
 } from "./hooks/useRelayPresence";
+export { useRelayEvents } from "./hooks/useRelayEvents";
+export type {
+  UseRelayEventsOptions,
+  UseRelayEventsResult,
+  RelayEvent,
+} from "./hooks/useRelayEvents";
+export { useRelayLogs } from "./hooks/useRelayLogs";
+export type {
+  UseRelayLogsOptions,
+  UseRelayLogsResult,
+  RelayLog,
+  LogLevel,
+} from "./hooks/useRelayLogs";
+export { useRelayCommands } from "./hooks/useRelayCommands";
+export type {
+  UseRelayCommandsOptions,
+  UseRelayCommandsResult,
+  RelayCommand,
+} from "./hooks/useRelayCommands";
+export { useRelayAlerts } from "./hooks/useRelayAlerts";
+export type {
+  UseRelayAlertsOptions,
+  UseRelayAlertsResult,
+  RelayAlertEvent,
+  AlertState,
+} from "./hooks/useRelayAlerts";
 
 // Zone transition
 export { useZoneTransition } from "./utils/useZoneTransition";

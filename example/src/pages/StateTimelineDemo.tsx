@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { RelayApp } from "relayx-app-js";
+import { RelayApp } from "@relay-x/app-sdk";
 import {
   StateTimeline,
   RelayProvider,

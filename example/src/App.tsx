@@ -8,6 +8,7 @@ import { GaugeDemo } from "./pages/GaugeDemo";
 import { StatCardDemo } from "./pages/StatCardDemo";
 import { StateTimelineDemo } from "./pages/StateTimelineDemo";
 import { TimeSeriesDemo } from "./pages/TimeSeriesDemo";
+import { StreamsDemo } from "./pages/StreamsDemo";
 import { TestGauges } from "./pages/TestGauges";
 import { TestProgressBar } from "./pages/TestProgressBar";
 import { TestStatCards } from "./pages/TestStatCards";
@@ -24,7 +25,8 @@ export type Page =
   | "gauges"
   | "statcards"
   | "timelines"
-  | "timeseries";
+  | "timeseries"
+  | "streams";
 
 /** Hash-based test routes for Playwright (no SDK needed) */
 function useTestRoute(): string | null {
@@ -77,6 +79,7 @@ export function App() {
         {page === "statcards" && <StatCardDemo />}
         {page === "timelines" && <StateTimelineDemo />}
         {page === "timeseries" && <TimeSeriesDemo />}
+        {page === "streams" && <StreamsDemo />}
       </main>
     </>
   );

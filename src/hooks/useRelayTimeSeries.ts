@@ -3,6 +3,17 @@ import type { DataPoint, TimeRange } from "../utils/types";
 import { useRelayApp } from "../context/RelayProvider";
 import { normalizeRealtimePoint } from "../utils/data";
 
+export type AggregateFn =
+  | "mean"
+  | "min"
+  | "max"
+  | "sum"
+  | "count"
+  | "first"
+  | "last"
+  | "median"
+  | "stddev";
+
 export interface UseRelayTimeSeriesOptions {
   deviceIdent: string;
   metrics: string[];
@@ -10,6 +21,10 @@ export interface UseRelayTimeSeriesOptions {
   /** 'historical' fetches history only. 'realtime' subscribes to stream only. 'both' fetches history then streams. Default: 'historical'. */
   mode?: "realtime" | "historical" | "both";
   maxPoints?: number;
+  /** Flux duration for time bucketing, e.g. "30s", "5m", "1h". Pair with `aggregateFn`. Historical mode only. */
+  interval?: string;
+  /** Aggregate function applied per bucket. Pair with `interval`. Historical mode only. */
+  aggregateFn?: AggregateFn;
 }
 
 export interface UseRelayTimeSeriesResult {
@@ -34,6 +49,8 @@ export function useRelayTimeSeries({
   timeRange,
   mode = "historical",
   maxPoints = 10000,
+  interval,
+  aggregateFn,
 }: UseRelayTimeSeriesOptions): UseRelayTimeSeriesResult {
   const app = useRelayApp();
   const [data, setData] = useState<DataPoint[]>([]);
@@ -61,6 +78,8 @@ export function useRelayTimeSeries({
           fields: metrics,
           start: startUTC,
           end: endUTC,
+          ...(interval ? { interval } : {}),
+          ...(aggregateFn ? { aggregate_fn: aggregateFn } : {}),
         });
 
         const result = await app!.telemetry.history({
@@ -68,6 +87,8 @@ export function useRelayTimeSeries({
           fields: metrics,
           start: startUTC,
           end: endUTC,
+          ...(interval ? { interval } : {}),
+          ...(aggregateFn ? { aggregate_fn: aggregateFn } : {}),
         });
 
         if (!cancelled && result) {
@@ -78,6 +99,11 @@ export function useRelayTimeSeries({
             if (!Array.isArray(entries)) continue;
 
             for (const entry of entries) {
+              if (
+                typeof entry.value === "number" &&
+                Number.isNaN(entry.value)
+              )
+                continue;
               const point = normalizeRealtimePoint({ metric, data: entry });
               const existing = byTimestamp.get(point.timestamp);
               if (existing) {
@@ -121,7 +147,16 @@ export function useRelayTimeSeries({
     return () => {
       cancelled = true;
     };
-  }, [app, deviceIdent, metrics.join(","), startUTC, endUTC, fetchHistory]);
+  }, [
+    app,
+    deviceIdent,
+    metrics.join(","),
+    startUTC,
+    endUTC,
+    fetchHistory,
+    interval,
+    aggregateFn,
+  ]);
 
   // Realtime / both mode: subscribe to stream
   const startStream = mode === "realtime" || mode === "both";
@@ -136,6 +171,11 @@ export function useRelayTimeSeries({
       callback: (msg) => {
         if (cancelled) return;
         console.log("[RelayX stream]", msg.metric, msg.data);
+        if (
+          typeof msg.data?.value === "number" &&
+          Number.isNaN(msg.data.value)
+        )
+          return;
         const point = normalizeRealtimePoint(msg);
         realtimeBuffer.current.push(point);
       },
