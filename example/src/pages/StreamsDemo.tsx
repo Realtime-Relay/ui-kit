@@ -826,20 +826,46 @@ function CommandsTable({
 
 // ─── Alerts ────────────────────────────────────────────────────────────────
 function AlertsSection({ deviceIdent }: { deviceIdent: string }) {
-  const [ruleType, setRuleType] = useState<"DEVICE" | "RULE">("DEVICE");
-  const [ruleId, setRuleId] = useState("");
-  const [states, setStates] = useState<AlertState[]>([]);
-  const [refreshInterval, setRefreshInterval] = useState(0);
+  const [mode, setMode] = useState<Mode>("historical");
+  const [identsText, setIdentsText] = useState("");
+  const [ruleIdsText, setRuleIdsText] = useState("");
+  const [groupIdsText, setGroupIdsText] = useState("");
   const [range, setRange] = useState(defaultRange());
   const [active, setActive] = useState(false);
 
-  const toggleState = (s: AlertState) =>
-    setStates((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-    );
+  const filters = useMemo(() => {
+    const split = (s: string) =>
+      s
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+    const out: {
+      deviceIdents?: string[];
+      ruleIds?: string[];
+      groupIds?: string[];
+    } = {};
+    const d = split(identsText);
+    const r = split(ruleIdsText);
+    const g = split(groupIdsText);
+    if (d.length) out.deviceIdents = d;
+    if (r.length) out.ruleIds = r;
+    if (g.length) out.groupIds = g;
+    return out;
+  }, [identsText, ruleIdsText, groupIdsText]);
 
   return (
     <Section title="useRelayAlerts">
+      <div
+        style={{
+          fontSize: 12,
+          color: "#6b7280",
+          marginBottom: 12,
+        }}
+      >
+        Live + historical alert events across the org. Snake_case payload
+        (rule_id, rule_name, device_ident, incident_id, ack, rolling_state,
+        …). Default device ident pre-filled: <code>{deviceIdent}</code>.
+      </div>
       <div
         style={{
           display: "flex",
@@ -849,48 +875,37 @@ function AlertsSection({ deviceIdent }: { deviceIdent: string }) {
           alignItems: "flex-end",
         }}
       >
-        <Field label="Rule type">
+        <Field label="Mode">
           <select
             style={inputStyle}
-            value={ruleType}
-            onChange={(e) => setRuleType(e.target.value as "DEVICE" | "RULE")}
+            value={mode}
+            onChange={(e) => setMode(e.target.value as Mode)}
           >
-            <option value="DEVICE">DEVICE</option>
-            <option value="RULE">RULE</option>
+            <option value="historical">historical</option>
+            <option value="realtime">realtime</option>
+            <option value="both">both</option>
           </select>
         </Field>
-        {ruleType === "RULE" && (
-          <Field label="Rule ID">
-            <input
-              style={inputStyle}
-              value={ruleId}
-              onChange={(e) => setRuleId(e.target.value)}
-            />
-          </Field>
-        )}
-        <Field label="States (none = all)">
-          <div style={{ display: "flex", gap: 8 }}>
-            {(["fire", "resolved", "ack"] as AlertState[]).map((s) => (
-              <label
-                key={s}
-                style={{ display: "flex", alignItems: "center", gap: 4 }}
-              >
-                <input
-                  type="checkbox"
-                  checked={states.includes(s)}
-                  onChange={() => toggleState(s)}
-                />
-                {s}
-              </label>
-            ))}
-          </div>
-        </Field>
-        <Field label="Refresh interval (ms, 0=off)">
+        <Field label="Device idents (csv, blank = any)">
           <input
-            type="number"
             style={inputStyle}
-            value={refreshInterval}
-            onChange={(e) => setRefreshInterval(Number(e.target.value) || 0)}
+            value={identsText}
+            onChange={(e) => setIdentsText(e.target.value)}
+            placeholder={deviceIdent}
+          />
+        </Field>
+        <Field label="Rule IDs (csv, blank = any)">
+          <input
+            style={inputStyle}
+            value={ruleIdsText}
+            onChange={(e) => setRuleIdsText(e.target.value)}
+          />
+        </Field>
+        <Field label="Group IDs (csv, blank = any)">
+          <input
+            style={inputStyle}
+            value={groupIdsText}
+            onChange={(e) => setGroupIdsText(e.target.value)}
           />
         </Field>
         <Field label="Hours back">
@@ -907,80 +922,49 @@ function AlertsSection({ deviceIdent }: { deviceIdent: string }) {
           type="button"
           style={runBtnStyle(active)}
           onClick={() => setActive((v) => !v)}
-          disabled={ruleType === "RULE" && !ruleId}
         >
           {active ? "Stop" : "Run"}
         </button>
       </div>
       {active && (
-        <AlertsTable
-          ruleType={ruleType}
-          deviceIdent={ruleType === "DEVICE" ? deviceIdent : undefined}
-          ruleId={ruleType === "RULE" ? ruleId : undefined}
-          ruleStates={states.length > 0 ? states : undefined}
-          refreshInterval={refreshInterval}
-          range={range}
-        />
+        <AlertsTable mode={mode} filters={filters} range={range} />
       )}
     </Section>
   );
 }
 
 function AlertsTable({
-  ruleType,
-  deviceIdent,
-  ruleId,
-  ruleStates,
-  refreshInterval,
+  mode,
+  filters,
   range,
 }: {
-  ruleType: "DEVICE" | "RULE";
-  deviceIdent?: string;
-  ruleId?: string;
-  ruleStates?: AlertState[];
-  refreshInterval: number;
+  mode: Mode;
+  filters: { deviceIdents?: string[]; ruleIds?: string[]; groupIds?: string[] };
   range: { start: Date; end: Date };
 }) {
-  const { data, isLoading, error, refresh } = useRelayAlerts({
-    ruleType,
-    deviceIdent,
-    ruleId,
-    ruleStates,
+  const { data, isLoading, error } = useRelayAlerts({
+    mode,
+    filters,
     timeRange: range,
-    refreshInterval: refreshInterval > 0 ? refreshInterval : undefined,
   });
   const stateColor: Record<AlertState, string> = {
     fire: "#dc2626",
     resolved: "#16a34a",
-    ack: "#2563eb",
+    ack: "#d97706",
   };
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 8,
-        }}
-      >
-        <StatusBar isLoading={isLoading} error={error} count={data.length} />
-        <button
-          type="button"
-          onClick={refresh}
-          style={{ ...inputStyle, cursor: "pointer", padding: "4px 10px" }}
-        >
-          Refresh now
-        </button>
-      </div>
-      <div style={{ maxHeight: 280, overflow: "auto" }}>
+      <StatusBar isLoading={isLoading} error={error} count={data.length} />
+      <div style={{ maxHeight: 320, overflow: "auto" }}>
         <table style={tableStyle}>
           <thead>
             <tr>
               <th style={thStyle}>Timestamp</th>
               <th style={thStyle}>State</th>
+              <th style={thStyle}>Rule</th>
+              <th style={thStyle}>Device</th>
               <th style={thStyle}>Incident</th>
-              <th style={thStyle}>Value</th>
+              <th style={thStyle}>Value / Ack</th>
             </tr>
           </thead>
           <tbody>
@@ -995,8 +979,19 @@ function AlertsTable({
                   <td style={{ ...tdStyle, color: stateColor[a.state] }}>
                     {a.state}
                   </td>
-                  <td style={tdStyle}>{a.incidentId ?? "—"}</td>
-                  <td style={tdStyle}>{JSON.stringify(a.value)}</td>
+                  <td style={tdStyle}>
+                    {a.rule_name ?? a.rule_id ?? "—"}
+                    {a.rule_type ? ` (${a.rule_type})` : ""}
+                  </td>
+                  <td style={tdStyle}>
+                    {a.device_ident ?? a.device_id ?? "—"}
+                  </td>
+                  <td style={tdStyle}>{a.incident_id ?? "—"}</td>
+                  <td style={tdStyle}>
+                    {a.ack
+                      ? `acked by ${a.ack.acked_by}${a.ack.ack_notes ? ` — "${a.ack.ack_notes}"` : ""}`
+                      : JSON.stringify(a.rolling_state ?? a.last_value ?? null)}
+                  </td>
                 </tr>
               ))}
           </tbody>

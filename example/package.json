@@ -12,7 +12,7 @@
     "@relayx/ui": "file:..",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "@relay-x/app-sdk": "0.1.6"
+    "@relay-x/app-sdk": "0.1.7"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

@@ -101,7 +101,7 @@ export interface RelayAppInstance {
     ) => void;
   };
   alert: {
-    list: () => Promise<{ status: string; data: any[] }>;
+    list: () => Promise<any[] | { status: string; data: any[] }>;
     history: (opts: {
       rule_type: "DEVICE" | "RULE";
       device_ident?: string;
@@ -111,6 +111,16 @@ export interface RelayAppInstance {
       start: string;
       end: string;
     }) => Promise<any>;
+    stream: (opts: {
+      filters?: {
+        ruleIds?: string[];
+        deviceIdents?: string[];
+        groupIds?: string[];
+      };
+      callback: (event: any) => void;
+    }) => Promise<{ off: () => Promise<void> }>;
+    getById?: (ruleId: string) => Promise<any | null>;
+    getCachedById?: (ruleId: string) => any | null;
   };
   events: {
     stream: (opts: {
