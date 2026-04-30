@@ -115,31 +115,94 @@ async function fetchHistorical(
     }
   }
 
-  // Enrich each event with rule_name / rule_type from the rule cache.
-  // Warm getCachedById by listing once if needed.
-  const distinctRuleIds = new Set<string>();
-  for (const e of all) if (e.rule_id) distinctRuleIds.add(e.rule_id);
-  if (distinctRuleIds.size > 0) {
-    const needsList =
-      typeof app.alert.getCachedById === "function" &&
-      [...distinctRuleIds].some((id) => !app.alert.getCachedById(id));
-    if (needsList && typeof app.alert.list === "function") {
-      try {
-        await app.alert.list();
-      } catch {
-        /* noop */
+  // ─── Enrichment ────────────────────────────────────────────
+  // Backend returns rule_id and device_id as UUIDs. Resolve them to
+  // human-readable rule_name / rule_type / device_ident in three passes:
+  //   1. Warm both caches via list() once.
+  //   2. For any UUID still missing after warm, refresh per-miss
+  //      (alert.getById for rules, device.list() once for devices).
+  //   3. Walk the events and patch in the resolved fields.
+
+  // Pass 1 — warm caches.
+  const ruleById = new Map<string, any>();
+  if (typeof app.alert.list === "function") {
+    try {
+      const r = await app.alert.list();
+      const rules: any[] = Array.isArray(r) ? r : (r?.data ?? []);
+      for (const rule of rules) {
+        if (rule?.id) ruleById.set(rule.id, rule);
       }
+    } catch {
+      /* noop */
     }
   }
-  for (const e of all) {
-    if (!e.rule_id) continue;
-    let rule: any = null;
-    if (typeof app.alert.getCachedById === "function") {
-      rule = app.alert.getCachedById(e.rule_id);
+
+  const identByDeviceId = new Map<string, string>();
+  const refreshDeviceCacheMap = () => {
+    if (!app.device?.cache) return;
+    for (const [ident, dev] of app.device.cache) {
+      if (dev?.id) identByDeviceId.set(dev.id, ident);
     }
-    if (rule) {
-      e.rule_name = rule.name;
-      e.rule_type = rule.type ?? "THRESHOLD";
+  };
+  if (app.device && typeof app.device.list === "function") {
+    try {
+      await app.device.list();
+    } catch {
+      /* noop */
+    }
+  }
+  refreshDeviceCacheMap();
+
+  // Pass 2 — resolve misses.
+  const missingRuleIds = new Set<string>();
+  const missingDeviceIds = new Set<string>();
+  for (const e of all) {
+    if (e.rule_id && !ruleById.has(e.rule_id)) missingRuleIds.add(e.rule_id);
+    if (e.device_id && !identByDeviceId.has(e.device_id))
+      missingDeviceIds.add(e.device_id);
+  }
+
+  // Per-rule lookup via getById (auto-refreshes internally).
+  if (missingRuleIds.size > 0 && typeof app.alert.getById === "function") {
+    await Promise.all(
+      [...missingRuleIds].map(async (id) => {
+        try {
+          const rule = await app.alert.getById(id);
+          if (rule?.id) ruleById.set(rule.id, rule);
+        } catch {
+          /* noop */
+        }
+      }),
+    );
+  }
+
+  // Devices have no getById — re-run list() once if any are still missing
+  // (covers the "device added since last warm" case).
+  if (
+    missingDeviceIds.size > 0 &&
+    app.device &&
+    typeof app.device.list === "function"
+  ) {
+    try {
+      await app.device.list();
+      refreshDeviceCacheMap();
+    } catch {
+      /* noop */
+    }
+  }
+
+  // Pass 3 — patch.
+  for (const e of all) {
+    if (e.rule_id) {
+      const rule = ruleById.get(e.rule_id);
+      if (rule) {
+        e.rule_name = rule.name;
+        e.rule_type = rule.type ?? "THRESHOLD";
+      }
+    }
+    if (e.device_id) {
+      const ident = identByDeviceId.get(e.device_id);
+      if (ident) e.device_ident = ident;
     }
   }
 
